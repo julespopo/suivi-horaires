@@ -1,219 +1,28 @@
-<!doctype html>
-<html lang="fr">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Mes horaires</title>
-  <link rel="stylesheet" href="styles.css">
-</head>
-<body>
-<main class="shell">
-  <div class="topbar">
-    <div><div class="brand">Mes horaires</div><div class="subtle" id="hello"></div></div>
-    <a class="pill" href="index.html">Démo</a>
-  </div>
-
-  <div class="tabs">
-    <a class="tab active" href="#today">Aujourd’hui</a>
-    <a class="tab" href="#tasks">À compléter <span id="taskCount"></span></a>
-    <a class="tab" href="#history">Historique</a>
-  </div>
-
-  <section class="card hero section" id="today">
-    <div class="eyebrow">Aujourd’hui</div>
-    <div class="row mobile-stack">
-      <div>
-        <h1 class="h1" id="todayDate"></h1>
-        <div class="subtle">Renseigne simplement tes horaires. Tu peux corriger plus tard si besoin.</div>
-      </div>
-      <span class="status neutral" id="dayStatus">En cours</span>
-    </div>
-
-    <div class="today-box section">
-      <div class="time-card">
-        <div class="time-label">Arrivée</div>
-        <div class="time-value" id="arrivalValue">—</div>
-        <div class="grid grid-2">
-          <button class="btn btn-green" onclick="setNow('arrival')">Maintenant</button>
-          <button class="btn btn-outline" onclick="openManual('arrival')">Manuel</button>
-        </div>
-      </div>
-      <div class="time-card">
-        <div class="time-label">Départ</div>
-        <div class="time-value" id="departureValue">—</div>
-        <div class="grid grid-2">
-          <button class="btn btn-soft" onclick="setNow('departure')">Maintenant</button>
-          <button class="btn btn-outline" onclick="openManual('departure')">Manuel</button>
-        </div>
-      </div>
-    </div>
-
-    <div class="form-grid section">
-      <div class="field"><label>Pause (minutes)</label><input id="pause" type="number" min="0" step="5" value="45"></div>
-      <div class="field"><label>Total aujourd’hui</label><div class="time-card"><div class="metric-sm" id="todayTotal">0h00</div></div></div>
-    </div>
-    <div class="field section"><label>Commentaire facultatif</label><textarea id="comment" rows="2" placeholder="Ex. rendez-vous extérieur, horaire exceptionnel…"></textarea></div>
-  </section>
-
-  <section class="card section" id="tasks">
-    <div class="row">
-      <div><div class="h2">À compléter</div><div class="subtle">Une seule fenêtre permet maintenant de renseigner toute la journée.</div></div>
-      <span class="status warn" id="taskBadge"></span>
-    </div>
-    <div id="taskList" class="section"></div>
-  </section>
-
-  <section class="card section" id="history">
-    <div class="h2">Historique récent</div>
-    <div class="subtle">Tu peux corriger une journée déjà remplie en cas d’erreur.</div>
-    <div class="table-wrap section">
-      <table>
-        <thead><tr><th>Date</th><th>Arrivée</th><th>Départ</th><th>Pause</th><th>Total</th><th>Statut</th><th></th></tr></thead>
-        <tbody id="historyRows"></tbody>
-      </table>
-    </div>
-  </section>
-
-  <div class="footer-note">Dans la version finale : lien personnel + PIN. Aucun autre salarié ne verra tes données.</div>
-</main>
-
-<!-- Saisie manuelle rapide pour aujourd'hui -->
-<div class="modal" id="manualModal">
-  <div class="sheet">
-    <div class="row">
-      <div><div class="h2" id="modalTitle">Saisie manuelle</div><div class="subtle">Cette saisie sera identifiée comme ajoutée manuellement.</div></div>
-      <button class="btn btn-outline" onclick="closeManual()">Fermer</button>
-    </div>
-    <div class="form-grid section">
-      <div class="field"><label>Date</label><input type="date" id="manualDate"></div>
-      <div class="field"><label>Heure</label><input type="time" id="manualTime"></div>
-    </div>
-    <button class="btn btn-primary btn-block section" onclick="saveManual()">Enregistrer</button>
-  </div>
-</div>
-
-<!-- Fenêtre complète : journée passée / correction -->
-<div class="modal" id="dayModal">
-  <div class="sheet">
-    <div class="row">
-      <div>
-        <div class="h2" id="dayModalTitle">Compléter la journée</div>
-        <div class="subtle" id="dayModalSubtitle">Renseigne les informations manquantes en une seule fois.</div>
-      </div>
-      <button class="btn btn-outline" onclick="closeDayModal()">Fermer</button>
-    </div>
-
-    <div class="field section"><label>Date</label><input type="date" id="dayDate" readonly></div>
-    <div class="form-grid section">
-      <div class="field"><label>Heure d’arrivée</label><input type="time" id="dayArrival"></div>
-      <div class="field"><label>Heure de départ</label><input type="time" id="dayDeparture"></div>
-    </div>
-    <div class="form-grid section">
-      <div class="field"><label>Pause (minutes)</label><input type="number" id="dayPause" min="0" step="5" value="45"></div>
-      <div class="field"><label>Total calculé</label><div class="time-card"><div class="metric-sm" id="dayTotal">0h00</div></div></div>
-    </div>
-    <div class="field section"><label>Commentaire facultatif</label><textarea id="dayComment" rows="2" placeholder="Ex. horaire exceptionnel…"></textarea></div>
-    <div class="note section">Les corrections restent identifiées comme saisies/modifiées manuellement dans l’historique de la future version en ligne.</div>
-    <button class="btn btn-primary btn-block section" onclick="saveDay()">Enregistrer la journée</button>
-  </div>
-</div>
-
-<script src="app.js"></script>
-<script>
-const params=new URLSearchParams(location.search),emp=employeeByToken(params.get('token'));
-let manualType='arrival';
-let dayEditMode='task';
-
-document.getElementById('hello').textContent=`Bonjour ${emp.name}`;
-document.getElementById('todayDate').textContent=frDate(iso());
-
-function render(){
-  const e=entryFor(emp.id,iso(),true);
-  arrivalValue.textContent=e.arrival||'—';
-  departureValue.textContent=e.departure||'—';
-  pause.value=e.pause??45;
-  comment.value=e.comment||'';
-  todayTotal.textContent=fmtMin(minutes(e.arrival,e.departure,e.pause));
-  const done=e.arrival&&e.departure;
-  dayStatus.textContent=done?'Journée complète':(e.arrival?'Départ à renseigner':'À renseigner');
-  dayStatus.className='status '+(done?'ok':'neutral');
-
-  const tasks=tasksFor(emp.id);
-  taskCount.textContent=tasks.length?`(${tasks.length})`:'';
-  taskBadge.textContent=tasks.length?`${tasks.length} en attente`:'Tout est à jour';
-  taskBadge.className='status '+(tasks.length?'warn':'ok');
-  taskList.innerHTML=tasks.length
-    ?tasks.map(t=>`<div class="task row"><div><div class="task-title">${frDate(t.date)}</div><div class="task-meta">${t.missing}</div></div><button class="btn btn-outline" onclick="openDay('${t.date}','task')">Compléter la journée</button></div>`).join('')
-    :'<div class="empty">Rien à compléter.</div>';
-
-  const data=getData().entries.filter(x=>x.employeeId===emp.id).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,12);
-  historyRows.innerHTML=data.map(x=>`<tr>
-    <td>${shortDate(x.date)}</td>
-    <td>${x.arrival||'—'}</td>
-    <td>${x.departure||'—'}</td>
-    <td>${x.pause||0} min</td>
-    <td><strong>${fmtMin(minutes(x.arrival,x.departure,x.pause))}</strong></td>
-    <td><span class="status ${x.arrival&&x.departure?'ok':'warn'}">${x.arrival&&x.departure?'Complet':'À compléter'}</span></td>
-    <td><button class="btn btn-outline btn-small" onclick="openDay('${x.date}','edit')">Modifier</button></td>
-  </tr>`).join('');
-}
-
-function setNow(type){upsert(emp.id,iso(),{[type]:hm(),[type+'Mode']:'now'},{action:type,mode:'now'});render()}
-pause.onchange=()=>{upsert(emp.id,iso(),{pause:Number(pause.value)},{action:'pause'});render()};
-comment.onchange=()=>upsert(emp.id,iso(),{comment:comment.value},{action:'comment'});
-
-function openManual(type,date=iso()){
-  manualType=type;
-  modalTitle.textContent=type==='arrival'?'Saisir une arrivée':'Saisir un départ';
-  manualDate.value=date;
-  manualTime.value='';
-  manualModal.classList.add('open');
-}
-function closeManual(){manualModal.classList.remove('open')}
-function saveManual(){
-  if(!manualDate.value||!manualTime.value)return;
-  upsert(emp.id,manualDate.value,{[manualType]:manualTime.value,[manualType+'Mode']:'manual'},{action:manualType,mode:'manual'});
-  closeManual();render();
-}
-
-function openDay(date,mode='task'){
-  dayEditMode=mode;
-  const e=entryFor(emp.id,date,false)||{arrival:'',departure:'',pause:45,comment:'',arrivalMode:'',departureMode:''};
-  dayDate.value=date;
-  dayArrival.value=e.arrival||'';
-  dayDeparture.value=e.departure||'';
-  dayPause.value=e.pause??45;
-  dayComment.value=e.comment||'';
-  dayModalTitle.textContent=mode==='edit'?'Modifier la journée':'Compléter la journée';
-  dayModalSubtitle.textContent=mode==='edit'?'Corrige les informations nécessaires puis enregistre.':'Renseigne arrivée, départ et pause en une seule fois.';
-  updateDayTotal();
-  dayModal.classList.add('open');
-}
-function closeDayModal(){dayModal.classList.remove('open')}
-function updateDayTotal(){dayTotal.textContent=fmtMin(minutes(dayArrival.value,dayDeparture.value,Number(dayPause.value||0)))}
-dayArrival.addEventListener('input',updateDayTotal);
-dayDeparture.addEventListener('input',updateDayTotal);
-dayPause.addEventListener('input',updateDayTotal);
-
-function saveDay(){
-  if(!dayDate.value)return;
-  const previous=entryFor(emp.id,dayDate.value,false);
-  const patch={
-    arrival:dayArrival.value,
-    departure:dayDeparture.value,
-    pause:Number(dayPause.value||0),
-    comment:dayComment.value
-  };
-  if(dayArrival.value && (!previous || previous.arrival!==dayArrival.value)) patch.arrivalMode='manual';
-  if(dayDeparture.value && (!previous || previous.departure!==dayDeparture.value)) patch.departureMode='manual';
-  upsert(emp.id,dayDate.value,patch,{action:dayEditMode==='edit'?'day-edit':'day-complete',mode:'manual'});
-  closeDayModal();
-  render();
-}
-
-// Fermeture en touchant l'arrière-plan
-[manualModal,dayModal].forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('open')}));
-render();
-</script>
-</body>
-</html>
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#16181d"><meta name="robots" content="noindex,nofollow"><title>Mes horaires</title><link rel="stylesheet" href="styles.css"></head><body>
+<div id="authView" class="auth-wrap hidden"><section class="card pin-card"><div class="eyebrow">Espace personnel</div><div class="pin-name" id="authName">Bonjour</div><p class="subtle">Entrez votre code PIN à 4 chiffres.</p><div class="field section"><input id="pin" class="pin-input" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" aria-label="Code PIN"></div><button id="loginBtn" class="btn btn-primary btn-block section">Continuer</button><div id="pinError" class="error"></div><div class="security-box section">Version de démonstration : ce PIN est vérifié dans le navigateur. La protection réelle sera assurée par la base en ligne lors du branchement Supabase.</div></section></div>
+<div id="invalidView" class="auth-wrap hidden"><section class="card pin-card"><div class="eyebrow">Accès privé</div><div class="pin-name">Lien invalide</div><p class="subtle">Ce lien personnel n’est pas reconnu.</p></section></div>
+<main id="appView" class="shell hidden"><div class="topbar"><div><div class="brand">Mes horaires</div><div class="subtle" id="hello"></div></div><button class="logout" onclick="logout()">Se déconnecter</button></div>
+<div class="tabs"><a class="tab active" href="#today">Aujourd’hui</a><a class="tab" href="#tasks">À compléter <span id="taskCount"></span></a><a class="tab" href="#history">Historique</a></div>
+<section class="card hero section" id="today"><div class="eyebrow">Aujourd’hui</div><div class="row mobile-stack"><div><h1 class="h1" id="todayDate"></h1><div class="subtle">Renseigne simplement tes horaires. Tu peux corriger plus tard si besoin.</div></div><span class="status neutral" id="dayStatus">En cours</span></div>
+<div id="todayWorked"><div class="today-box section"><div class="time-card"><div class="time-label">Arrivée</div><div class="time-value" id="arrivalValue">—</div><div class="grid grid-2"><button class="btn btn-green" onclick="setNow('arrival')">Maintenant</button><button class="btn btn-outline" onclick="openManual('arrival')">Manuel</button></div></div><div class="time-card"><div class="time-label">Départ</div><div class="time-value" id="departureValue">—</div><div class="grid grid-2"><button class="btn btn-soft" onclick="setNow('departure')">Maintenant</button><button class="btn btn-outline" onclick="openManual('departure')">Manuel</button></div></div></div>
+<div class="form-grid section"><div class="field"><label>Pause (minutes)</label><input id="pause" type="number" min="0" step="5" value="45"></div><div class="field"><label>Total aujourd’hui</label><div class="time-card"><div class="metric-sm" id="todayTotal">0h00</div></div></div></div><div class="field section"><label>Commentaire facultatif</label><textarea id="comment" rows="2" placeholder="Ex. rendez-vous extérieur, horaire exceptionnel…"></textarea></div></div>
+<div class="toggle-row section"><label class="switch"><input id="todayOff" type="checkbox"><span class="slider"></span></label><div><strong>Jour non travaillé</strong><div class="subtle">À utiliser si tu ne travailles pas aujourd’hui.</div></div></div></section>
+<section class="card section" id="tasks"><div class="row"><div><div class="h2">À compléter</div><div class="subtle">Les journées oubliées peuvent être renseignées en une seule fois.</div></div><span class="status warn" id="taskBadge"></span></div><div id="taskList" class="section"></div></section>
+<section class="card section" id="history"><div class="h2">Historique récent</div><div class="subtle">Tu peux corriger une journée déjà remplie en cas d’erreur.</div><div class="table-wrap section"><table><thead><tr><th>Date</th><th>Arrivée</th><th>Départ</th><th>Pause</th><th>Total</th><th>Statut</th><th></th></tr></thead><tbody id="historyRows"></tbody></table></div></section>
+<div class="footer-note">Cet outil sert uniquement à simplifier le suivi des horaires et des heures travaillées.</div></main>
+<div class="modal" id="manualModal"><div class="sheet"><div class="row"><div><div class="h2" id="modalTitle">Saisie manuelle</div><div class="subtle">Cette saisie sera identifiée comme ajoutée manuellement.</div></div><button class="btn btn-outline" onclick="closeManual()">Fermer</button></div><div class="form-grid section"><div class="field"><label>Date</label><input type="date" id="manualDate"></div><div class="field"><label>Heure</label><input type="time" id="manualTime"></div></div><button class="btn btn-primary btn-block section" onclick="saveManual()">Enregistrer</button></div></div>
+<div class="modal" id="dayModal"><div class="sheet"><div class="row"><div><div class="h2" id="dayModalTitle">Compléter la journée</div><div class="subtle" id="dayModalSubtitle">Renseigne les informations manquantes en une seule fois.</div></div><button class="btn btn-outline" onclick="closeDayModal()">Fermer</button></div><div class="field section"><label>Date</label><input type="date" id="dayDate" readonly></div><div id="dayWorkedFields"><div class="form-grid section"><div class="field"><label>Heure d’arrivée</label><input type="time" id="dayArrival"></div><div class="field"><label>Heure de départ</label><input type="time" id="dayDeparture"></div></div><div class="form-grid section"><div class="field"><label>Pause (minutes)</label><input type="number" id="dayPause" min="0" step="5" value="45"></div><div class="field"><label>Total calculé</label><div class="time-card"><div class="metric-sm" id="dayTotal">0h00</div></div></div></div></div><div class="toggle-row section"><label class="switch"><input id="dayOff" type="checkbox"><span class="slider"></span></label><div><strong>Jour non travaillé</strong><div class="subtle">Cette journée ne sera plus proposée dans « À compléter ».</div></div></div><div class="field section"><label>Commentaire facultatif</label><textarea id="dayComment" rows="2" placeholder="Ex. congé, horaire exceptionnel…"></textarea></div><button class="btn btn-primary btn-block section" onclick="saveDay()">Enregistrer la journée</button></div></div>
+<script src="app.js"></script><script>
+const params=new URLSearchParams(location.search),emp=employeeByToken(params.get('token'));let manualType='arrival',dayEditMode='task';
+if(!emp){invalidView.classList.remove('hidden')}else{setManifestFor(emp);authName.textContent=`Bonjour ${emp.name}`;if(isEmployeeSession(emp))showApp();else authView.classList.remove('hidden')}
+function showApp(){authView.classList.add('hidden');appView.classList.remove('hidden');hello.textContent=`Bonjour ${emp.name}`;todayDate.textContent=frDate(iso());render()}
+function login(){pinError.textContent='';const v=pin.value.replace(/\D/g,'');if(v===emp.demoPin){setSession({role:'employee',employeeId:emp.id,at:new Date().toISOString()});showApp()}else pinError.textContent='Code PIN incorrect.'}
+pin?.addEventListener('input',()=>{pin.value=pin.value.replace(/\D/g,'').slice(0,4)});pin?.addEventListener('keydown',e=>{if(e.key==='Enter')login()});loginBtn?.addEventListener('click',login);
+function render(){const e=entryFor(emp.id,iso(),true),off=e.status==='off';todayOff.checked=off;todayWorked.classList.toggle('hidden',off);arrivalValue.textContent=e.arrival||'—';departureValue.textContent=e.departure||'—';pause.value=e.pause??45;comment.value=e.comment||'';todayTotal.textContent=off?'0h00':fmtMin(minutes(e.arrival,e.departure,e.pause));const done=e.arrival&&e.departure;dayStatus.textContent=off?'Jour non travaillé':done?'Journée complète':(e.arrival?'Départ à renseigner':'À renseigner');dayStatus.className='status '+(off?'off':done?'ok':'neutral');const tasks=tasksFor(emp.id);taskCount.textContent=tasks.length?`(${tasks.length})`:'';taskBadge.textContent=tasks.length?`${tasks.length} en attente`:'Tout est à jour';taskBadge.className='status '+(tasks.length?'warn':'ok');taskList.innerHTML=tasks.length?tasks.map(t=>`<div class="task row"><div><div class="task-title">${frDate(t.date)}</div><div class="task-meta">${t.missing}</div></div><button class="btn btn-outline" onclick="openDay('${t.date}','task')">Compléter</button></div>`).join(''):'<div class="empty">Rien à compléter.</div>';const data=getData().entries.filter(x=>x.employeeId===emp.id).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,14);historyRows.innerHTML=data.map(x=>{const isOff=x.status==='off';return `<tr><td>${shortDate(x.date)}</td><td>${isOff?'—':x.arrival||'—'}</td><td>${isOff?'—':x.departure||'—'}</td><td>${isOff?'—':(x.pause||0)+' min'}</td><td><strong>${isOff?'0h00':fmtMin(minutes(x.arrival,x.departure,x.pause))}</strong></td><td><span class="status ${isOff?'off':x.arrival&&x.departure?'ok':'warn'}">${isOff?'Non travaillé':x.arrival&&x.departure?'Complet':'À compléter'}</span></td><td><button class="btn btn-outline btn-small" onclick="openDay('${x.date}','edit')">Modifier</button></td></tr>`}).join('')}
+function setNow(type){upsert(emp.id,iso(),{status:'worked',[type]:hm(),[type+'Mode']:'now'},{action:type,mode:'now'});render()}
+pause.onchange=()=>{upsert(emp.id,iso(),{pause:Number(pause.value)},{action:'pause'});render()};comment.onchange=()=>upsert(emp.id,iso(),{comment:comment.value},{action:'comment'});todayOff.onchange=()=>{if(todayOff.checked){upsert(emp.id,iso(),{status:'off',arrival:'',departure:'',arrivalMode:'',departureMode:''},{action:'status',value:'off'})}else upsert(emp.id,iso(),{status:'worked'},{action:'status',value:'worked'});render()};
+function openManual(type,date=iso()){manualType=type;modalTitle.textContent=type==='arrival'?'Saisir une arrivée':'Saisir un départ';manualDate.value=date;manualTime.value='';manualModal.classList.add('open')}function closeManual(){manualModal.classList.remove('open')}function saveManual(){if(!manualDate.value||!manualTime.value)return;upsert(emp.id,manualDate.value,{status:'worked',[manualType]:manualTime.value,[manualType+'Mode']:'manual'},{action:manualType,mode:'manual'});closeManual();render()}
+function openDay(date,mode='task'){dayEditMode=mode;const e=entryFor(emp.id,date,false)||{status:'worked',arrival:'',departure:'',pause:45,comment:''};dayDate.value=date;dayArrival.value=e.arrival||'';dayDeparture.value=e.departure||'';dayPause.value=e.pause??45;dayComment.value=e.comment||'';dayOff.checked=e.status==='off';dayModalTitle.textContent=mode==='edit'?'Modifier la journée':'Compléter la journée';dayModalSubtitle.textContent=longDate(date);updateDayFields();dayModal.classList.add('open')}function closeDayModal(){dayModal.classList.remove('open')}function updateDayFields(){dayWorkedFields.classList.toggle('hidden',dayOff.checked);dayTotal.textContent=dayOff.checked?'0h00':fmtMin(minutes(dayArrival.value,dayDeparture.value,dayPause.value))}dayOff.onchange=updateDayFields;dayArrival.oninput=updateDayFields;dayDeparture.oninput=updateDayFields;dayPause.oninput=updateDayFields;
+function saveDay(){const off=dayOff.checked;if(!off&&(!dayArrival.value||!dayDeparture.value)){alert('Renseigne l’arrivée et le départ, ou choisis « Jour non travaillé ».');return}upsert(emp.id,dayDate.value,{status:off?'off':'worked',arrival:off?'':dayArrival.value,departure:off?'':dayDeparture.value,pause:Number(dayPause.value||0),comment:dayComment.value,arrivalMode:off?'':'manual',departureMode:off?'':'manual'},{action:dayEditMode==='edit'?'edit-day':'complete-day',mode:'manual',status:off?'off':'worked'});closeDayModal();render()}
+if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
+</script></body></html>
