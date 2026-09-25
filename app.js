@@ -1,12 +1,18 @@
-const EMPLOYEES=[
-  {id:'emma',name:'Emma',token:'emma-4F7P2A',demoPin:'1842'},
-  {id:'julie',name:'Julie',token:'julie-9K3M8D',demoPin:'5726'},
-  {id:'marc',name:'Marc',token:'marc-2R6V1Q',demoPin:'3914'},
-  {id:'thomas',name:'Thomas',token:'thomas-8K4X2Q',demoPin:'8463'}
-];
-const OWNER={token:'gestion-7Q9M2X',demoPin:'2648'};
-const KEY='hours_demo_v3';
-const SESSION_KEY='hours_demo_session_v1';
+// ============================================================
+// SUIVI HORAIRES — V1.8 SUPABASE
+// Les données métier sont désormais centralisées dans Supabase.
+// GitHub Pages ne contient aucune clé secrète ni aucun PIN.
+// ============================================================
+
+const SUPABASE_URL = window.APP_CONFIG?.supabaseUrl || '';
+const SUPABASE_KEY = window.APP_CONFIG?.supabasePublishableKey || '';
+const SESSION_KEY = 'hours_supabase_session_v1';
+
+let EMPLOYEES = [];
+let APP_DATA = {entries:[],settings:{plannedDays:{},employeeSettings:{}}};
+let CURRENT_EMPLOYEE = null;
+let DATA_RANGE = {from:null,to:null};
+
 function iso(d=new Date()){const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');return `${y}-${m}-${day}`}
 function pad(n){return String(n).padStart(2,'0')}
 function hm(d=new Date()){return `${pad(d.getHours())}:${pad(d.getMinutes())}`}
@@ -18,99 +24,149 @@ function monthLabel(d){return new Intl.DateTimeFormat('fr-FR',{month:'long',year
 function minutes(a,b,pause=0){if(!a||!b)return 0;const [ah,am]=a.split(':').map(Number),[bh,bm]=b.split(':').map(Number);let m=(bh*60+bm)-(ah*60+am)-Number(pause||0);return Math.max(0,m)}
 function fmtMin(m){m=Math.round(Number(m)||0);const h=Math.floor(Math.abs(m)/60),mm=Math.abs(m)%60;return `${m<0?'-':''}${h}h${pad(mm)}`}
 function fmtSignedMin(m){m=Math.round(Number(m)||0);if(m===0)return '0h00';return `${m>0?'+':'−'}${fmtMin(Math.abs(m))}`}
-function normalizeData(d){d=d||{};d.entries=Array.isArray(d.entries)?d.entries:[];d.edits=Array.isArray(d.edits)?d.edits:[];d.settings=d.settings||{};d.settings.plannedDays=d.settings.plannedDays||{};d.settings.employeeSettings=d.settings.employeeSettings||{};EMPLOYEES.forEach(emp=>{d.settings.plannedDays[emp.id]=d.settings.plannedDays[emp.id]||{};d.settings.employeeSettings[emp.id]=Object.assign({weeklyObjectiveMinutes:35*60,overtimeThresholdMinutes:35*60},d.settings.employeeSettings[emp.id]||{})});d.entries.forEach(e=>{if(!e.validationStatus&&e.arrival&&e.departure)e.validationStatus='pending'});return d}
-function getData(){let x=localStorage.getItem(KEY);if(x){const d=normalizeData(JSON.parse(x));saveData(d);return d}const now=new Date();const seed=normalizeData({entries:[],edits:[],settings:{}});EMPLOYEES.forEach((e,ei)=>{for(let i=1;i<=6;i++){const d=new Date(now);d.setDate(now.getDate()-i);if(d.getDay()===0||d.getDay()===6)continue;const ds=iso(d);let arrival=`08:${pad(2+ei*3+i)}`;let departure=`17:${pad(5+ei*2+i)}`;let pause=45;if(i===2&&ei===1)departure='';if(i===3&&ei===2)arrival='';seed.entries.push({employeeId:e.id,date:ds,status:'worked',arrival,departure,pause,comment:'',arrivalMode:'now',departureMode:departure?'now':'',validationStatus:arrival&&departure?'pending':'',updatedAt:new Date().toISOString()})}});saveData(seed);return seed}
-function saveData(d){localStorage.setItem(KEY,JSON.stringify(normalizeData(d)))}
-function entryFor(emp,date,create=false){const d=getData();let e=d.entries.find(x=>x.employeeId===emp&&x.date===date);if(!e&&create){e={employeeId:emp,date,status:'worked',arrival:'',departure:'',pause:45,comment:'',arrivalMode:'',departureMode:'',validationStatus:'',updatedAt:new Date().toISOString()};d.entries.push(e);saveData(d)}return e}
-function upsert(emp,date,patch,meta={}){const d=getData();let e=d.entries.find(x=>x.employeeId===emp&&x.date===date);if(!e){e={employeeId:emp,date,status:'worked',arrival:'',departure:'',pause:45,comment:'',arrivalMode:'',departureMode:'',validationStatus:'',updatedAt:new Date().toISOString()};d.entries.push(e)}Object.assign(e,patch,{updatedAt:new Date().toISOString()});const meaningful=['arrival','departure','pause','comment','status'].some(k=>Object.prototype.hasOwnProperty.call(patch,k));if(meaningful&&meta.actor!=='owner-validation'&&meta.actor!=='owner'){e.validationStatus=(e.status==='off'||(e.arrival&&e.departure))?'pending':'';e.validatedAt='';e.validatedBy=''}d.edits.push({employeeId:emp,date,at:new Date().toISOString(),...meta});saveData(d);return e}
-function ownerUpdateEntry(emp,date,patch,validationStatus='pending'){const e=upsert(emp,date,patch,{action:'owner-edit',actor:'owner'});const d=getData();const target=d.entries.find(x=>x.employeeId===emp&&x.date===date);target.validationStatus=validationStatus;target.validatedAt=validationStatus==='validated'?new Date().toISOString():'';target.validatedBy=validationStatus==='validated'?'owner':'';d.edits.push({employeeId:emp,date,at:new Date().toISOString(),action:'owner-validation',actor:'owner',value:validationStatus});saveData(d);return target}
-function validateEntry(emp,date){const d=getData();const e=d.entries.find(x=>x.employeeId===emp&&x.date===date);if(!e||(!(e.arrival&&e.departure)&&e.status!=='off'))return false;e.validationStatus='validated';e.validatedAt=new Date().toISOString();e.validatedBy='owner';d.edits.push({employeeId:emp,date,at:new Date().toISOString(),action:'validate',actor:'owner'});saveData(d);return true}
-function employeeByToken(t){return EMPLOYEES.find(e=>e.token===t)||null}
-function employeeSettings(empId){return getData().settings.employeeSettings[empId]}
-function setEmployeeSettings(empId,patch){const d=getData();Object.assign(d.settings.employeeSettings[empId],patch);saveData(d)}
-function isPlannedWorkingDay(empId,date){const d=getData(),over=d.settings.plannedDays?.[empId]?.[date];if(typeof over==='boolean')return over;const day=dateObjFromIso(date).getDay();return day!==0&&day!==6}
-function setPlannedWorkingDay(empId,date,value){const d=getData();d.settings.plannedDays[empId]=d.settings.plannedDays[empId]||{};d.settings.plannedDays[empId][date]=!!value;saveData(d)}
-function clearPlannedOverride(empId,date){const d=getData();if(d.settings.plannedDays?.[empId])delete d.settings.plannedDays[empId][date];saveData(d)}
-function recentDates(days=21){let arr=[],d=new Date();for(let i=0;i<days;i++){let x=new Date(d);x.setDate(d.getDate()-i);arr.push(iso(x))}return arr}
-function tasksFor(emp){const data=getData();return recentDates(18).filter(date=>{if(date===iso()||!isPlannedWorkingDay(emp,date))return false;const e=data.entries.find(x=>x.employeeId===emp&&x.date===date);if(e?.status==='off')return false;return !e||!e.arrival||!e.departure}).map(date=>{const e=data.entries.find(x=>x.employeeId===emp&&x.date===date);let missing=!e?'Journée à renseigner':(!e.arrival&&!e.departure?'Arrivée et départ manquants':!e.arrival?'Arrivée manquante':'Départ manquant');return {date,missing}})}
-function weekBounds(ref=new Date()){const d=new Date(ref);const day=(d.getDay()+6)%7;const start=new Date(d);start.setDate(d.getDate()-day);start.setHours(0,0,0,0);const end=new Date(start);end.setDate(start.getDate()+6);end.setHours(23,59,59,999);return [start,end]}
-function monthBounds(ref=new Date()){return [new Date(ref.getFullYear(),ref.getMonth(),1),new Date(ref.getFullYear(),ref.getMonth()+1,0,23,59,59)]}
-function totalFor(emp,start,end){return getData().entries.filter(e=>e.employeeId===emp&&e.status!=='off'&&new Date(e.date+'T12:00:00')>=start&&new Date(e.date+'T12:00:00')<=end).reduce((s,e)=>s+minutes(e.arrival,e.departure,e.pause),0)}
-function pendingValidationCount(emp,start=null,end=null){return getData().entries.filter(e=>e.employeeId===emp&&e.validationStatus==='pending'&&(e.status==='off'||(e.arrival&&e.departure))&&(!start||new Date(e.date+'T12:00:00')>=start)&&(!end||new Date(e.date+'T12:00:00')<=end)).length}
-function downloadCSV(){const rows=[['Employé','Date','Planifié','Statut','Arrivée','Départ','Pause (min)','Heures','Validation','Commentaire','Saisie arrivée','Saisie départ']];getData().entries.sort((a,b)=>a.date.localeCompare(b.date)).forEach(e=>{const emp=EMPLOYEES.find(x=>x.id===e.employeeId);rows.push([emp?.name||e.employeeId,e.date,isPlannedWorkingDay(e.employeeId,e.date)?'Travaillé':'Non travaillé',e.status==='off'?'Jour non travaillé':'Travaillé',e.arrival,e.departure,e.pause,e.status==='off'?'0h00':fmtMin(minutes(e.arrival,e.departure,e.pause)),e.validationStatus==='validated'?'Validé':e.validationStatus==='pending'?'À valider':'',e.comment||'',e.arrivalMode||'',e.departureMode||''])});const csv=rows.map(r=>r.map(v=>'"'+String(v??'').replaceAll('"','""')+'"').join(';')).join('\n');const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='horaires.csv';a.click();URL.revokeObjectURL(a.href)}
-function getSession(){try{return JSON.parse(localStorage.getItem(SESSION_KEY)||'null')}catch{return null}}
-function setSession(s){localStorage.setItem(SESSION_KEY,JSON.stringify(s))}
-function clearSession(){localStorage.removeItem(SESSION_KEY)}
-function isEmployeeSession(emp){const s=getSession();return !!s&&s.role==='employee'&&s.employeeId===emp.id}
-function isOwnerSession(){const s=getSession();return !!s&&s.role==='owner'}
-function logout(){clearSession();location.reload()}
-function setManifestFor(emp){let link=document.querySelector('link[rel="manifest"]');if(!link){link=document.createElement('link');link.rel='manifest';document.head.appendChild(link)}link.href=`manifest-${emp.id}.json`}
 function dateObjFromIso(s){return new Date(s+'T12:00:00')}
 function startOfWeek(ref){const d=new Date(ref);const day=(d.getDay()+6)%7;d.setDate(d.getDate()-day);d.setHours(12,0,0,0);return d}
 function endOfWeek(ref){const d=startOfWeek(ref);d.setDate(d.getDate()+6);return d}
 function listDates(start,end){let dates=[];const d=new Date(start);while(d<=end){dates.push(iso(d));d.setDate(d.getDate()+1)}return dates}
 function isFuture(date){return date>iso()}
-function dayInfoFor(empId,date){const entry=getData().entries.find(x=>x.employeeId===empId&&x.date===date);const planned=isPlannedWorkingDay(empId,date);if(!entry)return {entry:null,status:planned?'empty':'scheduled-off',minutes:0,label:planned?'À compléter':'Non travaillé prévu'};if(entry.status==='off')return {entry,status:'off',minutes:0,label:'Non travaillé'};const total=minutes(entry.arrival,entry.departure,entry.pause);if(entry.arrival&&entry.departure)return {entry,status:'complete',minutes:total,label:fmtMin(total)};return {entry,status:'incomplete',minutes:total,label:'À compléter'};}
+function weekBounds(ref=new Date()){const start=startOfWeek(ref),end=endOfWeek(ref);end.setHours(23,59,59,999);return [start,end]}
+function monthBounds(ref=new Date()){return [new Date(ref.getFullYear(),ref.getMonth(),1),new Date(ref.getFullYear(),ref.getMonth()+1,0,23,59,59)]}
+function defaultRange(){const now=new Date();const from=new Date(now.getFullYear()-1,0,1,12);const to=new Date(now.getFullYear()+1,11,31,12);return {from:iso(from),to:iso(to)}}
 
+function getSession(){try{return JSON.parse(localStorage.getItem(SESSION_KEY)||'null')}catch{return null}}
+function setSession(s){localStorage.setItem(SESSION_KEY,JSON.stringify(s))}
+function clearSession(){localStorage.removeItem(SESSION_KEY)}
+function isEmployeeSession(linkToken){const s=getSession();return !!s&&s.role==='employee'&&s.sessionToken&&s.linkToken===linkToken}
+function isOwnerSession(linkToken){const s=getSession();return !!s&&s.role==='owner'&&s.sessionToken&&s.linkToken===linkToken}
+
+async function rpc(name,args={}){
+  if(!SUPABASE_URL||!SUPABASE_KEY) throw new Error('Configuration Supabase manquante.');
+  const res=await fetch(`${SUPABASE_URL}/rest/v1/rpc/${name}`,{
+    method:'POST',
+    headers:{'apikey':SUPABASE_KEY,'Content-Type':'application/json','Accept':'application/json'},
+    body:JSON.stringify(args)
+  });
+  const raw=await res.text();
+  let payload=null;
+  try{payload=raw?JSON.parse(raw):null}catch{payload=raw}
+  if(!res.ok){
+    const message=(payload&&typeof payload==='object'&&(payload.message||payload.error||payload.hint))||String(payload||`Erreur ${res.status}`);
+    const err=new Error(message);err.status=res.status;throw err;
+  }
+  return payload;
+}
+function friendlyError(err){
+  const m=String(err?.message||err||'');
+  if(m.includes('invalid_credentials')) return 'Code PIN incorrect.';
+  if(m.includes('unauthorized')) return 'Votre session n’est plus valide. Reconnectez-vous.';
+  if(m.includes('entry_not_complete')) return 'La journée doit être complète avant validation.';
+  if(m.includes('Failed to fetch')) return 'Connexion impossible. Vérifiez votre accès Internet.';
+  return 'Une erreur est survenue. Réessayez.';
+}
+function cleanTime(v){return v?String(v).slice(0,5):''}
+function normalizeEntry(r){return {
+  employeeId:r.employee_id,
+  date:r.work_date,
+  status:r.status||'worked',
+  arrival:cleanTime(r.arrival),
+  departure:cleanTime(r.departure),
+  pause:Number(r.pause_minutes??45),
+  comment:r.comment||'',
+  arrivalMode:r.arrival_mode||'',
+  departureMode:r.departure_mode||'',
+  validationStatus:r.validation_status||'',
+  validatedAt:r.validated_at||'',
+  updatedAt:r.updated_at||''
+}}
+function normalizeEmployee(e){return {
+  id:e.id,
+  name:e.name,
+  weeklyObjectiveMinutes:Number(e.weekly_objective_minutes??2100),
+  overtimeThresholdMinutes:Number(e.overtime_threshold_minutes??2100)
+}}
+function hydrateEmployeeSettings(){
+  APP_DATA.settings.employeeSettings={};
+  EMPLOYEES.forEach(e=>APP_DATA.settings.employeeSettings[e.id]={weeklyObjectiveMinutes:e.weeklyObjectiveMinutes,overtimeThresholdMinutes:e.overtimeThresholdMinutes});
+}
+function hydrateSchedule(rows=[]){
+  APP_DATA.settings.plannedDays={};
+  EMPLOYEES.forEach(e=>APP_DATA.settings.plannedDays[e.id]={});
+  rows.forEach(r=>{
+    if(!APP_DATA.settings.plannedDays[r.employee_id])APP_DATA.settings.plannedDays[r.employee_id]={};
+    APP_DATA.settings.plannedDays[r.employee_id][r.work_date]=!!r.is_working;
+  });
+}
+function getData(){return APP_DATA}
+function entryFor(emp,date,create=false){
+  let e=APP_DATA.entries.find(x=>x.employeeId===emp&&x.date===date);
+  if(!e&&create)e={employeeId:emp,date,status:'worked',arrival:'',departure:'',pause:45,comment:'',arrivalMode:'',departureMode:'',validationStatus:'',updatedAt:''};
+  return e;
+}
+function employeeSettings(empId){return APP_DATA.settings.employeeSettings[empId]||{weeklyObjectiveMinutes:2100,overtimeThresholdMinutes:2100}}
+function isPlannedWorkingDay(empId,date){const over=APP_DATA.settings.plannedDays?.[empId]?.[date];if(typeof over==='boolean')return over;const day=dateObjFromIso(date).getDay();return day!==0&&day!==6}
+function recentDates(days=21){let arr=[],d=new Date();for(let i=0;i<days;i++){let x=new Date(d);x.setDate(d.getDate()-i);arr.push(iso(x))}return arr}
+function tasksFor(emp){return recentDates(18).filter(date=>{if(date===iso()||!isPlannedWorkingDay(emp,date))return false;const e=APP_DATA.entries.find(x=>x.employeeId===emp&&x.date===date);if(e?.status==='off')return false;return !e||!e.arrival||!e.departure}).map(date=>{const e=APP_DATA.entries.find(x=>x.employeeId===emp&&x.date===date);let missing=!e?'Journée à renseigner':(!e.arrival&&!e.departure?'Arrivée et départ manquants':!e.arrival?'Arrivée manquante':'Départ manquant');return {date,missing}})}
+function totalFor(emp,start,end){return APP_DATA.entries.filter(e=>e.employeeId===emp&&e.status!=='off'&&new Date(e.date+'T12:00:00')>=start&&new Date(e.date+'T12:00:00')<=end).reduce((s,e)=>s+minutes(e.arrival,e.departure,e.pause),0)}
+function pendingValidationCount(emp,start=null,end=null){return APP_DATA.entries.filter(e=>e.employeeId===emp&&e.validationStatus==='pending'&&(e.status==='off'||(e.arrival&&e.departure))&&(!start||new Date(e.date+'T12:00:00')>=start)&&(!end||new Date(e.date+'T12:00:00')<=end)).length}
+function dayInfoFor(empId,date){const entry=APP_DATA.entries.find(x=>x.employeeId===empId&&x.date===date);const planned=isPlannedWorkingDay(empId,date);if(!entry)return {entry:null,status:planned?'empty':'scheduled-off',minutes:0,label:planned?'À compléter':'Non travaillé prévu'};if(entry.status==='off')return {entry,status:'off',minutes:0,label:'Non travaillé'};const total=minutes(entry.arrival,entry.departure,entry.pause);if(entry.arrival&&entry.departure)return {entry,status:'complete',minutes:total,label:fmtMin(total)};return {entry,status:'incomplete',minutes:total,label:'À compléter'}}
+
+async function employeeLogin(linkToken,pin){
+  const out=await rpc('api_employee_login',{p_link_token:linkToken,p_pin:pin});
+  setSession({role:'employee',sessionToken:out.session_token,linkToken,at:new Date().toISOString()});
+  CURRENT_EMPLOYEE=normalizeEmployee(out.employee);
+  return CURRENT_EMPLOYEE;
+}
+async function ownerLogin(linkToken,pin){
+  const out=await rpc('api_owner_login',{p_link_token:linkToken,p_pin:pin});
+  setSession({role:'owner',sessionToken:out.session_token,linkToken,at:new Date().toISOString()});
+  return out;
+}
+async function loadEmployeeData(){
+  const s=getSession();if(!s?.sessionToken)throw new Error('unauthorized');
+  const range=defaultRange();DATA_RANGE=range;
+  const out=await rpc('api_employee_data',{p_session_token:s.sessionToken,p_from:range.from,p_to:range.to});
+  CURRENT_EMPLOYEE=normalizeEmployee(out.employee);
+  EMPLOYEES=[CURRENT_EMPLOYEE];
+  APP_DATA={entries:(out.entries||[]).map(r=>normalizeEntry({...r,employee_id:CURRENT_EMPLOYEE.id})),settings:{plannedDays:{},employeeSettings:{}}};
+  hydrateEmployeeSettings();
+  hydrateSchedule((out.schedule||[]).map(r=>({...r,employee_id:CURRENT_EMPLOYEE.id})));
+  return CURRENT_EMPLOYEE;
+}
+async function loadOwnerData(){
+  const s=getSession();if(!s?.sessionToken)throw new Error('unauthorized');
+  const range=defaultRange();DATA_RANGE=range;
+  const out=await rpc('api_owner_data',{p_session_token:s.sessionToken,p_from:range.from,p_to:range.to});
+  EMPLOYEES=(out.employees||[]).map(normalizeEmployee);
+  APP_DATA={entries:(out.entries||[]).map(normalizeEntry),settings:{plannedDays:{},employeeSettings:{}}};
+  hydrateEmployeeSettings();hydrateSchedule(out.schedule||[]);
+  return out;
+}
+async function saveEmployeeEntry(date,patch={}){
+  const s=getSession();if(!s?.sessionToken)throw new Error('unauthorized');
+  const empId=CURRENT_EMPLOYEE?.id;const prev=entryFor(empId,date,false)||{status:'worked',arrival:'',departure:'',pause:45,comment:'',arrivalMode:'',departureMode:''};
+  const next={...prev,...patch};
+  await rpc('api_employee_save_entry',{
+    p_session_token:s.sessionToken,p_work_date:date,p_status:next.status||'worked',p_arrival:next.arrival||'',p_departure:next.departure||'',p_pause_minutes:Number(next.pause??45),p_comment:next.comment||'',p_arrival_mode:next.arrivalMode||'',p_departure_mode:next.departureMode||''
+  });
+  await loadEmployeeData();
+}
+async function ownerUpdateEntry(emp,date,patch,validationStatus='pending'){
+  const s=getSession();const prev=entryFor(emp,date,false)||{status:'worked',arrival:'',departure:'',pause:45,comment:''};const next={...prev,...patch};
+  await rpc('api_owner_save_entry',{p_session_token:s.sessionToken,p_employee_id:emp,p_work_date:date,p_status:next.status||'worked',p_arrival:next.arrival||'',p_departure:next.departure||'',p_pause_minutes:Number(next.pause??45),p_comment:next.comment||'',p_validation_status:validationStatus});
+  await loadOwnerData();
+}
+async function validateEntry(emp,date){const s=getSession();await rpc('api_owner_validate_entry',{p_session_token:s.sessionToken,p_employee_id:emp,p_work_date:date});await loadOwnerData();return true}
+async function setPlannedWorkingDay(empId,date,value){const s=getSession();await rpc('api_owner_set_schedule',{p_session_token:s.sessionToken,p_employee_id:empId,p_work_date:date,p_is_working:!!value,p_note:''});APP_DATA.settings.plannedDays[empId]=APP_DATA.settings.plannedDays[empId]||{};APP_DATA.settings.plannedDays[empId][date]=!!value}
+async function setEmployeeSettings(empId,patch){const s=getSession();const current=employeeSettings(empId);await rpc('api_owner_set_employee_settings',{p_session_token:s.sessionToken,p_employee_id:empId,p_weekly_objective_minutes:Number(patch.weeklyObjectiveMinutes??current.weeklyObjectiveMinutes),p_overtime_threshold_minutes:Number(patch.overtimeThresholdMinutes??current.overtimeThresholdMinutes)});await loadOwnerData()}
+async function logout(){const s=getSession();try{if(s?.sessionToken)await rpc('api_logout',{p_session_token:s.sessionToken})}catch{}clearSession();location.reload()}
+
+function downloadCSV(){const rows=[['Employé','Date','Planifié','Statut','Arrivée','Départ','Pause (min)','Heures','Validation','Commentaire','Saisie arrivée','Saisie départ']];APP_DATA.entries.slice().sort((a,b)=>a.date.localeCompare(b.date)).forEach(e=>{const emp=EMPLOYEES.find(x=>x.id===e.employeeId);rows.push([emp?.name||e.employeeId,e.date,isPlannedWorkingDay(e.employeeId,e.date)?'Travaillé':'Non travaillé',e.status==='off'?'Jour non travaillé':'Travaillé',e.arrival,e.departure,e.pause,e.status==='off'?'0h00':fmtMin(minutes(e.arrival,e.departure,e.pause)),e.validationStatus==='validated'?'Validé':e.validationStatus==='pending'?'À valider':'',e.comment||'',e.arrivalMode||'',e.departureMode||''])});const csv=rows.map(r=>r.map(v=>'"'+String(v??'').replaceAll('"','""')+'"').join(';')).join('\n');const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='horaires.csv';a.click();URL.revokeObjectURL(a.href)}
+function setManifestFor(){let link=document.querySelector('link[rel="manifest"]');if(!link){link=document.createElement('link');link.rel='manifest';document.head.appendChild(link)}link.href='manifest.json'}
 
 // V1.7 — ergonomie clavier des formulaires
-function timeToMinutes(value){
-  if(!/^\d{2}:\d{2}$/.test(value||'')) return null;
-  const [h,m]=value.split(':').map(Number);
-  return h*60+m;
-}
-function minutesToTime(total){
-  total=((total%(24*60))+(24*60))%(24*60);
-  return `${pad(Math.floor(total/60))}:${pad(total%60)}`;
-}
-function stepTimeInput(input,direction,event){
-  const step=event.shiftKey?15:5;
-  let current=timeToMinutes(input.value);
-  if(current===null){
-    const now=new Date();
-    current=Math.round((now.getHours()*60+now.getMinutes())/step)*step;
-  }
-  input.value=minutesToTime(current+(direction*step));
-  input.dispatchEvent(new Event('input',{bubbles:true}));
-  input.dispatchEvent(new Event('change',{bubbles:true}));
-}
-function submitCurrentContext(el){
-  const modal=el.closest('.modal.open');
-  if(modal){
-    const primary=[...modal.querySelectorAll('button.btn-primary:not([disabled])')].pop();
-    if(primary){primary.click();return true;}
-  }
-  const form=el.closest('form');
-  if(form){
-    if(form.requestSubmit) form.requestSubmit();
-    else form.submit();
-    return true;
-  }
-  return false;
-}
-document.addEventListener('keydown',event=>{
-  const el=event.target;
-  if(!(el instanceof HTMLElement)) return;
-  if(el.matches('input[type="time"]')){
-    if(event.key==='ArrowUp'||event.key==='ArrowDown'){
-      event.preventDefault();
-      stepTimeInput(el,event.key==='ArrowUp'?1:-1,event);
-      return;
-    }
-    if(event.key==='Enter'){
-      event.preventDefault();
-      submitCurrentContext(el);
-      return;
-    }
-  }
-  if(el.matches('input:not([type="time"]):not([type="button"]):not([type="submit"]), select') && event.key==='Enter'){
-    const modal=el.closest('.modal.open');
-    if(modal){event.preventDefault();submitCurrentContext(el);}
-  }
-});
-document.addEventListener('focusin',event=>{
-  const el=event.target;
-  if(el instanceof HTMLInputElement && el.type==='time'){
-    el.title='Flèches ↑/↓ : ±5 min · Maj + flèche : ±15 min · Entrée : valider';
-  }
-});
+function timeToMinutes(value){if(!/^\d{2}:\d{2}$/.test(value||''))return null;const [h,m]=value.split(':').map(Number);return h*60+m}
+function minutesToTime(total){total=((total%(24*60))+(24*60))%(24*60);return `${pad(Math.floor(total/60))}:${pad(total%60)}`}
+function stepTimeInput(input,direction,event){const step=event.shiftKey?15:5;let current=timeToMinutes(input.value);if(current===null){const now=new Date();current=Math.round((now.getHours()*60+now.getMinutes())/step)*step}input.value=minutesToTime(current+(direction*step));input.dispatchEvent(new Event('input',{bubbles:true}));input.dispatchEvent(new Event('change',{bubbles:true}))}
+function submitCurrentContext(el){const modal=el.closest('.modal.open');if(modal){const primary=[...modal.querySelectorAll('button.btn-primary:not([disabled])')].pop();if(primary){primary.click();return true}}const form=el.closest('form');if(form){if(form.requestSubmit)form.requestSubmit();else form.submit();return true}return false}
+document.addEventListener('keydown',event=>{const el=event.target;if(!(el instanceof HTMLElement))return;if(el.matches('input[type="time"]')){if(event.key==='ArrowUp'||event.key==='ArrowDown'){event.preventDefault();stepTimeInput(el,event.key==='ArrowUp'?1:-1,event);return}if(event.key==='Enter'){event.preventDefault();submitCurrentContext(el);return}}if(el.matches('input:not([type="time"]):not([type="button"]):not([type="submit"]), select')&&event.key==='Enter'){const modal=el.closest('.modal.open');if(modal){event.preventDefault();submitCurrentContext(el)}}});
+document.addEventListener('focusin',event=>{const el=event.target;if(el instanceof HTMLInputElement&&el.type==='time')el.title='Flèches ↑/↓ : ±5 min · Maj + flèche : ±15 min · Entrée : valider'});

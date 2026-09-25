@@ -1,16 +1,28 @@
-# Suivi des horaires — V1.2
+# Suivi des horaires — V1.8 Supabase
 
-## Nouveautés
-- Chaque employé utilise son lien personnel et arrive directement sur un écran PIN.
-- PIN à 4 chiffres (maquette locale uniquement).
-- Session conservée jusqu'à déconnexion manuelle.
-- L'espace de pilotage utilise un lien séparé, sans lien visible depuis le site employé.
-- Ajout du statut **Jour non travaillé** : il retire la journée de la liste « À compléter ».
-- Les journées passées peuvent toujours être complétées en une seule fenêtre et les journées existantes modifiées.
-- Manifests PWA individuels : chaque employé peut ajouter son lien à l'écran d'accueil et revenir directement sur son espace.
+Cette version utilise désormais **Supabase comme base centrale**. Les saisies ne sont plus stockées comme source officielle dans le `localStorage` du navigateur.
 
-## Liens de démonstration
-Les codes ci-dessous sont **uniquement pour tester cette V1 statique**. Ils ne constituent pas une protection réelle car le code d'un site GitHub Pages est public.
+## Ce qui change
+
+- authentification PIN vérifiée côté Supabase ;
+- aucun PIN n'est présent dans le code public GitHub Pages ;
+- sessions conservées localement jusqu'à déconnexion manuelle ;
+- horaires, planning, validation et objectifs synchronisés entre appareils ;
+- espace salarié et espace pilotage séparés ;
+- les week-ends sont non travaillés par défaut, sauf modification du planning ;
+- toute correction d'un salarié repasse la journée en **À valider** ;
+- export CSV et rapport mensuel imprimable / PDF conservés.
+
+## Configuration publique
+
+`config.js` contient uniquement :
+
+- l'URL publique du projet Supabase ;
+- la **publishable key** destinée au navigateur.
+
+Ne jamais ajouter dans GitHub une `secret key`, une clé `service_role`, ni le mot de passe de la base.
+
+## Liens de test actuellement créés dans Supabase
 
 - Emma : `employee.html?token=emma-4F7P2A` — PIN `1842`
 - Julie : `employee.html?token=julie-9K3M8D` — PIN `5726`
@@ -18,24 +30,12 @@ Les codes ci-dessous sont **uniquement pour tester cette V1 statique**. Ils ne c
 - Thomas : `employee.html?token=thomas-8K4X2Q` — PIN `8463`
 - Pilotage : `pilotage.html?access=gestion-7Q9M2X` — PIN `2648`
 
-## Important — sécurité
-Cette V1.2 reste une maquette fonctionnant avec `localStorage`. Les PIN sont donc vérifiés côté navigateur et peuvent être retrouvés dans le code source public.
+Ces identifiants servent à la phase de test. Avant mise en service, il faudra créer les vrais noms, PIN et tokens personnels.
 
-Pour une vraie protection, la prochaine étape sera :
-- Supabase pour l'authentification / validation des PIN côté serveur ;
-- base de données commune ;
-- règles d'accès par employé ;
-- accès pilotage distinct ;
-- rappels automatiques.
+## Déploiement GitHub Pages
 
-## GitHub Pages
-Place tous les fichiers à la racine du dépôt, commit puis push. GitHub Pages republiera automatiquement la version.
+Copie tous les fichiers à la racine du dépôt, puis commit et push. GitHub Pages publiera automatiquement la nouvelle version.
 
-## V1.6
-- Planning par jour et par employé depuis le calendrier de pilotage.
-- Lundi-vendredi travaillés par défaut ; samedi-dimanche non travaillés par défaut.
-- Statuts « À valider » / « Validé » pour les journées complètes.
-- Toute correction effectuée côté employé repasse automatiquement la journée en « À valider ».
-- Correction et validation directement depuis l’espace de pilotage.
-- Objectif horaire hebdomadaire et seuil indicatif paramétrables par employé (35 h par défaut).
-- Rapport mensuel imprimable / enregistrable en PDF depuis le mois affiché dans le calendrier.
+## Prérequis Supabase
+
+Le script `supabase_setup_suivi_horaires.sql` doit avoir été exécuté une fois dans le SQL Editor du projet Supabase.
