@@ -30,3 +30,12 @@ Pour une vraie protection, la prochaine étape sera :
 
 ## GitHub Pages
 Place tous les fichiers à la racine du dépôt, commit puis push. GitHub Pages republiera automatiquement la version.
+
+## V1.6
+- Planning par jour et par employé depuis le calendrier de pilotage.
+- Lundi-vendredi travaillés par défaut ; samedi-dimanche non travaillés par défaut.
+- Statuts « À valider » / « Validé » pour les journées complètes.
+- Toute correction effectuée côté employé repasse automatiquement la journée en « À valider ».
+- Correction et validation directement depuis l’espace de pilotage.
+- Objectif horaire hebdomadaire et seuil indicatif paramétrables par employé (35 h par défaut).
+- Rapport mensuel imprimable / enregistrable en PDF depuis le mois affiché dans le calendrier.
