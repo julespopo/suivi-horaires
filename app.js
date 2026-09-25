@@ -51,3 +51,66 @@ function endOfWeek(ref){const d=startOfWeek(ref);d.setDate(d.getDate()+6);return
 function listDates(start,end){let dates=[];const d=new Date(start);while(d<=end){dates.push(iso(d));d.setDate(d.getDate()+1)}return dates}
 function isFuture(date){return date>iso()}
 function dayInfoFor(empId,date){const entry=getData().entries.find(x=>x.employeeId===empId&&x.date===date);const planned=isPlannedWorkingDay(empId,date);if(!entry)return {entry:null,status:planned?'empty':'scheduled-off',minutes:0,label:planned?'À compléter':'Non travaillé prévu'};if(entry.status==='off')return {entry,status:'off',minutes:0,label:'Non travaillé'};const total=minutes(entry.arrival,entry.departure,entry.pause);if(entry.arrival&&entry.departure)return {entry,status:'complete',minutes:total,label:fmtMin(total)};return {entry,status:'incomplete',minutes:total,label:'À compléter'};}
+
+
+// V1.7 — ergonomie clavier des formulaires
+function timeToMinutes(value){
+  if(!/^\d{2}:\d{2}$/.test(value||'')) return null;
+  const [h,m]=value.split(':').map(Number);
+  return h*60+m;
+}
+function minutesToTime(total){
+  total=((total%(24*60))+(24*60))%(24*60);
+  return `${pad(Math.floor(total/60))}:${pad(total%60)}`;
+}
+function stepTimeInput(input,direction,event){
+  const step=event.shiftKey?15:5;
+  let current=timeToMinutes(input.value);
+  if(current===null){
+    const now=new Date();
+    current=Math.round((now.getHours()*60+now.getMinutes())/step)*step;
+  }
+  input.value=minutesToTime(current+(direction*step));
+  input.dispatchEvent(new Event('input',{bubbles:true}));
+  input.dispatchEvent(new Event('change',{bubbles:true}));
+}
+function submitCurrentContext(el){
+  const modal=el.closest('.modal.open');
+  if(modal){
+    const primary=[...modal.querySelectorAll('button.btn-primary:not([disabled])')].pop();
+    if(primary){primary.click();return true;}
+  }
+  const form=el.closest('form');
+  if(form){
+    if(form.requestSubmit) form.requestSubmit();
+    else form.submit();
+    return true;
+  }
+  return false;
+}
+document.addEventListener('keydown',event=>{
+  const el=event.target;
+  if(!(el instanceof HTMLElement)) return;
+  if(el.matches('input[type="time"]')){
+    if(event.key==='ArrowUp'||event.key==='ArrowDown'){
+      event.preventDefault();
+      stepTimeInput(el,event.key==='ArrowUp'?1:-1,event);
+      return;
+    }
+    if(event.key==='Enter'){
+      event.preventDefault();
+      submitCurrentContext(el);
+      return;
+    }
+  }
+  if(el.matches('input:not([type="time"]):not([type="button"]):not([type="submit"]), select') && event.key==='Enter'){
+    const modal=el.closest('.modal.open');
+    if(modal){event.preventDefault();submitCurrentContext(el);}
+  }
+});
+document.addEventListener('focusin',event=>{
+  const el=event.target;
+  if(el instanceof HTMLInputElement && el.type==='time'){
+    el.title='Flèches ↑/↓ : ±5 min · Maj + flèche : ±15 min · Entrée : valider';
+  }
+});
