@@ -41,3 +41,10 @@
 .day-meta{font-size:12px;color:var(--muted);line-height:1.35}
 @media (max-width:900px){.week-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.calendar-head{display:none}.month-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.calendar-empty{display:none}.calendar-day{min-height:110px}.grid-3{grid-template-columns:1fr}.calendar-toolbar{align-items:center}.period-label{font-size:14px}}
 @media (max-width:520px){.view-switch{width:100%;justify-content:flex-start}.bar-chart{gap:6px}.bar{width:24px}.bar-col{min-width:34px}.week-grid,.month-grid{grid-template-columns:1fr}.calendar-day{min-height:96px}.day-main{font-size:13px}}
+
+.team-chart{display:grid;gap:16px}
+.team-chart-row{display:grid;gap:7px}
+.team-chart-head{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:14px}
+.team-chart-head span{font-weight:850}
+.team-chart-track{height:14px;background:#edf0f4;border-radius:999px;overflow:hidden}
+.team-chart-fill{height:100%;min-width:3%;border-radius:999px;background:linear-gradient(90deg,#7eaef7,#346ddb)}
