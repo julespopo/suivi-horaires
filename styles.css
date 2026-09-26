@@ -715,3 +715,29 @@ img,svg,canvas,video{max-width:100%}
     width:100%;
   }
 }
+
+
+/* V2.0 Alpha 1.6 — rappels déplacés dans le menu flottant */
+.reminder-settings-sheet{
+  width:min(620px,calc(100vw - 32px));
+}
+.reminder-settings-status{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  padding:14px 16px;
+  border:1px solid var(--line);
+  border-radius:15px;
+  background:var(--soft);
+  font-weight:800;
+}
+:root[data-theme="dark"] .reminder-settings-status{
+  background:#1c2027;
+  border-color:var(--line);
+}
+@media(max-width:620px){
+  .reminder-settings-status{
+    align-items:flex-start;
+  }
+}

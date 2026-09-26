@@ -106,3 +106,9 @@ Aucun identifiant privé ni PIN n'est documenté ici.
 - La sélection de l'employeur occupe maintenant toute la largeur.
 - « J'arrive maintenant » et la saisie manuelle sont correctement alignés et responsives.
 - Correction de l'héritage CSS qui envoyait la saisie manuelle dans une zone de grille incorrecte.
+
+
+### Alpha 1.6
+- La section « Rappels » n'occupe plus une carte permanente dans la page salarié.
+- Une icône cloche a été ajoutée au menu flottant.
+- La cloche ouvre une fenêtre dédiée pour activer/désactiver les rappels et tester les notifications.
