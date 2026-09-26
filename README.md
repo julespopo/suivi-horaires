@@ -23,7 +23,7 @@ Application web légère de suivi des horaires de travail, conçue pour une peti
 - Vue d'ensemble de l'équipe
 - Suivi des journées complètes ou à compléter
 - Consultation des volumes horaires
-- Gestion du planning
+- Gestion du planning avec sélection de plusieurs jours et vues mensuelle / hebdomadaire
 - Correction des saisies
 - Validation des journées
 - Paramétrage des objectifs horaires
