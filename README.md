@@ -62,3 +62,9 @@ Application développée pour simplifier le suivi quotidien des horaires d'une p
 - Correction de l’affichage du planning mois/semaine dans le poste de pilotage.
 
 - Le planning du pilotage permet aussi d'appliquer « travaillé » ou « non travaillé » à plusieurs jours en une seule action.
+
+## Notifications
+
+- Rappel à 19h pour les employés prévus au travail dont la journée est incomplète
+- Synthèse push quotidienne pour le poste de pilotage
+- La synthèse indique combien d’employés prévus ont complété leur journée et, si nécessaire, les prénoms restant à renseigner

@@ -150,6 +150,64 @@ async function disablePushReminders(){
   if(sess?.sessionToken){try{await rpc('api_employee_remove_push_subscription',{p_session_token:sess.sessionToken,p_endpoint:sub.endpoint})}catch{}}
   await sub.unsubscribe();return true;
 }
+
+async function ownerPushEnabled(){
+  if(!pushSupported())return false;
+  const sub=await getPushSubscription();if(!sub)return false;
+  const sess=getSession();if(!sess?.sessionToken)return false;
+  try{
+    return !!(await rpc('api_owner_push_subscription_status',{
+      p_session_token:sess.sessionToken,
+      p_endpoint:sub.endpoint
+    }));
+  }catch{return false}
+}
+async function enableOwnerPushSummary(){
+  if(!pushSupported())throw new Error('push_not_supported');
+  const ua=navigator.userAgent||'';
+  const isiOS=/iPad|iPhone|iPod/.test(ua)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+  if(isiOS&&!isStandalonePWA())throw new Error('ios_install_required');
+  if(Notification.permission==='denied')throw new Error('notifications_denied');
+  const permission=Notification.permission==='granted'?'granted':await Notification.requestPermission();
+  if(permission!=='granted')throw new Error('notifications_denied');
+  const publicKey=window.APP_CONFIG?.vapidPublicKey;if(!publicKey)throw new Error('vapid_missing');
+  const reg=await navigator.serviceWorker.ready;
+  let sub=await reg.pushManager.getSubscription();
+  if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlBase64ToUint8Array(publicKey)});
+  const json=sub.toJSON();const sess=getSession();if(!sess?.sessionToken)throw new Error('unauthorized');
+  const launchUrl=location.pathname+location.search;
+  await rpc('api_owner_save_push_subscription',{
+    p_session_token:sess.sessionToken,
+    p_endpoint:sub.endpoint,
+    p_p256dh:json.keys?.p256dh||'',
+    p_auth:json.keys?.auth||'',
+    p_user_agent:navigator.userAgent||'',
+    p_launch_url:launchUrl
+  });
+  return sub;
+}
+async function disableOwnerPushSummary(){
+  const sub=await getPushSubscription();if(!sub)return false;
+  const sess=getSession();
+  if(sess?.sessionToken){
+    await rpc('api_owner_remove_push_subscription',{
+      p_session_token:sess.sessionToken,
+      p_endpoint:sub.endpoint
+    });
+  }
+  // On ne désabonne pas le PushManager du navigateur : le même abonnement
+  // peut aussi être utilisé par un espace employé sur ce domaine.
+  return true;
+}
+async function showOwnerLocalTestNotification(){
+  if(!pushSupported())throw new Error('push_not_supported');
+  const reg=await navigator.serviceWorker.ready;
+  await reg.showNotification('Synthèse des horaires',{
+    body:'Exemple : 2 employés sur 3 ont complété leur journée.',
+    tag:'suivi-horaires-owner-test',
+    data:{url:location.pathname+location.search}
+  });
+}
 async function showLocalTestNotification(){
   if(!pushSupported())throw new Error('push_not_supported');
   const reg=await navigator.serviceWorker.ready;

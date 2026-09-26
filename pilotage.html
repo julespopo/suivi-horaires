@@ -1,10 +1,25 @@
-<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Suivi des horaires</title><link rel="icon" href="icons/icon.svg" type="image/svg+xml"><link rel="stylesheet" href="styles.css"></head><body>
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5,user-scalable=yes"><meta name="theme-color" content="#16181d"><meta name="robots" content="noindex,nofollow"><title>Suivi des horaires</title><link rel="icon" href="icons/icon.svg" type="image/svg+xml"><link rel="manifest" href="manifest-pilotage.json"><link rel="stylesheet" href="styles.css"></head><body>
 <div id="authView" class="auth-wrap hidden"><section class="card pin-card"><div class="eyebrow">Accès réservé</div><div class="pin-name">Suivi des horaires</div><p class="subtle">Entrez votre code PIN à 4 chiffres.</p><div class="field section"><input id="pin" class="pin-input" inputmode="numeric" maxlength="4" autocomplete="off" aria-label="Code PIN"></div><button id="loginBtn" class="btn btn-primary btn-block section">Continuer</button><div id="pinError" class="error"></div><div class="security-box section">Connexion sécurisée : le code PIN est vérifié côté serveur et n’est pas présent dans le code du site.</div></section></div>
 <div id="invalidView" class="auth-wrap hidden"><section class="card pin-card"><div class="eyebrow">Accès privé</div><div class="pin-name">Lien invalide</div><p class="subtle">Ce lien n’est pas reconnu.</p></section></div>
 <main id="appView" class="shell hidden">
   <div class="topbar"><div><div class="brand">Suivi des horaires</div><div class="subtle">Vue synthétique de l’équipe</div></div></div>
   <div class="row mobile-stack"><div><h1 class="h1">Vue d’ensemble</h1><div class="subtle">Horaires, planification, validation et heures travaillées.</div></div><div class="toolbar-actions"><button class="btn btn-outline" onclick="openSettings()">Paramètres horaires</button><button class="btn btn-outline" onclick="downloadCSV()">CSV</button><button class="btn btn-primary" onclick="exportMonthlyPDF()">Rapport PDF</button></div></div>
   <div id="cards" class="kpis section"></div>
+
+  <section class="card section reminder-card" id="ownerReminders">
+    <div class="row mobile-stack">
+      <div>
+        <div class="h2">Synthèse de 19h</div>
+        <div class="subtle">Reçois une seule notification avec le nombre d’employés prévus ayant complété leur journée.</div>
+      </div>
+      <span id="ownerPushStatus" class="status neutral">Vérification…</span>
+    </div>
+    <div class="toolbar-actions section">
+      <button id="ownerPushToggleBtn" class="btn btn-primary" onclick="toggleOwnerPushSummary()">Activer les notifications</button>
+      <button id="ownerPushTestBtn" class="btn btn-outline hidden" onclick="testOwnerPushSummary()">Tester sur ce téléphone</button>
+    </div>
+    <div id="ownerPushHelp" class="note section"></div>
+  </section>
 
   <section class="grid grid-2 section"><div class="card"><div class="h2">Cette semaine</div><div class="subtle">Volume horaire par employé et écart à l’objectif.</div><div id="weekTeamChart" class="team-chart section"></div></div><div class="card"><div class="h2">Ce mois</div><div class="subtle">Volume horaire cumulé par employé.</div><div id="monthTeamChart" class="team-chart section"></div></div></section>
 
@@ -42,7 +57,10 @@
 
 <div class="modal" id="ownerAccountSettingsModal"><div class="sheet pin-settings-sheet"><div class="row"><div><div class="h2">Changer le PIN de pilotage</div><div class="subtle">Le PIN doit contenir exactement 4 chiffres.</div></div><button class="btn btn-outline" onclick="closeOwnerAccountSettings()">Fermer</button></div><div class="form-grid section"><div class="field"><label>PIN actuel</label><input id="ownerCurrentPin" class="pin-setting" inputmode="numeric" maxlength="4"></div><div class="field"><label>Nouveau PIN</label><input id="ownerNewPin" class="pin-setting" inputmode="numeric" maxlength="4"></div></div><div class="field section"><label>Confirmer le nouveau PIN</label><input id="ownerConfirmPin" class="pin-setting" inputmode="numeric" maxlength="4"></div><div id="ownerPinError" class="error"></div><button id="ownerSavePinBtn" class="btn btn-primary btn-block section" onclick="saveNewOwnerPin()">Changer le PIN</button></div></div>
 <script src="config.js"></script><script src="app.js"></script><script>
-const params=new URLSearchParams(location.search),linkToken=params.get('access')||params.get('token');
+const params=new URLSearchParams(location.search);
+const OWNER_LINK_KEY='hours_owner_link_token_v1';
+let linkToken=params.get('access')||params.get('token')||localStorage.getItem(OWNER_LINK_KEY)||'';
+if(params.get('access')||params.get('token'))localStorage.setItem(OWNER_LINK_KEY,linkToken);
 let completionCursor=new Date(),planningDate='',ownerEditEmployee='',ownerEditDate='',saving=false,planningView='month',planningSelectionMode=false,selectedPlanningDates=new Set();
 if(!linkToken){invalidView.classList.remove('hidden')}else{bootOwner()}
 async function bootOwner(){
@@ -64,8 +82,62 @@ async function login(){
   try{await ownerLogin(linkToken,v);await loadOwnerData();showApp()}catch(e){const msg=friendlyError(e);pinError.textContent=(msg==='Une erreur est survenue. Réessayez.'&&(e?.status===400||e?.status===401||e?.status===403))?'PIN incorrect.':msg}finally{saving=false;loginBtn.disabled=false;loginBtn.textContent='Continuer'}
 }
 pin?.addEventListener('input',()=>pin.value=pin.value.replace(/\D/g,'').slice(0,4));pin?.addEventListener('keydown',e=>{if(e.key==='Enter')login()});loginBtn?.addEventListener('click',login);
-function showApp(){authView.classList.add('hidden');appView.classList.remove('hidden');floatingSettings.classList.remove('hidden');renderOwner()}
+function showApp(){authView.classList.add('hidden');appView.classList.remove('hidden');floatingSettings.classList.remove('hidden');renderOwner();refreshOwnerPushUI()}
 async function withOwnerSave(fn){if(saving)return;saving=true;document.body.classList.add('is-saving');try{await fn()}catch(e){if(String(e.message).includes('unauthorized')){clearSession();location.reload();return}alert(friendlyError(e))}finally{saving=false;document.body.classList.remove('is-saving')}}
+
+async function refreshOwnerPushUI(){
+  if(!ownerPushStatus)return;
+  if(!pushSupported()){
+    ownerPushStatus.textContent='Non compatible';
+    ownerPushStatus.className='status warn';
+    ownerPushToggleBtn.disabled=true;
+    ownerPushHelp.textContent='Ce navigateur ne prend pas en charge les notifications push.';
+    return;
+  }
+  const ua=navigator.userAgent||'';
+  const isiOS=/iPad|iPhone|iPod/.test(ua)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+  if(isiOS&&!isStandalonePWA()){
+    ownerPushStatus.textContent='Installation requise';
+    ownerPushStatus.className='status warn';
+    ownerPushToggleBtn.textContent='Activer les notifications';
+    ownerPushTestBtn.classList.add('hidden');
+    ownerPushHelp.textContent='Sur iPhone : Partager → Ajouter à l’écran d’accueil, puis ouvre le pilotage depuis son icône.';
+    return;
+  }
+  const enabled=await ownerPushEnabled();
+  if(enabled&&Notification.permission==='granted'){
+    ownerPushStatus.textContent='Activées';
+    ownerPushStatus.className='status ok';
+    ownerPushToggleBtn.textContent='Désactiver les notifications';
+    ownerPushToggleBtn.className='btn btn-outline';
+    ownerPushTestBtn.classList.remove('hidden');
+    ownerPushHelp.textContent='À 19h, une synthèse est envoyée s’il y a au moins un employé prévu au travail.';
+  }else{
+    ownerPushStatus.textContent=Notification.permission==='denied'?'Bloquées':'Désactivées';
+    ownerPushStatus.className='status '+(Notification.permission==='denied'?'warn':'neutral');
+    ownerPushToggleBtn.textContent='Activer les notifications';
+    ownerPushToggleBtn.className='btn btn-primary';
+    ownerPushTestBtn.classList.add('hidden');
+    ownerPushHelp.textContent=Notification.permission==='denied'
+      ?'Réactive les notifications dans les réglages du navigateur ou du téléphone.'
+      :'Aucune synthèse n’est envoyée tant que tu ne les actives pas.';
+  }
+}
+async function toggleOwnerPushSummary(){
+  ownerPushToggleBtn.disabled=true;
+  try{
+    const enabled=await ownerPushEnabled();
+    if(enabled)await disableOwnerPushSummary();else await enableOwnerPushSummary();
+    await refreshOwnerPushUI();
+  }catch(e){
+    alert(friendlyError(e));
+    await refreshOwnerPushUI();
+  }finally{ownerPushToggleBtn.disabled=false}
+}
+async function testOwnerPushSummary(){
+  try{await showOwnerLocalTestNotification()}catch(e){alert(friendlyError(e))}
+}
+
 function toggleLog(){const open=logPanel.classList.contains('hidden');logPanel.classList.toggle('hidden',!open);logToggleBtn.textContent=open?'Masquer':'Afficher'}
 function renderTeamChart(target,values,showObjective=false){const max=Math.max(...values.map(x=>Math.max(x.minutes,x.objective||0)),1);target.innerHTML=values.map(x=>{const pct=Math.max(3,Math.round((x.minutes/max)*100));const objectivePct=x.objective?Math.min(100,Math.round((x.objective/max)*100)):0;return `<div class="team-chart-row"><div class="team-chart-head"><strong>${x.name}</strong><span>${fmtMin(x.minutes)}${showObjective?` <small class="chart-delta ${x.minutes>=x.objective?'positive':'negative'}">${fmtSignedMin(x.minutes-x.objective)}</small>`:''}</span></div><div class="team-chart-track"><div class="team-chart-fill" style="width:${pct}%"></div>${showObjective?`<i class="objective-marker" style="left:${objectivePct}%" title="Objectif ${fmtMin(x.objective)}"></i>`:''}</div></div>`}).join('')}
 function planningWeekBounds(ref=completionCursor){const start=startOfWeek(ref),end=endOfWeek(ref);return [start,end]}
@@ -112,6 +184,7 @@ function closeOwnerAccountSettings(){ownerAccountSettingsModal.classList.remove(
 [ownerCurrentPin,ownerNewPin,ownerConfirmPin].forEach(el=>el?.addEventListener('input',()=>el.value=el.value.replace(/\D/g,'').slice(0,4)));
 ownerConfirmPin?.addEventListener('keydown',e=>{if(e.key==='Enter')saveNewOwnerPin()});
 async function saveNewOwnerPin(){ownerPinError.textContent='';const current=ownerCurrentPin.value,newPin=ownerNewPin.value,confirm=ownerConfirmPin.value;if(!/^\d{4}$/.test(current)||!/^\d{4}$/.test(newPin)){ownerPinError.textContent='Les PIN doivent contenir 4 chiffres.';return}if(newPin!==confirm){ownerPinError.textContent='La confirmation ne correspond pas.';return}ownerSavePinBtn.disabled=true;ownerSavePinBtn.textContent='Modification…';try{await changeOwnerPin(current,newPin);ownerCurrentPin.value='';ownerNewPin.value='';ownerConfirmPin.value='';alert('PIN de pilotage modifié.')}catch(e){ownerPinError.textContent=friendlyError(e)}finally{ownerSavePinBtn.disabled=false;ownerSavePinBtn.textContent='Changer le PIN'}}
-window.addEventListener('focus',async()=>{if(appView&&!appView.classList.contains('hidden')&&!saving){try{await loadOwnerData();renderOwner()}catch{}}});
+window.addEventListener('focus',async()=>{if(appView&&!appView.classList.contains('hidden')&&!saving){try{await loadOwnerData();renderOwner();await refreshOwnerPushUI()}catch{}}});
+if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
 
 </script></body></html>
