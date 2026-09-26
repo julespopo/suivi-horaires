@@ -239,7 +239,17 @@ async function setEmployeeSettings(empId,patch){const s=getSession();const curre
 async function logout(){const s=getSession();try{if(s?.sessionToken)await rpc('api_logout',{p_session_token:s.sessionToken})}catch{}clearSession();location.reload()}
 
 function downloadCSV(){const rows=[['Employé','Date','Planifié','Statut','Arrivée','Départ','Pause (min)','Heures','Validation','Commentaire','Saisie arrivée','Saisie départ']];APP_DATA.entries.slice().sort((a,b)=>a.date.localeCompare(b.date)).forEach(e=>{const emp=EMPLOYEES.find(x=>x.id===e.employeeId);rows.push([emp?.name||e.employeeId,e.date,isPlannedWorkingDay(e.employeeId,e.date)?'Travaillé':'Non travaillé',e.status==='off'?'Jour non travaillé':'Travaillé',e.arrival,e.departure,e.pause,e.status==='off'?'0h00':fmtMin(minutes(e.arrival,e.departure,e.pause)),e.validationStatus==='validated'?'Validé':e.validationStatus==='pending'?'À valider':'',e.comment||'',e.arrivalMode||'',e.departureMode||''])});const csv=rows.map(r=>r.map(v=>'"'+String(v??'').replaceAll('"','""')+'"').join(';')).join('\n');const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='horaires.csv';a.click();URL.revokeObjectURL(a.href)}
-function setManifestFor(){let link=document.querySelector('link[rel="manifest"]');if(!link){link=document.createElement('link');link.rel='manifest';document.head.appendChild(link)}link.href='manifest.json'}
+function setManifestFor(linkToken=currentEmployeeLinkToken()){
+  const manifests={
+    'emma-4F7P2A':'manifest-emma.json',
+    'julie-9K3M8D':'manifest-julie.json',
+    'marc-2R6V1Q':'manifest-marc.json',
+    'thomas-8K4X2Q':'manifest-thomas.json'
+  };
+  let link=document.querySelector('link[rel="manifest"]');
+  if(!link){link=document.createElement('link');link.rel='manifest';document.head.appendChild(link)}
+  link.href=manifests[linkToken]||'manifest.json';
+}
 
 // V1.7 — ergonomie clavier des formulaires
 function timeToMinutes(value){if(!/^\d{2}:\d{2}$/.test(value||''))return null;const [h,m]=value.split(':').map(Number);return h*60+m}
