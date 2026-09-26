@@ -6,7 +6,9 @@
 
 const SUPABASE_URL = window.APP_CONFIG?.supabaseUrl || '';
 const SUPABASE_KEY = window.APP_CONFIG?.supabasePublishableKey || '';
-const SESSION_KEY = 'hours_supabase_session_v1';
+const LEGACY_SESSION_KEY = 'hours_supabase_session_v1';
+const OWNER_SESSION_KEY = 'hours_supabase_owner_session_v1';
+const EMPLOYEE_SESSION_PREFIX = 'hours_supabase_employee_session_v1_';
 
 let EMPLOYEES = [];
 let APP_DATA = {entries:[],settings:{plannedDays:{},employeeSettings:{}}};
@@ -33,9 +35,47 @@ function weekBounds(ref=new Date()){const start=startOfWeek(ref),end=endOfWeek(r
 function monthBounds(ref=new Date()){return [new Date(ref.getFullYear(),ref.getMonth(),1),new Date(ref.getFullYear(),ref.getMonth()+1,0,23,59,59)]}
 function defaultRange(){const now=new Date();const from=new Date(now.getFullYear()-1,0,1,12);const to=new Date(now.getFullYear()+1,11,31,12);return {from:iso(from),to:iso(to)}}
 
-function getSession(){try{return JSON.parse(localStorage.getItem(SESSION_KEY)||'null')}catch{return null}}
-function setSession(s){localStorage.setItem(SESSION_KEY,JSON.stringify(s))}
-function clearSession(){localStorage.removeItem(SESSION_KEY)}
+function currentEmployeeLinkToken(){
+  try{return new URLSearchParams(location.search).get('token')||''}catch{return ''}
+}
+function sessionStorageKey(role=null,linkToken=null){
+  const isOwnerPage=/pilotage\.html$/i.test(location.pathname);
+  if(role==='owner'||(!role&&isOwnerPage))return OWNER_SESSION_KEY;
+  const token=linkToken||currentEmployeeLinkToken();
+  return token?EMPLOYEE_SESSION_PREFIX+token:null;
+}
+function getSession(){
+  try{
+    const key=sessionStorageKey();
+    if(key){
+      const current=JSON.parse(localStorage.getItem(key)||'null');
+      if(current)return current;
+    }
+    // Migration douce depuis la V1.8/V1.8.1 : on récupère l'ancienne session
+    // uniquement si elle correspond à la page actuellement ouverte.
+    const legacy=JSON.parse(localStorage.getItem(LEGACY_SESSION_KEY)||'null');
+    if(!legacy)return null;
+    const isOwnerPage=/pilotage\.html$/i.test(location.pathname);
+    const matches=isOwnerPage?legacy.role==='owner':legacy.role==='employee'&&legacy.linkToken===currentEmployeeLinkToken();
+    if(matches){
+      const newKey=sessionStorageKey(legacy.role,legacy.linkToken);
+      if(newKey)localStorage.setItem(newKey,JSON.stringify(legacy));
+      return legacy;
+    }
+    return null;
+  }catch{return null}
+}
+function setSession(s){
+  const key=sessionStorageKey(s.role,s.linkToken);
+  if(!key)throw new Error('Impossible de déterminer la clé de session');
+  localStorage.setItem(key,JSON.stringify(s));
+  localStorage.removeItem(LEGACY_SESSION_KEY);
+}
+function clearSession(){
+  const key=sessionStorageKey();
+  if(key)localStorage.removeItem(key);
+  localStorage.removeItem(LEGACY_SESSION_KEY);
+}
 function isEmployeeSession(linkToken){const s=getSession();return !!s&&s.role==='employee'&&s.sessionToken&&s.linkToken===linkToken}
 function isOwnerSession(linkToken){const s=getSession();return !!s&&s.role==='owner'&&s.sessionToken&&s.linkToken===linkToken}
 

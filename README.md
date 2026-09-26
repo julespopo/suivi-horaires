@@ -39,3 +39,10 @@ Copie tous les fichiers à la racine du dépôt, puis commit et push. GitHub Pag
 ## Prérequis Supabase
 
 Le script `supabase_setup_suivi_horaires.sql` doit avoir été exécuté une fois dans le SQL Editor du projet Supabase.
+
+
+## V1.8.2 — sessions persistantes
+
+- Les sessions employé et pilotage ont désormais des clés locales séparées : ouvrir le pilotage ne déconnecte plus un employé sur le même navigateur.
+- Chaque lien employé conserve sa propre session.
+- Exécuter `supabase_sessions_sans_expiration.sql` une fois dans le SQL Editor pour conserver les sessions serveur jusqu'à déconnexion manuelle.
