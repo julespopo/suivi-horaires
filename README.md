@@ -78,3 +78,5 @@ Application développée pour simplifier le suivi quotidien des horaires d'une p
 - V1.10.9 : exports déplacés en bas du pilotage, réglages horaires clarifiés et vue semaine mobile en défilement horizontal.
 
 - V1.10.10 : explications des paramètres horaires regroupées une seule fois au-dessus des salariés.
+
+- V1.10.11 : boutons de réglage de pause simplifiés en -5 / -30 / +5 / +30 ; seul le total reste affiché au format heures/minutes.
