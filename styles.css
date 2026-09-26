@@ -303,3 +303,39 @@ img,svg,canvas,video{max-width:100%}
 /* V1.10.8 */
 .pause-duration-text{font-variant-numeric:tabular-nums;letter-spacing:.01em}
 .employee-pause-input-wrap .pause-duration-text{width:100%;text-align:center;font-weight:800}
+
+
+/* V1.10.9 — Pilotage mobile: semaine en défilement horizontal */
+.settings-help{margin-top:6px;line-height:1.35}
+.export-card .toolbar-actions{justify-content:flex-start}
+@media (max-width:900px){
+  .completion-grid.planning-week-grid{
+    display:flex!important;
+    gap:12px;
+    overflow-x:auto;
+    overflow-y:hidden;
+    padding:2px 2px 12px;
+    scroll-snap-type:x mandatory;
+    -webkit-overflow-scrolling:touch;
+    overscroll-behavior-x:contain;
+  }
+  .completion-grid.planning-week-grid .week-detail-day{
+    flex:0 0 min(78vw,320px);
+    width:min(78vw,320px);
+    min-width:min(78vw,320px);
+    min-height:150px;
+    scroll-snap-align:start;
+  }
+  .completion-grid.planning-week-grid + *{clear:both}
+}
+@media (max-width:560px){
+  .completion-grid.planning-week-grid{
+    grid-template-columns:none!important;
+  }
+  .completion-grid.planning-week-grid .week-detail-day{
+    flex-basis:82vw;
+    width:82vw;
+    min-width:82vw;
+  }
+  .export-card .toolbar-actions{display:grid;grid-template-columns:1fr;width:100%}
+}
