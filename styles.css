@@ -169,3 +169,75 @@ button,a,input,select,textarea,label,.tab,.calendar-day,.completion-day,.employe
 :root[data-theme="dark"] .employee-action-icon{background:rgba(255,255,255,.12);color:inherit}:root[data-theme="dark"] .employee-arrive{background:#1c332b;color:#83d9b7}:root[data-theme="dark"] .employee-leave{background:#202c43;color:#aac8ff}:root[data-theme="dark"] .employee-pause{background:#342a19;color:#efc36f}:root[data-theme="dark"] .employee-pause.running{background:#38201f;color:#ff9d95}:root[data-theme="dark"] .employee-time-box{background:#1c2027;border-color:var(--line)}:root[data-theme="dark"] .offline-notice{background:#202c43;color:#aac8ff}:root[data-theme="dark"] .network-chip{background:#1c2027}:root[data-theme="dark"] .network-chip.offline{background:#342a19;color:#efc36f;border-color:#574624}:root[data-theme="dark"] .employee-off-button{background:#1c2027}:root[data-theme="dark"] .employee-off-button.active{background:#2a2540;color:#c8bcff;border-color:#4b416d}
 @media (min-width:760px){.employee-main-actions{grid-template-columns:1fr 1fr}.employee-pause{grid-column:1/-1}}
 @media (max-width:620px){.topbar{align-items:center}.network-chip{padding:7px 10px}.employee-big-action{min-height:84px;padding:15px}.employee-time-summary{grid-template-columns:1fr 1fr}.employee-time-input{font-size:1.4rem!important}}
+
+
+/* V1.9.6 — mobile stable: no horizontal drift, no focus zoom, centered forms */
+html,body{width:100%;max-width:100%;overflow-x:hidden}
+body{position:relative}
+.shell,.card,.sheet,.modal,.field,.form-grid,.row,.employee-time-box{min-width:0}
+img,svg,canvas,video{max-width:100%}
+.field input,.field select,.field textarea,
+.employee-time-input,.employee-pause-input,.pin-input{
+  max-width:100%;
+  box-sizing:border-box;
+}
+.sheet{
+  overflow-y:auto!important;
+  overflow-x:hidden!important;
+  overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;
+}
+.sheet>*{max-width:100%;min-width:0}
+.sheet .form-grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+.sheet .field{min-width:0}
+.sheet .time-card{width:100%;min-width:0;box-sizing:border-box}
+.modal{overflow:hidden}
+.pause-quick-add{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin-top:10px}
+.pause-quick-add button{
+  min-width:0;min-height:38px;padding:8px 6px;border:1px solid var(--line);
+  border-radius:11px;background:var(--card);color:var(--text);font-weight:850;
+  font-size:.86rem;cursor:pointer;touch-action:manipulation;
+}
+.pause-quick-add button:active{transform:scale(.97)}
+.modal-pause-quick{margin-top:8px}
+
+/* iOS zooms focused fields when text is under 16px. Keep all editable controls >=16px. */
+@media (max-width:620px){
+  input,select,textarea,
+  .field input,.field select,.field textarea,
+  .employee-time-input,.employee-pause-input,.pin-input{
+    font-size:16px!important;
+  }
+  .employee-time-input,.employee-pause-input{font-size:1.35rem!important}
+  .modal{padding:10px}
+  .sheet,.sheet.wide-sheet{
+    width:min(100%,calc(100vw - 20px));
+    max-width:calc(100vw - 20px);
+    padding:16px;
+    margin:0 auto;
+    border-radius:18px;
+  }
+  .sheet>.row:first-child{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) auto;
+    align-items:start;
+    gap:10px;
+  }
+  .sheet>.row:first-child>.btn{
+    min-width:0;
+    width:auto;
+    padding:11px 13px;
+  }
+  .sheet .form-grid{grid-template-columns:1fr}
+  .sheet .field input,.sheet .field select,.sheet .field textarea{
+    width:100%;
+    min-width:0;
+  }
+  .pause-quick-add{grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+  .pause-quick-add button{min-height:40px;padding:8px 4px;font-size:.82rem}
+}
+
+/* Keep dark-mode quick buttons consistent. */
+:root[data-theme="dark"] .pause-quick-add button{
+  background:#1c2027;color:var(--text);border-color:var(--line)
+}
