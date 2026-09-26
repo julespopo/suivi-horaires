@@ -56,7 +56,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')closeFloatingMenu()}
 async function login(){
   if(saving)return;pinError.textContent='';const v=pin.value.replace(/\D/g,'');if(v.length!==4){pinError.textContent='Entrez les 4 chiffres du PIN.';return}
   saving=true;loginBtn.disabled=true;loginBtn.textContent='Connexion…';
-  try{await ownerLogin(linkToken,v);await loadOwnerData();showApp()}catch(e){pinError.textContent=friendlyError(e)}finally{saving=false;loginBtn.disabled=false;loginBtn.textContent='Continuer'}
+  try{await ownerLogin(linkToken,v);await loadOwnerData();showApp()}catch(e){const msg=friendlyError(e);pinError.textContent=(msg==='Une erreur est survenue. Réessayez.'&&(e?.status===400||e?.status===401||e?.status===403))?'PIN incorrect.':msg}finally{saving=false;loginBtn.disabled=false;loginBtn.textContent='Continuer'}
 }
 pin?.addEventListener('input',()=>pin.value=pin.value.replace(/\D/g,'').slice(0,4));pin?.addEventListener('keydown',e=>{if(e.key==='Enter')login()});loginBtn?.addEventListener('click',login);
 function showApp(){authView.classList.add('hidden');appView.classList.remove('hidden');floatingSettings.classList.remove('hidden');renderOwner()}

@@ -157,8 +157,17 @@ async function showLocalTestNotification(){
 }
 
 function friendlyError(err){
-  const m=String(err?.message||err||'');
-  if(m.includes('invalid_credentials')) return 'Code PIN incorrect.';
+  const raw=String(err?.message||err||'');
+  const m=raw.toLowerCase();
+  if(
+    m.includes('invalid_credentials')||
+    m.includes('invalid credentials')||
+    m.includes('invalid_pin')||
+    m.includes('invalid pin')||
+    m.includes('incorrect_pin')||
+    m.includes('pin incorrect')||
+    m.includes('wrong pin')
+  ) return 'PIN incorrect.';
   if(m.includes('unauthorized')) return 'Votre session n’est plus valide. Reconnectez-vous.';
   if(m.includes('entry_not_complete')) return 'La journée doit être complète avant validation.';
   if(m.includes('Failed to fetch')) return 'Connexion impossible. Vérifiez votre accès Internet.';
