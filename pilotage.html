@@ -37,7 +37,7 @@
 
 <div class="modal" id="ownerAccountSettingsModal"><div class="sheet pin-settings-sheet"><div class="row"><div><div class="h2">Changer le PIN de pilotage</div><div class="subtle">Le PIN doit contenir exactement 4 chiffres.</div></div><button class="btn btn-outline" onclick="closeOwnerAccountSettings()">Fermer</button></div><div class="form-grid section"><div class="field"><label>PIN actuel</label><input id="ownerCurrentPin" class="pin-setting" inputmode="numeric" maxlength="4"></div><div class="field"><label>Nouveau PIN</label><input id="ownerNewPin" class="pin-setting" inputmode="numeric" maxlength="4"></div></div><div class="field section"><label>Confirmer le nouveau PIN</label><input id="ownerConfirmPin" class="pin-setting" inputmode="numeric" maxlength="4"></div><div id="ownerPinError" class="error"></div><button id="ownerSavePinBtn" class="btn btn-primary btn-block section" onclick="saveNewOwnerPin()">Changer le PIN</button></div></div>
 <script src="config.js"></script><script src="app.js"></script><script>
-const params=new URLSearchParams(location.search),linkToken=params.get('access');
+const params=new URLSearchParams(location.search),linkToken=params.get('access')||params.get('token');
 let completionCursor=new Date(),planningDate='',ownerEditEmployee='',ownerEditDate='',saving=false;
 if(!linkToken){invalidView.classList.remove('hidden')}else{bootOwner()}
 async function bootOwner(){
