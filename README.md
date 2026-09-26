@@ -1,82 +1,74 @@
-# Suivi horaires
+# Suivi horaires — V2.0 Alpha 1
 
-Application web légère de suivi des horaires de travail, conçue pour une petite équipe et utilisable sur ordinateur comme sur smartphone.
+Cette branche de test ajoute les fonctions nécessaires au fonctionnement réel d'un groupement d'employeurs tout en conservant la V1.10.11 comme version de secours.
 
-## Fonctionnalités
+## Nouveautés V2
 
-### Espace employé
+### Plusieurs employeurs dans une même journée
 
-- Enregistrement rapide de l'heure d'arrivée et de départ
-- Chronomètre de pause et correction manuelle de la durée
-- Raccourcis pour ajuster la pause
-- Saisie et correction des journées passées
-- Gestion des jours non travaillés
-- Historique hebdomadaire et mensuel
-- Rappels lorsque la journée est incomplète
-- Mode clair / sombre
-- Changement de PIN depuis les réglages
-- Fonctionnement hors ligne avec synchronisation au retour de la connexion
-- Installation possible sur l'écran d'accueil comme PWA
+Le poste de pilotage peut créer plusieurs employeurs et choisir lesquels sont accessibles à chaque salarié.
 
-### Espace pilotage
+Un salarié peut ensuite enregistrer plusieurs créneaux dans une même journée, par exemple :
 
-- Vue d'ensemble de l'équipe
-- Suivi des journées complètes ou à compléter
-- Consultation des volumes horaires
-- Gestion du planning avec sélection de plusieurs jours et vues mensuelle / hebdomadaire
-- Correction des saisies
-- Validation des journées
-- Paramétrage des objectifs horaires
-- Historique des modifications
-- Export des données pour le suivi administratif
+- 08:00–12:00 chez un premier employeur
+- 13:30–17:00 chez un second employeur
+
+Un seul créneau peut être ouvert à la fois. Le total journalier est calculé à partir de la somme réelle des créneaux.
+
+### Congés
+
+- Un salarié peut déclarer une période de congé à l'avance.
+- Une demande créée par le salarié apparaît dans le pilotage en attente de validation.
+- Le pilotage peut valider ou refuser la demande.
+- Le pilotage peut également créer directement un congé validé pour un salarié.
+- Un congé validé retire le salarié des journées à compléter et des rappels de 19 h.
+- Une période contenant déjà des heures de travail ne peut pas être validée comme congé sans correction préalable.
+
+### Pause simplifiée
+
+Le chronomètre de pause a été supprimé.
+
+- 1 seul créneau : pause automatique de 1h30 par défaut.
+- 2 créneaux ou plus : pause automatique de 0h00, puisque les intervalles entre les créneaux ne sont déjà pas comptés comme temps travaillé.
+- Toute modification manuelle de la pause est conservée.
+- Raccourcis : -5 / -30 / +5 / +30.
+- Affichage : 0h45, 1h30, 2h00, etc.
 
 ## Architecture
 
-Le projet utilise :
+Les tables Supabase restent privées. Le navigateur n'y accède pas directement : les opérations utilisateur passent par des fonctions RPC `security definer` et les opérations serveur des notifications utilisent la clé `service_role` dans l'Edge Function.
 
-- **GitHub Pages** pour l'hébergement de l'interface
-- **Supabase** pour la base de données et les fonctions serveur
-- **Supabase Edge Functions** pour les rappels
-- **Service Worker / PWA** pour l'installation mobile et le fonctionnement hors ligne
+La V2 ajoute quatre tables :
 
-## Sécurité
+- `employers`
+- `employee_employers`
+- `work_segments`
+- `leave_requests`
 
-Les accès utilisateurs reposent sur des liens privés et des codes PIN vérifiés côté serveur.
+`work_entries` reste le résumé quotidien utilisé par le reste de l'application et par la validation.
 
-Les tables de la base ne sont pas directement exposées à l'interface publique : les opérations passent par des fonctions RPC dédiées.
+## Installation de l'Alpha 1
 
-Les identifiants privés, PIN et secrets serveur ne doivent jamais être ajoutés au dépôt GitHub.
+1. Conserver une copie de la V1.10.11.
+2. Exécuter `supabase_v2_0_alpha1.sql` dans Supabase SQL Editor. La vérification finale doit afficher 4 lignes.
+3. Remplacer le code de l'Edge Function `send-reminders` par la version V2 et la redéployer. Les secrets VAPID et le cron existants ne changent pas.
+4. Publier les fichiers web V2 sur GitHub Pages.
+5. Dans Pilotage, créer les employeurs puis cocher les salariés autorisés pour chacun.
+6. Tester avec un seul salarié avant d'étendre à toute l'équipe.
 
-## Utilisation
+## Parcours de test conseillé
 
-Chaque employé dispose d'un lien personnel. L'espace de pilotage possède un accès séparé.
+1. Créer deux employeurs dans Pilotage et les affecter à un salarié.
+2. Côté salarié : démarrer un créneau chez le premier employeur, le terminer, puis démarrer et terminer un second créneau chez le deuxième.
+3. Vérifier le total de la journée et le comportement de la pause automatique.
+4. Modifier la pause avec les boutons rapides.
+5. Vérifier que la journée apparaît à valider dans Pilotage et que les deux créneaux sont visibles.
+6. Déclarer un congé futur côté salarié, puis le valider dans Pilotage.
+7. Vérifier que les dates de congé ne sont plus indiquées comme journées à compléter.
+8. Tester le rappel de 19 h sur une journée incomplète et la synthèse Pilotage.
 
-Ce dépôt contient uniquement le code public de l'application. Les accès privés et la configuration sensible sont conservés séparément.
+## Limitation connue de cette Alpha
 
-## Statut
+Le démarrage et l'arrêt d'un créneau V2 demandent actuellement une connexion Internet. La PWA reste installable et le cache d'interface fonctionne, mais la nouvelle saisie multi-employeurs n'est pas encore mise en file d'attente hors connexion.
 
-Application développée pour simplifier le suivi quotidien des horaires d'une petite équipe.
-
-## Correctifs récents
-
-- Correction de l’affichage du planning mois/semaine dans le poste de pilotage.
-
-- Le planning du pilotage permet aussi d'appliquer « travaillé » ou « non travaillé » à plusieurs jours en une seule action.
-
-## Notifications
-
-- Rappel à 19h pour les employés prévus au travail dont la journée est incomplète
-- Synthèse push quotidienne pour le poste de pilotage
-- La synthèse indique combien d’employés prévus ont complété leur journée et, si nécessaire, les prénoms restant à renseigner
-
-- V1.10.6 : simplification de la fenêtre « À compléter » et correction de la largeur des champs d'heure sur iPhone.
-
-- V1.10.7 : affichage des durées de pause au format heures/minutes (ex. 0h45, 1h30, 2h00).
-
-- V1.10.8 : pause saisie/affichée uniquement au format 0h45 / 1h30 / 2h00, correction de l’ajout à l’écran d’accueil du pilotage sur iPhone et possibilité pour un salarié de repasser une journée prévue non travaillée en journée travaillée.
-
-- V1.10.9 : exports déplacés en bas du pilotage, réglages horaires clarifiés et vue semaine mobile en défilement horizontal.
-
-- V1.10.10 : explications des paramètres horaires regroupées une seule fois au-dessus des salariés.
-
-- V1.10.11 : boutons de réglage de pause simplifiés en -5 / -30 / +5 / +30 ; seul le total reste affiché au format heures/minutes.
+Aucun identifiant privé ni PIN n'est documenté ici.

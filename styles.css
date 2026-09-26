@@ -343,3 +343,43 @@ img,svg,canvas,video{max-width:100%}
 .settings-explainer{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;padding:14px 16px;border:1px solid var(--line);border-radius:16px;background:var(--soft)}
 .settings-explainer>div{min-width:0}
 @media(max-width:700px){.settings-explainer{grid-template-columns:1fr}}
+
+/* ============================================================
+   V2.0 ALPHA 1 — multi-employeurs / congés / créneaux
+   ============================================================ */
+.v2-badge{display:inline-flex;align-items:center;justify-content:center;margin-left:6px;padding:2px 7px;border-radius:999px;font-size:11px;font-weight:800;letter-spacing:.04em;background:var(--surface-2,#eef1f5);border:1px solid var(--border,#dfe3e8);vertical-align:middle}
+.v2-start-panel{display:grid;grid-template-columns:minmax(0,1fr) minmax(220px,1.1fr);gap:14px;align-items:end}
+.v2-start-panel .field{margin:0}
+.v2-active-segment{display:grid;grid-template-columns:minmax(0,1fr) minmax(220px,1.1fr);gap:16px;align-items:center;padding:16px;border:1px solid var(--border,#dfe3e8);border-radius:18px;background:var(--surface-2,#f4f6f8)}
+.segment-list{display:grid;gap:10px}
+.segment-item{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 14px;border:1px solid var(--border,#dfe3e8);border-radius:14px;background:var(--surface,#fff)}
+.segment-item.active{border-style:dashed}
+.v2-summary-grid{grid-template-columns:1fr 1fr!important}
+.leave-banner{padding:14px 16px;border-radius:14px;border:1px solid var(--border,#dfe3e8);background:var(--surface-2,#f4f6f8)}
+.leave-banner strong{display:block;margin-bottom:3px}
+.leave-list{display:grid;gap:10px}
+.leave-row{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:13px 14px;border:1px solid var(--border,#dfe3e8);border-radius:14px;background:var(--surface,#fff)}
+.leave-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+.segment-editor{display:grid;gap:10px}
+.segment-edit-row{display:grid;grid-template-columns:minmax(160px,1.4fr) minmax(120px,.8fr) minmax(120px,.8fr) auto;gap:10px;align-items:end;padding:12px;border:1px solid var(--border,#dfe3e8);border-radius:14px;background:var(--surface-2,#f4f6f8)}
+.segment-edit-row .field{margin:0;min-width:0}
+.segment-edit-row input,.segment-edit-row select{width:100%;max-width:100%;box-sizing:border-box}
+.segment-remove{margin-bottom:1px}
+.calendar-day.leave,.bar.leave{background:var(--surface-2,#eef1f5)}
+.calendar-day.leave{border-style:dashed}
+.employer-list{display:grid;gap:10px}
+.employer-admin-card{padding:13px 14px;border:1px solid var(--border,#dfe3e8);border-radius:14px;background:var(--surface,#fff)}
+.employer-assignment-grid{display:flex;flex-wrap:wrap;gap:8px 14px}
+.assignment-check{display:flex;align-items:center;gap:7px;font-size:14px}
+.assignment-check input{width:18px;height:18px}
+.planning-row.is-leave{opacity:.82}
+
+@media(max-width:720px){
+  .v2-start-panel,.v2-active-segment{grid-template-columns:1fr}
+  .v2-summary-grid{grid-template-columns:1fr!important}
+  .segment-edit-row{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+  .segment-edit-row .field:first-child{grid-column:1/-1}
+  .segment-remove{grid-column:1/-1;width:100%}
+  .leave-row{align-items:flex-start;flex-direction:column}
+  .leave-actions{justify-content:flex-start;width:100%}
+}

@@ -1,5 +1,5 @@
 // ============================================================
-// SUIVI HORAIRES — V1.8 SUPABASE
+// SUIVI HORAIRES — V2.0 ALPHA 1
 // Les données métier sont désormais centralisées dans Supabase.
 // GitHub Pages ne contient aucune clé secrète ni aucun PIN.
 // ============================================================
@@ -39,6 +39,7 @@ initTheme();
 
 let EMPLOYEES = [];
 let APP_DATA = {entries:[],settings:{plannedDays:{},employeeSettings:{}}};
+let V2_DATA = {employers:[],assignments:[],segments:[],leaves:[]};
 let CURRENT_EMPLOYEE = null;
 let DATA_RANGE = {from:null,to:null};
 
@@ -230,7 +231,21 @@ function friendlyError(err){
   ) return 'PIN incorrect.';
   if(m.includes('unauthorized')) return 'Votre session n’est plus valide. Reconnectez-vous.';
   if(m.includes('entry_not_complete')) return 'La journée doit être complète avant validation.';
-  if(m.includes('Failed to fetch')) return 'Connexion impossible. Vérifiez votre accès Internet.';
+  if(m.includes('employer_not_allowed')) return 'Cet employeur n’est pas associé à ce salarié.';
+  if(m.includes('employer_not_found')) return 'Cet employeur n’existe plus.';
+  if(m.includes('invalid_employer_name')) return 'Le nom de l’employeur doit contenir au moins 2 caractères.';
+  if(m.includes('segment_already_open')) return 'Un créneau de travail est déjà en cours. Termine-le avant d’en commencer un autre.';
+  if(m.includes('open_segment_not_found')) return 'Aucun créneau en cours n’a été trouvé.';
+  if(m.includes('end_before_start')) return 'L’heure de départ ne peut pas être antérieure à l’heure d’arrivée.';
+  if(m.includes('overlapping_segments')) return 'Deux créneaux se chevauchent. Corrige les horaires avant d’enregistrer.';
+  if(m.includes('no_segments')) return 'Ajoute au moins un créneau de travail.';
+  if(m.includes('day_has_segments')) return 'Cette journée contient déjà des heures de travail. Supprime les créneaux avant de la déclarer non travaillée.';
+  if(m.includes('validated_leave')) return 'Cette journée est couverte par un congé validé.';
+  if(m.includes('invalid_leave_dates')) return 'Vérifie les dates de début et de fin du congé.';
+  if(m.includes('leave_overlap')) return 'Cette période chevauche déjà une autre demande de congé.';
+  if(m.includes('leave_has_work')) return 'Des heures de travail existent déjà sur cette période. Corrige-les avant de valider le congé.';
+  if(m.includes('leave_not_cancellable')) return 'Cette demande ne peut plus être annulée depuis le compte salarié.';
+  if(m.includes('failed to fetch')) return 'Connexion impossible. Vérifiez votre accès Internet.';
   if(m.includes('push_not_supported')) return 'Les notifications push ne sont pas prises en charge sur ce navigateur.';
   if(m.includes('ios_install_required')) return 'Sur iPhone, ajoute d’abord ce site à l’écran d’accueil puis ouvre-le depuis son icône.';
   if(m.includes('notifications_denied')) return 'Les notifications sont bloquées dans les réglages du navigateur ou du téléphone.';
@@ -247,6 +262,7 @@ function normalizeEntry(r){return {
   arrival:cleanTime(r.arrival),
   departure:cleanTime(r.departure),
   pause:Number(r.pause_minutes??45),
+  pauseMode:r.pause_mode||'manual',
   comment:r.comment||'',
   arrivalMode:r.arrival_mode||'',
   departureMode:r.departure_mode||'',
@@ -260,6 +276,78 @@ function normalizeEmployee(e){return {
   weeklyObjectiveMinutes:Number(e.weekly_objective_minutes??2100),
   overtimeThresholdMinutes:Number(e.overtime_threshold_minutes??2100)
 }}
+function normalizeEmployer(r){return {id:r.id,name:r.name||'Employeur',active:r.active!==false,sortOrder:Number(r.sort_order||0)}}
+function normalizeSegment(r){return {
+  id:r.id,
+  employeeId:r.employee_id,
+  date:r.work_date,
+  employerId:r.employer_id,
+  employerName:r.employer_name||'Employeur',
+  start:cleanTime(r.start_time),
+  end:cleanTime(r.end_time),
+  source:r.source||'',
+  comment:r.comment||'',
+  updatedAt:r.updated_at||''
+}}
+function normalizeLeave(r){return {
+  id:r.id,
+  employeeId:r.employee_id,
+  startDate:r.start_date,
+  endDate:r.end_date,
+  type:r.leave_type||'paid_leave',
+  status:r.status||'pending',
+  note:r.note||'',
+  requestedBy:r.requested_by||'employee',
+  reviewedAt:r.reviewed_at||'',
+  reviewedBy:r.reviewed_by||'',
+  createdAt:r.created_at||''
+}}
+function setV2Data(raw={},role='employee'){
+  V2_DATA={
+    employers:(raw.employers||[]).map(normalizeEmployer),
+    assignments:(raw.assignments||[]).map(x=>({employeeId:x.employee_id,employerId:x.employer_id,active:x.active!==false})),
+    segments:(raw.segments||[]).map(normalizeSegment),
+    leaves:(raw.leaves||[]).map(normalizeLeave)
+  };
+}
+function employerFor(id){return V2_DATA.employers.find(e=>e.id===id)||null}
+function assignedEmployers(empId){
+  if(!V2_DATA.assignments.length && CURRENT_EMPLOYEE?.id===empId)return V2_DATA.employers.filter(e=>e.active);
+  const ids=new Set(V2_DATA.assignments.filter(a=>a.employeeId===empId&&a.active).map(a=>a.employerId));
+  return V2_DATA.employers.filter(e=>e.active&&ids.has(e.id));
+}
+function segmentsFor(empId,date){return V2_DATA.segments.filter(s=>s.employeeId===empId&&s.date===date).sort((a,b)=>a.start.localeCompare(b.start))}
+function openSegmentFor(empId){return V2_DATA.segments.find(s=>s.employeeId===empId&&!s.end)||null}
+function leaveForDate(empId,date,status='validated'){return V2_DATA.leaves.find(l=>l.employeeId===empId&&(!status||l.status===status)&&date>=l.startDate&&date<=l.endDate)||null}
+function isOnValidatedLeave(empId,date){return !!leaveForDate(empId,date,'validated')}
+function timeSpanMinutes(start,end){
+  if(!start||!end)return 0;
+  const a=timeToMinutes(start),b=timeToMinutes(end);
+  if(a===null||b===null||b<a)return 0;
+  return b-a;
+}
+function segmentMinutesForDay(empId,date,{includeOpen=false}={}){
+  const segs=segmentsFor(empId,date);
+  if(!segs.length)return null;
+  let gross=0;
+  for(const s of segs){
+    let end=s.end;
+    if(!end&&includeOpen&&date===iso())end=hm();
+    gross+=timeSpanMinutes(s.start,end);
+  }
+  const entry=entryFor(empId,date,false);
+  const pause=Number(entry?.pause||0);
+  return Math.max(0,gross-pause);
+}
+function workMinutesForDay(empId,date,{includeOpen=false}={}){
+  if(isOnValidatedLeave(empId,date))return 0;
+  const entry=entryFor(empId,date,false);
+  if(entry?.status==='off')return 0;
+  const v2=segmentMinutesForDay(empId,date,{includeOpen});
+  if(v2!==null)return v2;
+  return entry?minutes(entry.arrival,entry.departure,entry.pause):0;
+}
+
 function hydrateEmployeeSettings(){
   APP_DATA.settings.employeeSettings={};
   EMPLOYEES.forEach(e=>APP_DATA.settings.employeeSettings[e.id]={weeklyObjectiveMinutes:e.weeklyObjectiveMinutes,overtimeThresholdMinutes:e.overtimeThresholdMinutes});
@@ -281,10 +369,40 @@ function entryFor(emp,date,create=false){
 function employeeSettings(empId){return APP_DATA.settings.employeeSettings[empId]||{weeklyObjectiveMinutes:2100,overtimeThresholdMinutes:2100}}
 function isPlannedWorkingDay(empId,date){const over=APP_DATA.settings.plannedDays?.[empId]?.[date];if(typeof over==='boolean')return over;const day=dateObjFromIso(date).getDay();return day!==0&&day!==6}
 function recentDates(days=21){let arr=[],d=new Date();for(let i=0;i<days;i++){let x=new Date(d);x.setDate(d.getDate()-i);arr.push(iso(x))}return arr}
-function tasksFor(emp){return recentDates(18).filter(date=>{if(date===iso()||!isPlannedWorkingDay(emp,date))return false;const e=APP_DATA.entries.find(x=>x.employeeId===emp&&x.date===date);if(e?.status==='off')return false;return !e||!e.arrival||!e.departure}).map(date=>{const e=APP_DATA.entries.find(x=>x.employeeId===emp&&x.date===date);let missing=!e?'Journée à renseigner':(!e.arrival&&!e.departure?'Arrivée et départ manquants':!e.arrival?'Arrivée manquante':'Départ manquant');return {date,missing}})}
-function totalFor(emp,start,end){return APP_DATA.entries.filter(e=>e.employeeId===emp&&e.status!=='off'&&new Date(e.date+'T12:00:00')>=start&&new Date(e.date+'T12:00:00')<=end).reduce((s,e)=>s+minutes(e.arrival,e.departure,e.pause),0)}
+function tasksFor(emp){
+  return recentDates(18).filter(date=>{
+    if(date===iso()||!isPlannedWorkingDay(emp,date)||isOnValidatedLeave(emp,date))return false;
+    const info=dayInfoFor(emp,date);
+    return !['complete','off','leave'].includes(info.status);
+  }).map(date=>{
+    const segs=segmentsFor(emp,date),entry=entryFor(emp,date,false);
+    let missing='Journée à renseigner';
+    if(segs.some(s=>!s.end))missing='Départ manquant';
+    else if(entry&&(!entry.arrival||!entry.departure))missing='Journée à compléter';
+    return {date,missing};
+  })
+}
+function totalFor(emp,start,end){
+  return listDates(start,end).reduce((sum,date)=>sum+workMinutesForDay(emp,date),0)
+}
 function pendingValidationCount(emp,start=null,end=null){return APP_DATA.entries.filter(e=>e.employeeId===emp&&e.validationStatus==='pending'&&(e.status==='off'||(e.arrival&&e.departure))&&(!start||new Date(e.date+'T12:00:00')>=start)&&(!end||new Date(e.date+'T12:00:00')<=end)).length}
-function dayInfoFor(empId,date){const entry=APP_DATA.entries.find(x=>x.employeeId===empId&&x.date===date);const planned=isPlannedWorkingDay(empId,date);if(!entry)return {entry:null,status:planned?'empty':'scheduled-off',minutes:0,label:planned?'À compléter':'Non travaillé prévu'};if(entry.status==='off')return {entry,status:'off',minutes:0,label:'Non travaillé'};const total=minutes(entry.arrival,entry.departure,entry.pause);if(entry.arrival&&entry.departure)return {entry,status:'complete',minutes:total,label:fmtMin(total)};return {entry,status:'incomplete',minutes:total,label:'À compléter'}}
+function dayInfoFor(empId,date){
+  const entry=APP_DATA.entries.find(x=>x.employeeId===empId&&x.date===date);
+  const planned=isPlannedWorkingDay(empId,date);
+  const leave=leaveForDate(empId,date,'validated');
+  if(leave)return {entry,status:'leave',minutes:0,label:'Congé',leave};
+  if(entry?.status==='off')return {entry,status:'off',minutes:0,label:'Non travaillé'};
+  const segs=segmentsFor(empId,date);
+  if(segs.length){
+    const total=workMinutesForDay(empId,date,{includeOpen:date===iso()});
+    const open=segs.some(s=>!s.end);
+    return {entry,status:open?'incomplete':'complete',minutes:total,label:open?'En cours':fmtMin(total),segments:segs};
+  }
+  if(!entry)return {entry:null,status:planned?'empty':'scheduled-off',minutes:0,label:planned?'À compléter':'Non travaillé prévu'};
+  const total=minutes(entry.arrival,entry.departure,entry.pause);
+  if(entry.arrival&&entry.departure)return {entry,status:'complete',minutes:total,label:fmtMin(total)};
+  return {entry,status:'incomplete',minutes:total,label:'À compléter'};
+}
 
 async function employeeLogin(linkToken,pin){
   const out=await rpc('api_employee_login',{p_link_token:linkToken,p_pin:pin});
@@ -300,22 +418,30 @@ async function ownerLogin(linkToken,pin){
 async function loadEmployeeData(){
   const s=getSession();if(!s?.sessionToken)throw new Error('unauthorized');
   const range=defaultRange();DATA_RANGE=range;
-  const out=await rpc('api_employee_data',{p_session_token:s.sessionToken,p_from:range.from,p_to:range.to});
+  const [out,v2]=await Promise.all([
+    rpc('api_employee_data',{p_session_token:s.sessionToken,p_from:range.from,p_to:range.to}),
+    rpc('api_employee_v2_data',{p_session_token:s.sessionToken,p_from:range.from,p_to:range.to})
+  ]);
   CURRENT_EMPLOYEE=normalizeEmployee(out.employee);
   EMPLOYEES=[CURRENT_EMPLOYEE];
   APP_DATA={entries:(out.entries||[]).map(r=>normalizeEntry({...r,employee_id:CURRENT_EMPLOYEE.id})),settings:{plannedDays:{},employeeSettings:{}}};
   hydrateEmployeeSettings();
   hydrateSchedule((out.schedule||[]).map(r=>({...r,employee_id:CURRENT_EMPLOYEE.id})));
+  setV2Data(v2,'employee');
   return CURRENT_EMPLOYEE;
 }
 async function loadOwnerData(){
   const s=getSession();if(!s?.sessionToken)throw new Error('unauthorized');
   const range=defaultRange();DATA_RANGE=range;
-  const out=await rpc('api_owner_data',{p_session_token:s.sessionToken,p_from:range.from,p_to:range.to});
+  const [out,v2]=await Promise.all([
+    rpc('api_owner_data',{p_session_token:s.sessionToken,p_from:range.from,p_to:range.to}),
+    rpc('api_owner_v2_data',{p_session_token:s.sessionToken,p_from:range.from,p_to:range.to})
+  ]);
   EMPLOYEES=(out.employees||[]).map(normalizeEmployee);
   APP_DATA={entries:(out.entries||[]).map(normalizeEntry),settings:{plannedDays:{},employeeSettings:{}}};
   hydrateEmployeeSettings();hydrateSchedule(out.schedule||[]);
-  return out;
+  setV2Data(v2,'owner');
+  return {...out,v2};
 }
 async function saveEmployeeEntry(date,patch={}){
   const s=getSession();if(!s?.sessionToken)throw new Error('unauthorized');
@@ -334,6 +460,85 @@ async function ownerUpdateEntry(emp,date,patch,validationStatus='pending'){
 async function validateEntry(emp,date){const s=getSession();await rpc('api_owner_validate_entry',{p_session_token:s.sessionToken,p_employee_id:emp,p_work_date:date});await loadOwnerData();return true}
 async function setPlannedWorkingDay(empId,date,value){const s=getSession();await rpc('api_owner_set_schedule',{p_session_token:s.sessionToken,p_employee_id:empId,p_work_date:date,p_is_working:!!value,p_note:''});APP_DATA.settings.plannedDays[empId]=APP_DATA.settings.plannedDays[empId]||{};APP_DATA.settings.plannedDays[empId][date]=!!value}
 async function setEmployeeSettings(empId,patch){const s=getSession();const current=employeeSettings(empId);await rpc('api_owner_set_employee_settings',{p_session_token:s.sessionToken,p_employee_id:empId,p_weekly_objective_minutes:Number(patch.weeklyObjectiveMinutes??current.weeklyObjectiveMinutes),p_overtime_threshold_minutes:Number(patch.overtimeThresholdMinutes??current.overtimeThresholdMinutes)});await loadOwnerData()}
+
+async function employeeStartSegment(employerId,date=iso(),start=hm()){
+  const s=getSession();if(!s?.sessionToken)throw new Error('unauthorized');
+  if(!navigator.onLine)throw new Error('Connexion requise pour démarrer ou terminer un créneau.');
+  await rpc('api_employee_start_segment',{p_session_token:s.sessionToken,p_work_date:date,p_employer_id:employerId,p_start_time:start});
+  await loadEmployeeData();
+}
+async function employeeStopSegment(segmentId,end=hm()){
+  const s=getSession();if(!s?.sessionToken)throw new Error('unauthorized');
+  if(!navigator.onLine)throw new Error('Connexion requise pour démarrer ou terminer un créneau.');
+  await rpc('api_employee_stop_segment',{p_session_token:s.sessionToken,p_segment_id:segmentId,p_end_time:end});
+  await loadEmployeeData();
+}
+async function employeeReplaceDayV2(date,segments,pauseMinutes,comment=''){
+  const s=getSession();if(!s?.sessionToken)throw new Error('unauthorized');
+  await rpc('api_employee_replace_day_v2',{p_session_token:s.sessionToken,p_work_date:date,p_segments:segments,p_pause_minutes:Number(pauseMinutes||0),p_comment:comment||''});
+  await loadEmployeeData();
+}
+async function employeeUpdateDayMetaV2(date,pauseMinutes,comment=''){
+  const s=getSession();if(!s?.sessionToken)throw new Error('unauthorized');
+  await rpc('api_employee_update_day_meta_v2',{p_session_token:s.sessionToken,p_work_date:date,p_pause_minutes:Number(pauseMinutes||0),p_comment:comment||''});
+  await loadEmployeeData();
+}
+async function employeeSetDayOffV2(date,isOff){
+  const s=getSession();if(!s?.sessionToken)throw new Error('unauthorized');
+  await rpc('api_employee_set_day_off_v2',{p_session_token:s.sessionToken,p_work_date:date,p_is_off:!!isOff});
+  await loadEmployeeData();
+}
+async function employeeRequestLeave(startDate,endDate,note=''){
+  const s=getSession();if(!s?.sessionToken)throw new Error('unauthorized');
+  await rpc('api_employee_request_leave',{p_session_token:s.sessionToken,p_start_date:startDate,p_end_date:endDate,p_note:note||''});
+  await loadEmployeeData();
+}
+async function employeeCancelLeave(leaveId){
+  const s=getSession();if(!s?.sessionToken)throw new Error('unauthorized');
+  await rpc('api_employee_cancel_leave',{p_session_token:s.sessionToken,p_leave_id:leaveId});
+  await loadEmployeeData();
+}
+async function ownerCreateEmployer(name){
+  const s=getSession();if(!s?.sessionToken)throw new Error('unauthorized');
+  await rpc('api_owner_create_employer',{p_session_token:s.sessionToken,p_name:name});
+  await loadOwnerData();
+}
+async function ownerSetEmployerActive(employerId,active){
+  const s=getSession();if(!s?.sessionToken)throw new Error('unauthorized');
+  await rpc('api_owner_set_employer_active',{p_session_token:s.sessionToken,p_employer_id:employerId,p_active:!!active});
+  await loadOwnerData();
+}
+async function ownerSetEmployeeEmployer(employeeId,employerId,active){
+  const s=getSession();if(!s?.sessionToken)throw new Error('unauthorized');
+  await rpc('api_owner_set_employee_employer',{p_session_token:s.sessionToken,p_employee_id:employeeId,p_employer_id:employerId,p_active:!!active});
+  await loadOwnerData();
+}
+async function ownerReplaceDayV2(employeeId,date,segments,pauseMinutes,comment='',validationStatus='pending'){
+  const s=getSession();if(!s?.sessionToken)throw new Error('unauthorized');
+  await rpc('api_owner_replace_day_v2',{p_session_token:s.sessionToken,p_employee_id:employeeId,p_work_date:date,p_segments:segments,p_pause_minutes:Number(pauseMinutes||0),p_comment:comment||'',p_validation_status:validationStatus});
+  await loadOwnerData();
+}
+async function ownerSetDayOffV2(employeeId,date,isOff,validationStatus='pending'){
+  const s=getSession();if(!s?.sessionToken)throw new Error('unauthorized');
+  await rpc('api_owner_set_day_off_v2',{p_session_token:s.sessionToken,p_employee_id:employeeId,p_work_date:date,p_is_off:!!isOff,p_validation_status:validationStatus});
+  await loadOwnerData();
+}
+async function ownerCreateLeave(employeeId,startDate,endDate,note=''){
+  const s=getSession();if(!s?.sessionToken)throw new Error('unauthorized');
+  await rpc('api_owner_create_leave',{p_session_token:s.sessionToken,p_employee_id:employeeId,p_start_date:startDate,p_end_date:endDate,p_note:note||''});
+  await loadOwnerData();
+}
+async function ownerReviewLeave(leaveId,status){
+  const s=getSession();if(!s?.sessionToken)throw new Error('unauthorized');
+  await rpc('api_owner_review_leave',{p_session_token:s.sessionToken,p_leave_id:leaveId,p_status:status});
+  await loadOwnerData();
+}
+async function ownerDeleteLeave(leaveId){
+  const s=getSession();if(!s?.sessionToken)throw new Error('unauthorized');
+  await rpc('api_owner_delete_leave',{p_session_token:s.sessionToken,p_leave_id:leaveId});
+  await loadOwnerData();
+}
+
 async function changeEmployeePin(currentPin,newPin){const s=getSession();if(!s?.sessionToken)throw new Error('unauthorized');return rpc('api_employee_change_pin',{p_session_token:s.sessionToken,p_current_pin:currentPin,p_new_pin:newPin})}
 async function changeOwnerPin(currentPin,newPin){const s=getSession();if(!s?.sessionToken)throw new Error('unauthorized');return rpc('api_owner_change_pin',{p_session_token:s.sessionToken,p_current_pin:currentPin,p_new_pin:newPin})}
 async function logout(){const s=getSession();try{if(s?.sessionToken)await rpc('api_logout',{p_session_token:s.sessionToken})}catch{}clearSession();location.reload()}
