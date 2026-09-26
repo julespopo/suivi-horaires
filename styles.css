@@ -299,3 +299,7 @@ img,svg,canvas,video{max-width:100%}
 
 .pause-human-display{margin-top:6px;font-weight:700}
 .employee-pause-input-wrap #pauseHumanValue{min-width:58px;text-align:right;font-weight:700}
+
+/* V1.10.8 */
+.pause-duration-text{font-variant-numeric:tabular-nums;letter-spacing:.01em}
+.employee-pause-input-wrap .pause-duration-text{width:100%;text-align:center;font-weight:800}

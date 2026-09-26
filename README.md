@@ -72,3 +72,5 @@ Application développée pour simplifier le suivi quotidien des horaires d'une p
 - V1.10.6 : simplification de la fenêtre « À compléter » et correction de la largeur des champs d'heure sur iPhone.
 
 - V1.10.7 : affichage des durées de pause au format heures/minutes (ex. 0h45, 1h30, 2h00).
+
+- V1.10.8 : pause saisie/affichée uniquement au format 0h45 / 1h30 / 2h00, correction de l’ajout à l’écran d’accueil du pilotage sur iPhone et possibilité pour un salarié de repasser une journée prévue non travaillée en journée travaillée.

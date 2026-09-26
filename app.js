@@ -52,6 +52,7 @@ function shortWeekday(s){return new Intl.DateTimeFormat('fr-FR',{weekday:'short'
 function monthLabel(d){return new Intl.DateTimeFormat('fr-FR',{month:'long',year:'numeric'}).format(d)}
 function minutes(a,b,pause=0){if(!a||!b)return 0;const [ah,am]=a.split(':').map(Number),[bh,bm]=b.split(':').map(Number);let m=(bh*60+bm)-(ah*60+am)-Number(pause||0);return Math.max(0,m)}
 function fmtDurationMinutes(value){const total=Math.max(0,Math.round(Number(value)||0));const h=Math.floor(total/60),m=total%60;return `${h}h${String(m).padStart(2,'0')}`}
+function parseDurationMinutes(value){const raw=String(value??'').trim().toLowerCase().replace(/\s+/g,'');if(!raw)return 0;let m=raw.match(/^(\d+)h(?:(\d{1,2}))?(?:min)?$/);if(m)return Math.max(0,Math.min(720,Number(m[1])*60+Number(m[2]||0)));m=raw.match(/^(\d{1,2}):(\d{1,2})$/);if(m)return Math.max(0,Math.min(720,Number(m[1])*60+Number(m[2])));if(/^\d+$/.test(raw))return Math.max(0,Math.min(720,Number(raw)));return null}
 function fmtMin(m){m=Math.round(Number(m)||0);const h=Math.floor(Math.abs(m)/60),mm=Math.abs(m)%60;return `${m<0?'-':''}${h}h${pad(mm)}`}
 function fmtSignedMin(m){m=Math.round(Number(m)||0);if(m===0)return '0h00';return `${m>0?'+':'−'}${fmtMin(Math.abs(m))}`}
 function dateObjFromIso(s){return new Date(s+'T12:00:00')}
