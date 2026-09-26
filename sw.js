@@ -1,4 +1,4 @@
-const CACHE='suivi-horaires-v1-9-1';
+const CACHE='suivi-horaires-v1-9-3';
 const ASSETS=['./','./index.html','./employee.html','./pilotage.html','./styles.css','./config.js','./app.js','./manifest.json','./manifest-emma.json','./manifest-julie.json','./manifest-marc.json','./manifest-thomas.json','./icons/icon.svg'];
 self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)))});
 self.addEventListener('activate',e=>{e.waitUntil(Promise.all([self.clients.claim(),caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k))))]))});
