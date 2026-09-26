@@ -65,6 +65,103 @@ function weekBounds(ref=new Date()){const start=startOfWeek(ref),end=endOfWeek(r
 function monthBounds(ref=new Date()){return [new Date(ref.getFullYear(),ref.getMonth(),1),new Date(ref.getFullYear(),ref.getMonth()+1,0,23,59,59)]}
 function defaultRange(){const now=new Date();const from=new Date(now.getFullYear()-1,0,1,12);const to=new Date(now.getFullYear()+1,11,31,12);return {from:iso(from),to:iso(to)}}
 
+function createDateRangePicker(container,startInput,endInput){
+  if(!container||!startInput||!endInput)return null;
+  let cursor=new Date();
+  cursor=new Date(cursor.getFullYear(),cursor.getMonth(),1,12);
+  let touchStartX=null;
+
+  function parseDate(value){return value?new Date(value+'T12:00:00'):null}
+  function dayIso(y,m,d){return iso(new Date(y,m,d,12))}
+  function inRange(date,start,end){return !!(start&&end&&date>start&&date<end)}
+  function selectionLabel(){
+    const start=startInput.value,end=endInput.value;
+    if(!start)return 'Sélectionne le premier jour';
+    if(!end)return `Début : ${longDate(start)} · sélectionne le dernier jour`;
+    if(start===end)return `1 jour · ${longDate(start)}`;
+    const days=Math.round((parseDate(end)-parseDate(start))/86400000)+1;
+    return `${days} jours · ${shortDate(start)} → ${shortDate(end)}`;
+  }
+  function render(){
+    const start=startInput.value,end=endInput.value;
+    const y=cursor.getFullYear(),m=cursor.getMonth();
+    const first=new Date(y,m,1,12);
+    const last=new Date(y,m+1,0,12);
+    const offset=(first.getDay()+6)%7;
+    const cells=[];
+    for(let i=0;i<offset;i++)cells.push('<span class="range-day range-empty" aria-hidden="true"></span>');
+    for(let d=1;d<=last.getDate();d++){
+      const value=dayIso(y,m,d);
+      const isStart=value===start,isEnd=value===end;
+      const middle=inRange(value,start,end);
+      const today=value===iso();
+      const cls=[
+        'range-day',
+        isStart?'range-start':'',
+        isEnd?'range-end':'',
+        middle?'range-middle':'',
+        today?'range-today':''
+      ].filter(Boolean).join(' ');
+      cells.push(`<button type="button" class="${cls}" data-range-date="${value}" aria-label="${longDate(value)}">${d}</button>`);
+    }
+    container.innerHTML=`
+      <div class="range-picker-head">
+        <button type="button" class="range-nav" data-range-prev aria-label="Mois précédent">←</button>
+        <strong>${monthLabel(cursor)}</strong>
+        <button type="button" class="range-nav" data-range-next aria-label="Mois suivant">→</button>
+      </div>
+      <div class="range-selection-summary">${selectionLabel()}</div>
+      <div class="range-weekdays"><span>L</span><span>M</span><span>M</span><span>J</span><span>V</span><span>S</span><span>D</span></div>
+      <div class="range-days">${cells.join('')}</div>
+      <div class="range-picker-help">1er clic : début · 2e clic : fin</div>
+    `;
+    container.querySelector('[data-range-prev]')?.addEventListener('click',()=>shift(-1));
+    container.querySelector('[data-range-next]')?.addEventListener('click',()=>shift(1));
+    container.querySelectorAll('[data-range-date]').forEach(btn=>btn.addEventListener('click',()=>choose(btn.dataset.rangeDate)));
+  }
+  function shift(delta){
+    cursor=new Date(cursor.getFullYear(),cursor.getMonth()+delta,1,12);
+    render();
+  }
+  function choose(value){
+    const start=startInput.value,end=endInput.value;
+    if(!start || (start&&end)){
+      startInput.value=value;
+      endInput.value='';
+    }else if(value<start){
+      startInput.value=value;
+      endInput.value='';
+    }else{
+      endInput.value=value;
+    }
+    render();
+    startInput.dispatchEvent(new Event('change',{bubbles:true}));
+    endInput.dispatchEvent(new Event('change',{bubbles:true}));
+  }
+  function reset(start='',end=''){
+    startInput.value=start||'';
+    endInput.value=end||'';
+    const focus=parseDate(start||end)||new Date();
+    cursor=new Date(focus.getFullYear(),focus.getMonth(),1,12);
+    render();
+  }
+
+  container.addEventListener('touchstart',e=>{
+    touchStartX=e.changedTouches?.[0]?.clientX??null;
+  },{passive:true});
+  container.addEventListener('touchend',e=>{
+    if(touchStartX===null)return;
+    const x=e.changedTouches?.[0]?.clientX??touchStartX;
+    const diff=x-touchStartX;
+    touchStartX=null;
+    if(Math.abs(diff)>=45)shift(diff<0?1:-1);
+  },{passive:true});
+
+  render();
+  return {reset,render,shift};
+}
+
+
 function currentEmployeeLinkToken(){
   try{return new URLSearchParams(location.search).get('token')||''}catch{return ''}
 }

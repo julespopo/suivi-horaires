@@ -409,3 +409,123 @@ img,svg,canvas,video{max-width:100%}
 :root[data-theme="dark"] .v2-badge{
   color:var(--text);
 }
+
+
+/* V2.0 Alpha 1.2 — contraste des vues Semaine/Mois */
+:root[data-theme="dark"] .active-chip{
+  background:#f1f3f6!important;
+  color:#16181d!important;
+  border-color:#f1f3f6!important;
+}
+
+/* Sélecteur de période façon réservation d'hôtel */
+.range-picker{
+  border:1px solid var(--line);
+  border-radius:18px;
+  padding:14px;
+  background:var(--card);
+  color:var(--text);
+  overflow:hidden;
+  touch-action:pan-y;
+}
+.range-picker-head{
+  display:grid;
+  grid-template-columns:42px 1fr 42px;
+  align-items:center;
+  gap:8px;
+}
+.range-picker-head strong{
+  text-align:center;
+  text-transform:capitalize;
+  font-size:16px;
+}
+.range-nav{
+  width:42px;
+  height:42px;
+  border-radius:12px;
+  border:1px solid var(--line);
+  background:var(--card);
+  color:var(--text);
+  font-weight:900;
+  cursor:pointer;
+}
+.range-selection-summary{
+  margin:11px 0 12px;
+  min-height:20px;
+  text-align:center;
+  font-size:13px;
+  font-weight:750;
+  color:var(--muted);
+}
+.range-weekdays,.range-days{
+  display:grid;
+  grid-template-columns:repeat(7,minmax(0,1fr));
+  gap:4px;
+}
+.range-weekdays{
+  margin-bottom:5px;
+}
+.range-weekdays span{
+  text-align:center;
+  color:var(--muted);
+  font-size:11px;
+  font-weight:800;
+}
+.range-day{
+  position:relative;
+  min-width:0;
+  aspect-ratio:1;
+  border:0;
+  border-radius:11px;
+  background:transparent;
+  color:var(--text);
+  font-weight:750;
+  cursor:pointer;
+}
+.range-day:hover{
+  background:var(--surface-2);
+}
+.range-day.range-today{
+  box-shadow:inset 0 0 0 1px var(--accent);
+}
+.range-day.range-middle{
+  border-radius:7px;
+  background:#eaf1ff;
+  color:#234d90;
+}
+.range-day.range-start,.range-day.range-end{
+  background:var(--text);
+  color:var(--card);
+  font-weight:900;
+}
+.range-day.range-start.range-end{
+  border-radius:11px;
+}
+.range-empty{
+  pointer-events:none;
+}
+.range-picker-help{
+  margin-top:10px;
+  text-align:center;
+  font-size:12px;
+  color:var(--muted);
+}
+:root[data-theme="dark"] .range-picker,
+:root[data-theme="dark"] .range-nav{
+  background:var(--card);
+  border-color:var(--line);
+}
+:root[data-theme="dark"] .range-day.range-middle{
+  background:#263a59;
+  color:#c5d9ff;
+}
+:root[data-theme="dark"] .range-day.range-start,
+:root[data-theme="dark"] .range-day.range-end{
+  background:#f1f3f6;
+  color:#16181d;
+}
+@media(max-width:520px){
+  .range-picker{padding:12px 8px}
+  .range-weekdays,.range-days{gap:2px}
+  .range-day{border-radius:9px;font-size:14px}
+}

@@ -78,3 +78,10 @@ Aucun identifiant privé ni PIN n'est documenté ici.
 - Congés pilotage : suppression du doublon visuel « À valider » sur chaque demande en attente.
 - Le compteur global indique désormais « demande(s) en attente ».
 - Correction des cartes V2 en mode nuit : congés, employeurs et créneaux utilisent désormais des surfaces réellement adaptées au thème sombre.
+
+
+### Alpha 1.2
+- Correction du contraste du sélecteur Semaine / Mois en mode nuit.
+- Nouveau calendrier de congés en sélection continue : premier clic = premier jour, second clic = dernier jour.
+- Navigation entre les mois par flèches ou glissement horizontal sur mobile.
+- Le même sélecteur est utilisé côté salarié et côté pilotage.

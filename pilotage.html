@@ -78,7 +78,7 @@
 
 <div class="modal" id="employerModal"><div class="sheet"><div class="row"><div><div class="h2">Ajouter un employeur</div><div class="subtle">Le nom sera visible par les salariés associés.</div></div><button class="btn btn-outline" onclick="closeEmployerModal()">Fermer</button></div><div class="field section"><label>Nom de l’employeur</label><input id="newEmployerName" type="text" autocomplete="organization" placeholder="Ex. Exploitation Martin"></div><button class="btn btn-primary btn-block section" onclick="createEmployerFromModal()">Ajouter l’employeur</button></div></div>
 
-<div class="modal" id="ownerLeaveModal"><div class="sheet"><div class="row"><div><div class="h2">Ajouter des congés</div><div class="subtle">Ajoutés depuis le pilotage, ils sont directement validés.</div></div><button class="btn btn-outline" onclick="closeOwnerLeaveModal()">Fermer</button></div><div class="field section"><label>Salarié</label><select id="ownerLeaveEmployee"></select></div><div class="form-grid section"><div class="field"><label>Du</label><input id="ownerLeaveStart" type="date"></div><div class="field"><label>Au</label><input id="ownerLeaveEnd" type="date"></div></div><div class="field section"><label>Note facultative</label><textarea id="ownerLeaveNote" rows="2"></textarea></div><button class="btn btn-primary btn-block section" onclick="createOwnerLeave()">Ajouter les congés</button></div></div>
+<div class="modal" id="ownerLeaveModal"><div class="sheet"><div class="row"><div><div class="h2">Ajouter des congés</div><div class="subtle">Ajoutés depuis le pilotage, ils sont directement validés.</div></div><button class="btn btn-outline" onclick="closeOwnerLeaveModal()">Fermer</button></div><div class="field section"><label>Salarié</label><select id="ownerLeaveEmployee"></select></div><input id="ownerLeaveStart" type="hidden"><input id="ownerLeaveEnd" type="hidden"><div id="ownerLeaveRangePicker" class="range-picker section" aria-label="Sélection de la période de congé"></div><div class="field section"><label>Note facultative</label><textarea id="ownerLeaveNote" rows="2"></textarea></div><button class="btn btn-primary btn-block section" onclick="createOwnerLeave()">Ajouter les congés</button></div></div>
 
 <section id="printReport" class="print-report"></section>
 
@@ -233,10 +233,20 @@ function renderOwnerLeavesV2(){
   ownerLeaveBadge.className='status '+(pending?'warn':'ok');
   ownerLeaveList.innerHTML=leaves.length?leaves.map(l=>{const emp=EMPLOYEES.find(e=>e.id===l.employeeId);const statusChip=l.status==='pending'?'':`<span class="status ${l.status==='validated'?'ok':'off'}">${ownerLeaveStatus(l.status)}</span>`;return `<div class="leave-row ${l.status==='pending'?'leave-pending':''}"><div class="leave-main"><strong>${ownerEscape(emp?.name||'Salarié')} · ${shortDate(l.startDate)} → ${shortDate(l.endDate)}</strong><div class="subtle">${l.note?ownerEscape(l.note)+' · ':''}${l.requestedBy==='owner'?'Ajouté par le pilotage':'Demandé par le salarié'}</div></div><div class="leave-actions">${statusChip}${l.status==='pending'?`<button class="btn btn-green btn-small" onclick="reviewOwnerLeave('${l.id}','validated')">Valider</button><button class="btn btn-outline btn-small" onclick="reviewOwnerLeave('${l.id}','rejected')">Refuser</button>`:`<button class="btn btn-outline btn-small" onclick="deleteOwnerLeave('${l.id}')">Supprimer</button>`}</div></div>`}).join(''):'<div class="empty">Aucun congé déclaré.</div>';
 }
-function openOwnerLeaveModal(){ownerLeaveEmployee.innerHTML=EMPLOYEES.map(e=>`<option value="${e.id}">${ownerEscape(e.name)}</option>`).join('');ownerLeaveStart.value=iso();ownerLeaveEnd.value=iso();ownerLeaveNote.value='';ownerLeaveModal.classList.add('open')}
+const ownerLeaveRangeControl=createDateRangePicker(document.getElementById('ownerLeaveRangePicker'),ownerLeaveStart,ownerLeaveEnd);
+function openOwnerLeaveModal(){
+  ownerLeaveEmployee.innerHTML=EMPLOYEES.map(e=>`<option value="${e.id}">${ownerEscape(e.name)}</option>`).join('');
+  ownerLeaveNote.value='';
+  ownerLeaveRangeControl?.reset('','');
+  ownerLeaveModal.classList.add('open');
+}
 function closeOwnerLeaveModal(){ownerLeaveModal.classList.remove('open')}
-ownerLeaveStart?.addEventListener('change',()=>{if(!ownerLeaveEnd.value||ownerLeaveEnd.value<ownerLeaveStart.value)ownerLeaveEnd.value=ownerLeaveStart.value});
-async function createOwnerLeave(){if(!ownerLeaveEmployee.value||!ownerLeaveStart.value||!ownerLeaveEnd.value){alert('Renseigne le salarié et les dates.');return}await withOwnerSave(async()=>{await ownerCreateLeave(ownerLeaveEmployee.value,ownerLeaveStart.value,ownerLeaveEnd.value,ownerLeaveNote.value);closeOwnerLeaveModal();renderOwner()})}
+async function createOwnerLeave(){
+  if(!ownerLeaveEmployee.value){alert('Choisis un salarié.');return}
+  if(!ownerLeaveStart.value){alert('Choisis le premier jour de congé.');return}
+  if(!ownerLeaveEnd.value)ownerLeaveEnd.value=ownerLeaveStart.value;
+  await withOwnerSave(async()=>{await ownerCreateLeave(ownerLeaveEmployee.value,ownerLeaveStart.value,ownerLeaveEnd.value,ownerLeaveNote.value);closeOwnerLeaveModal();renderOwner()})
+}
 async function reviewOwnerLeave(id,status){await withOwnerSave(async()=>{await ownerReviewLeave(id,status);renderOwner()})}
 async function deleteOwnerLeave(id){if(!confirm('Supprimer cette période de congé ?'))return;await withOwnerSave(async()=>{await ownerDeleteLeave(id);renderOwner()})}
 
