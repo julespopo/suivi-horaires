@@ -112,3 +112,10 @@ Aucun identifiant privé ni PIN n'est documenté ici.
 - La section « Rappels » n'occupe plus une carte permanente dans la page salarié.
 - Une icône cloche a été ajoutée au menu flottant.
 - La cloche ouvre une fenêtre dédiée pour activer/désactiver les rappels et tester les notifications.
+
+
+### Alpha 1.7
+- Fenêtre des rappels : texte recentré et suppression de l'explication répétée en bas.
+- Le texte d'aide inférieur n'apparaît plus que lorsqu'une action est nécessaire (installation iPhone, notifications bloquées, incompatibilité).
+- Suppression du terme « pointer » dans l'interface salarié.
+- Saisie manuelle renommée « Heure de début » / « Heure de fin ».

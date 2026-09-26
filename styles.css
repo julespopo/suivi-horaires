@@ -741,3 +741,76 @@ img,svg,canvas,video{max-width:100%}
     align-items:flex-start;
   }
 }
+
+
+/* V2.0 Alpha 1.7 — fenêtre rappels simplifiée */
+.reminder-modal-head{
+  position:relative;
+  display:flex;
+  justify-content:center;
+  align-items:flex-start;
+  min-height:76px;
+  padding:2px 118px 0;
+}
+.reminder-modal-copy{
+  width:100%;
+  max-width:430px;
+  text-align:center;
+}
+.reminder-modal-copy .h2{
+  margin-bottom:8px;
+}
+.reminder-modal-copy .subtle{
+  line-height:1.45;
+}
+.reminder-close-btn{
+  position:absolute;
+  top:0;
+  right:0;
+}
+.reminder-actions{
+  justify-content:center;
+}
+.reminder-actions .btn{
+  min-width:190px;
+}
+@media(max-width:620px){
+  .reminder-modal-head{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) auto;
+    align-items:start;
+    gap:12px;
+    padding:0;
+  }
+  .reminder-modal-copy{
+    text-align:center;
+    max-width:none;
+  }
+  .reminder-close-btn{
+    position:static;
+  }
+  .reminder-actions{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:10px;
+  }
+  .reminder-actions .btn{
+    min-width:0;
+    width:100%;
+  }
+}
+@media(max-width:430px){
+  .reminder-modal-head{
+    grid-template-columns:1fr;
+  }
+  .reminder-close-btn{
+    justify-self:end;
+    grid-row:1;
+  }
+  .reminder-modal-copy{
+    grid-row:2;
+  }
+  .reminder-actions{
+    grid-template-columns:1fr;
+  }
+}
