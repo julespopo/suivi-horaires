@@ -99,3 +99,10 @@ Aucun identifiant privé ni PIN n'est documenté ici.
 - Retour d'une saisie manuelle distincte pour l'heure d'arrivée et l'heure de départ sur la journée en cours.
 - Un salarié peut convertir une journée déjà saisie en « non travaillée » après confirmation ; les créneaux existants sont alors supprimés.
 - Dans l'historique, retirer tous les créneaux propose directement de passer la journée en « non travaillée ».
+
+
+### Alpha 1.5
+- Correction du gros décalage du bloc arrivée/départ sur ordinateur et téléphone.
+- La sélection de l'employeur occupe maintenant toute la largeur.
+- « J'arrive maintenant » et la saisie manuelle sont correctement alignés et responsives.
+- Correction de l'héritage CSS qui envoyait la saisie manuelle dans une zone de grille incorrecte.
