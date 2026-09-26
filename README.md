@@ -85,3 +85,10 @@ Aucun identifiant privé ni PIN n'est documenté ici.
 - Nouveau calendrier de congés en sélection continue : premier clic = premier jour, second clic = dernier jour.
 - Navigation entre les mois par flèches ou glissement horizontal sur mobile.
 - Le même sélecteur est utilisé côté salarié et côté pilotage.
+
+
+### Alpha 1.3 — correctif de stabilité
+- Forçage du chargement des versions cohérentes de `app.js` et `styles.css` afin d’éviter un mélange HTML récent / JavaScript en cache.
+- Le nouveau calendrier de congés ne peut plus bloquer tout le reste de l’application s’il ne se charge pas : un sélecteur de dates natif sert de repli.
+- Initialisation anticipée de l’éditeur de créneaux pour éviter le blocage des journées à compléter après une erreur JavaScript annexe.
+- Nouveau cache PWA `v2-0-alpha1-3`.
