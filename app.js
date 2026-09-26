@@ -10,6 +10,7 @@ const LEGACY_SESSION_KEY = 'hours_supabase_session_v1';
 const OWNER_SESSION_KEY = 'hours_supabase_owner_session_v1';
 const EMPLOYEE_SESSION_PREFIX = 'hours_supabase_employee_session_v1_';
 const THEME_KEY = 'hours_theme_preference_v1';
+const APP_START_DATE = '2026-09-01';
 let THEME_MEDIA = null;
 
 function preferredTheme(){
@@ -63,7 +64,9 @@ function listDates(start,end){let dates=[];const d=new Date(start);while(d<=end)
 function isFuture(date){return date>iso()}
 function weekBounds(ref=new Date()){const start=startOfWeek(ref),end=endOfWeek(ref);end.setHours(23,59,59,999);return [start,end]}
 function monthBounds(ref=new Date()){return [new Date(ref.getFullYear(),ref.getMonth(),1),new Date(ref.getFullYear(),ref.getMonth()+1,0,23,59,59)]}
-function defaultRange(){const now=new Date();const from=new Date(now.getFullYear()-1,0,1,12);const to=new Date(now.getFullYear()+1,11,31,12);return {from:iso(from),to:iso(to)}}
+function isBeforeAppStart(date){return String(date||'')<APP_START_DATE}
+function clampDateToAppStart(date){return isBeforeAppStart(date)?APP_START_DATE:date}
+function defaultRange(){const now=new Date();const to=new Date(now.getFullYear()+1,11,31,12);return {from:APP_START_DATE,to:iso(to)}}
 
 function createDateRangePicker(container,startInput,endInput){
   if(!container||!startInput||!endInput)return null;
@@ -95,14 +98,16 @@ function createDateRangePicker(container,startInput,endInput){
       const isStart=value===start,isEnd=value===end;
       const middle=inRange(value,start,end);
       const today=value===iso();
+      const disabled=isBeforeAppStart(value);
       const cls=[
         'range-day',
         isStart?'range-start':'',
         isEnd?'range-end':'',
         middle?'range-middle':'',
-        today?'range-today':''
+        today?'range-today':'',
+        disabled?'range-disabled':''
       ].filter(Boolean).join(' ');
-      cells.push(`<button type="button" class="${cls}" data-range-date="${value}" aria-label="${longDate(value)}">${d}</button>`);
+      cells.push(`<button type="button" class="${cls}" data-range-date="${value}" aria-label="${longDate(value)}" ${disabled?'disabled':''}>${d}</button>`);
     }
     container.innerHTML=`
       <div class="range-picker-head">
@@ -120,7 +125,10 @@ function createDateRangePicker(container,startInput,endInput){
     container.querySelectorAll('[data-range-date]').forEach(btn=>btn.addEventListener('click',()=>choose(btn.dataset.rangeDate)));
   }
   function shift(delta){
-    cursor=new Date(cursor.getFullYear(),cursor.getMonth()+delta,1,12);
+    const next=new Date(cursor.getFullYear(),cursor.getMonth()+delta,1,12);
+    const min=dateObjFromIso(APP_START_DATE);
+    const minMonth=new Date(min.getFullYear(),min.getMonth(),1,12);
+    cursor=next<minMonth?minMonth:next;
     render();
   }
   function choose(value){
@@ -351,6 +359,7 @@ function friendlyError(err){
   if(m.includes('ios_install_required')) return 'Sur iPhone, ajoute d’abord ce site à l’écran d’accueil puis ouvre-le depuis son icône.';
   if(m.includes('notifications_denied')) return 'Les notifications sont bloquées dans les réglages du navigateur ou du téléphone.';
   if(m.includes('vapid_missing')) return 'Configuration des notifications incomplète.';
+  if(m.includes('date_before_app_start')) return 'Les journées antérieures au 1er septembre 2026 ne sont plus gérées dans l’application.';
   if(m.includes('invalid_current_pin')) return 'Le PIN actuel est incorrect.';
   if(m.includes('invalid_new_pin')) return 'Le nouveau PIN doit contenir exactement 4 chiffres.';
   return 'Une erreur est survenue. Réessayez.';
@@ -469,8 +478,8 @@ function entryFor(emp,date,create=false){
   return e;
 }
 function employeeSettings(empId){return APP_DATA.settings.employeeSettings[empId]||{weeklyObjectiveMinutes:2100,overtimeThresholdMinutes:2100}}
-function isPlannedWorkingDay(empId,date){const over=APP_DATA.settings.plannedDays?.[empId]?.[date];if(typeof over==='boolean')return over;const day=dateObjFromIso(date).getDay();return day!==0&&day!==6}
-function recentDates(days=21){let arr=[],d=new Date();for(let i=0;i<days;i++){let x=new Date(d);x.setDate(d.getDate()-i);arr.push(iso(x))}return arr}
+function isPlannedWorkingDay(empId,date){if(isBeforeAppStart(date))return false;const over=APP_DATA.settings.plannedDays?.[empId]?.[date];if(typeof over==='boolean')return over;const day=dateObjFromIso(date).getDay();return day!==0&&day!==6}
+function recentDates(days=21){let arr=[],d=new Date();for(let i=0;i<days;i++){let x=new Date(d);x.setDate(d.getDate()-i);const value=iso(x);if(isBeforeAppStart(value))break;arr.push(value)}return arr}
 function tasksFor(emp){
   return recentDates(62).filter(date=>{
     if(date===iso()||isOnValidatedLeave(emp,date))return false;
@@ -492,6 +501,7 @@ function totalFor(emp,start,end){
 }
 function pendingValidationCount(emp,start=null,end=null){return APP_DATA.entries.filter(e=>e.employeeId===emp&&e.validationStatus==='pending'&&(e.status==='off'||(e.arrival&&e.departure))&&(!start||new Date(e.date+'T12:00:00')>=start)&&(!end||new Date(e.date+'T12:00:00')<=end)).length}
 function dayInfoFor(empId,date){
+  if(isBeforeAppStart(date))return {entry:null,status:'before-start',minutes:0,label:'Hors période'};
   const entry=APP_DATA.entries.find(x=>x.employeeId===empId&&x.date===date);
   const planned=isPlannedWorkingDay(empId,date);
   const leave=leaveForDate(empId,date,'validated');
@@ -563,7 +573,7 @@ async function ownerUpdateEntry(emp,date,patch,validationStatus='pending'){
   await loadOwnerData();
 }
 async function validateEntry(emp,date){const s=getSession();await rpc('api_owner_validate_entry',{p_session_token:s.sessionToken,p_employee_id:emp,p_work_date:date});await loadOwnerData();return true}
-async function setPlannedWorkingDay(empId,date,value){const s=getSession();await rpc('api_owner_set_schedule',{p_session_token:s.sessionToken,p_employee_id:empId,p_work_date:date,p_is_working:!!value,p_note:''});APP_DATA.settings.plannedDays[empId]=APP_DATA.settings.plannedDays[empId]||{};APP_DATA.settings.plannedDays[empId][date]=!!value}
+async function setPlannedWorkingDay(empId,date,value){if(isBeforeAppStart(date))throw new Error('date_before_app_start');const s=getSession();await rpc('api_owner_set_schedule',{p_session_token:s.sessionToken,p_employee_id:empId,p_work_date:date,p_is_working:!!value,p_note:''});APP_DATA.settings.plannedDays[empId]=APP_DATA.settings.plannedDays[empId]||{};APP_DATA.settings.plannedDays[empId][date]=!!value}
 async function setEmployeeSettings(empId,patch){const s=getSession();const current=employeeSettings(empId);await rpc('api_owner_set_employee_settings',{p_session_token:s.sessionToken,p_employee_id:empId,p_weekly_objective_minutes:Number(patch.weeklyObjectiveMinutes??current.weeklyObjectiveMinutes),p_overtime_threshold_minutes:Number(patch.overtimeThresholdMinutes??current.overtimeThresholdMinutes)});await loadOwnerData()}
 
 async function employeeStartSegment(employerId,date=iso(),start=hm(),mode='now'){
@@ -590,7 +600,7 @@ async function employeeUpdateDayMetaV2(date,pauseMinutes,comment=''){
   await rpc('api_employee_update_day_meta_v2',{p_session_token:s.sessionToken,p_work_date:date,p_pause_minutes:Number(pauseMinutes||0),p_comment:comment||''});
   await loadEmployeeData();
 }
-async function employeeSetDayOffV2(date,isOff){
+async function employeeSetDayOffV2(date,isOff){if(isBeforeAppStart(date))throw new Error('date_before_app_start');
   const s=getSession();if(!s?.sessionToken)throw new Error('unauthorized');
   await rpc('api_employee_set_day_off_v2',{p_session_token:s.sessionToken,p_work_date:date,p_is_off:!!isOff});
   await loadEmployeeData();
@@ -625,7 +635,7 @@ async function ownerReplaceDayV2(employeeId,date,segments,pauseMinutes,comment='
   await rpc('api_owner_replace_day_v2',{p_session_token:s.sessionToken,p_employee_id:employeeId,p_work_date:date,p_segments:segments,p_pause_minutes:Number(pauseMinutes||0),p_comment:comment||'',p_validation_status:validationStatus});
   await loadOwnerData();
 }
-async function ownerSetDayOffV2(employeeId,date,isOff,validationStatus='pending'){
+async function ownerSetDayOffV2(employeeId,date,isOff,validationStatus='pending'){if(isBeforeAppStart(date))throw new Error('date_before_app_start');
   const s=getSession();if(!s?.sessionToken)throw new Error('unauthorized');
   await rpc('api_owner_set_day_off_v2',{p_session_token:s.sessionToken,p_employee_id:employeeId,p_work_date:date,p_is_off:!!isOff,p_validation_status:validationStatus});
   await loadOwnerData();

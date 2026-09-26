@@ -135,3 +135,10 @@ Aucun identifiant privé ni PIN n'est documenté ici.
 - Notification employé : URL de retour enregistrée ; les tests forcés n'écrivent plus dans les logs métier avec la nouvelle Edge Function.
 - Les jetons des liens employés ne sont plus présents dans les manifests publics ; l'app mémorise le lien privé localement.
 - Correction de `pointerdown` du menu flottant et suppression du dernier texte « pointer » du pilotage.
+
+
+### Alpha 1.9
+- Date de début officielle de l'application : 1er septembre 2026.
+- Les journées antérieures ne sont plus proposées dans « À compléter ».
+- L'historique, le planning et les calendriers de congés sont bornés au 01/09/2026.
+- Les écritures antérieures au 01/09/2026 sont bloquées côté interface.
