@@ -68,3 +68,7 @@ Application développée pour simplifier le suivi quotidien des horaires d'une p
 - Rappel à 19h pour les employés prévus au travail dont la journée est incomplète
 - Synthèse push quotidienne pour le poste de pilotage
 - La synthèse indique combien d’employés prévus ont complété leur journée et, si nécessaire, les prénoms restant à renseigner
+
+- V1.10.6 : simplification de la fenêtre « À compléter » et correction de la largeur des champs d'heure sur iPhone.
+
+- V1.10.7 : affichage des durées de pause au format heures/minutes (ex. 0h45, 1h30, 2h00).

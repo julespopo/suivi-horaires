@@ -51,6 +51,7 @@ function shortDate(s){return new Intl.DateTimeFormat('fr-FR',{day:'2-digit',mont
 function shortWeekday(s){return new Intl.DateTimeFormat('fr-FR',{weekday:'short'}).format(new Date(s+'T12:00:00')).replace('.','')}
 function monthLabel(d){return new Intl.DateTimeFormat('fr-FR',{month:'long',year:'numeric'}).format(d)}
 function minutes(a,b,pause=0){if(!a||!b)return 0;const [ah,am]=a.split(':').map(Number),[bh,bm]=b.split(':').map(Number);let m=(bh*60+bm)-(ah*60+am)-Number(pause||0);return Math.max(0,m)}
+function fmtDurationMinutes(value){const total=Math.max(0,Math.round(Number(value)||0));const h=Math.floor(total/60),m=total%60;return `${h}h${String(m).padStart(2,'0')}`}
 function fmtMin(m){m=Math.round(Number(m)||0);const h=Math.floor(Math.abs(m)/60),mm=Math.abs(m)%60;return `${m<0?'-':''}${h}h${pad(mm)}`}
 function fmtSignedMin(m){m=Math.round(Number(m)||0);if(m===0)return '0h00';return `${m>0?'+':'−'}${fmtMin(Math.abs(m))}`}
 function dateObjFromIso(s){return new Date(s+'T12:00:00')}
