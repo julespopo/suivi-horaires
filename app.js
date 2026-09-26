@@ -9,6 +9,33 @@ const SUPABASE_KEY = window.APP_CONFIG?.supabasePublishableKey || '';
 const LEGACY_SESSION_KEY = 'hours_supabase_session_v1';
 const OWNER_SESSION_KEY = 'hours_supabase_owner_session_v1';
 const EMPLOYEE_SESSION_PREFIX = 'hours_supabase_employee_session_v1_';
+const THEME_KEY = 'hours_theme_preference_v1';
+let THEME_MEDIA = null;
+
+function preferredTheme(){
+  const saved=localStorage.getItem(THEME_KEY);
+  if(saved==='light'||saved==='dark')return saved;
+  return window.matchMedia?.('(prefers-color-scheme: dark)').matches?'dark':'light';
+}
+function applyTheme(theme,{animate=false}={}){
+  const value=theme==='dark'?'dark':'light';
+  if(animate){document.documentElement.classList.add('theme-transition');setTimeout(()=>document.documentElement.classList.remove('theme-transition'),650)}
+  document.documentElement.dataset.theme=value;
+  document.documentElement.style.colorScheme=value;
+  const meta=document.querySelector('meta[name="theme-color"]');if(meta)meta.setAttribute('content',value==='dark'?'#14171c':'#f6f7f9');
+  document.querySelectorAll('[data-theme-state]').forEach(el=>el.dataset.themeState=value);
+  document.querySelectorAll('[data-theme-label]').forEach(el=>el.textContent=value==='dark'?'Mode nuit':'Mode jour');
+}
+function initTheme(){
+  applyTheme(preferredTheme());
+  if(window.matchMedia){
+    THEME_MEDIA=window.matchMedia('(prefers-color-scheme: dark)');
+    THEME_MEDIA.addEventListener?.('change',()=>{if(!localStorage.getItem(THEME_KEY))applyTheme(preferredTheme(),{animate:true})});
+  }
+}
+function toggleTheme(){const next=(document.documentElement.dataset.theme||preferredTheme())==='dark'?'light':'dark';localStorage.setItem(THEME_KEY,next);applyTheme(next,{animate:true});return next}
+function useSystemTheme(){localStorage.removeItem(THEME_KEY);applyTheme(preferredTheme(),{animate:true})}
+initTheme();
 
 let EMPLOYEES = [];
 let APP_DATA = {entries:[],settings:{plannedDays:{},employeeSettings:{}}};
@@ -139,6 +166,8 @@ function friendlyError(err){
   if(m.includes('ios_install_required')) return 'Sur iPhone, ajoute d’abord ce site à l’écran d’accueil puis ouvre-le depuis son icône.';
   if(m.includes('notifications_denied')) return 'Les notifications sont bloquées dans les réglages du navigateur ou du téléphone.';
   if(m.includes('vapid_missing')) return 'Configuration des notifications incomplète.';
+  if(m.includes('invalid_current_pin')) return 'Le PIN actuel est incorrect.';
+  if(m.includes('invalid_new_pin')) return 'Le nouveau PIN doit contenir exactement 4 chiffres.';
   return 'Une erreur est survenue. Réessayez.';
 }
 function cleanTime(v){return v?String(v).slice(0,5):''}
@@ -236,6 +265,8 @@ async function ownerUpdateEntry(emp,date,patch,validationStatus='pending'){
 async function validateEntry(emp,date){const s=getSession();await rpc('api_owner_validate_entry',{p_session_token:s.sessionToken,p_employee_id:emp,p_work_date:date});await loadOwnerData();return true}
 async function setPlannedWorkingDay(empId,date,value){const s=getSession();await rpc('api_owner_set_schedule',{p_session_token:s.sessionToken,p_employee_id:empId,p_work_date:date,p_is_working:!!value,p_note:''});APP_DATA.settings.plannedDays[empId]=APP_DATA.settings.plannedDays[empId]||{};APP_DATA.settings.plannedDays[empId][date]=!!value}
 async function setEmployeeSettings(empId,patch){const s=getSession();const current=employeeSettings(empId);await rpc('api_owner_set_employee_settings',{p_session_token:s.sessionToken,p_employee_id:empId,p_weekly_objective_minutes:Number(patch.weeklyObjectiveMinutes??current.weeklyObjectiveMinutes),p_overtime_threshold_minutes:Number(patch.overtimeThresholdMinutes??current.overtimeThresholdMinutes)});await loadOwnerData()}
+async function changeEmployeePin(currentPin,newPin){const s=getSession();if(!s?.sessionToken)throw new Error('unauthorized');return rpc('api_employee_change_pin',{p_session_token:s.sessionToken,p_current_pin:currentPin,p_new_pin:newPin})}
+async function changeOwnerPin(currentPin,newPin){const s=getSession();if(!s?.sessionToken)throw new Error('unauthorized');return rpc('api_owner_change_pin',{p_session_token:s.sessionToken,p_current_pin:currentPin,p_new_pin:newPin})}
 async function logout(){const s=getSession();try{if(s?.sessionToken)await rpc('api_logout',{p_session_token:s.sessionToken})}catch{}clearSession();location.reload()}
 
 function downloadCSV(){const rows=[['Employé','Date','Planifié','Statut','Arrivée','Départ','Pause (min)','Heures','Validation','Commentaire','Saisie arrivée','Saisie départ']];APP_DATA.entries.slice().sort((a,b)=>a.date.localeCompare(b.date)).forEach(e=>{const emp=EMPLOYEES.find(x=>x.id===e.employeeId);rows.push([emp?.name||e.employeeId,e.date,isPlannedWorkingDay(e.employeeId,e.date)?'Travaillé':'Non travaillé',e.status==='off'?'Jour non travaillé':'Travaillé',e.arrival,e.departure,e.pause,e.status==='off'?'0h00':fmtMin(minutes(e.arrival,e.departure,e.pause)),e.validationStatus==='validated'?'Validé':e.validationStatus==='pending'?'À valider':'',e.comment||'',e.arrivalMode||'',e.departureMode||''])});const csv=rows.map(r=>r.map(v=>'"'+String(v??'').replaceAll('"','""')+'"').join(';')).join('\n');const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='horaires.csv';a.click();URL.revokeObjectURL(a.href)}
