@@ -92,3 +92,10 @@ Aucun identifiant privé ni PIN n'est documenté ici.
 - Le nouveau calendrier de congés ne peut plus bloquer tout le reste de l’application s’il ne se charge pas : un sélecteur de dates natif sert de repli.
 - Initialisation anticipée de l’éditeur de créneaux pour éviter le blocage des journées à compléter après une erreur JavaScript annexe.
 - Nouveau cache PWA `v2-0-alpha1-3`.
+
+
+### Alpha 1.4
+- Congés : cartes vertes lorsqu'elles sont validées, jaunes lorsqu'elles sont en attente, avec alignement stabilisé.
+- Retour d'une saisie manuelle distincte pour l'heure d'arrivée et l'heure de départ sur la journée en cours.
+- Un salarié peut convertir une journée déjà saisie en « non travaillée » après confirmation ; les créneaux existants sont alors supprimés.
+- Dans l'historique, retirer tous les créneaux propose directement de passer la journée en « non travaillée ».

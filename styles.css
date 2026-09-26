@@ -529,3 +529,94 @@ img,svg,canvas,video{max-width:100%}
   .range-weekdays,.range-days{gap:2px}
   .range-day{border-radius:9px;font-size:14px}
 }
+
+
+/* V2.0 Alpha 1.4 — congés + saisie manuelle arrivée/départ */
+.leave-row{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) auto;
+  align-items:center!important;
+  gap:16px;
+}
+.leave-main{min-width:0}
+.leave-actions{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  flex-wrap:nowrap;
+  gap:8px;
+}
+.leave-row.leave-validated{
+  background:#eef9f4;
+  border-color:#bfe3d2;
+}
+.leave-row.leave-pending{
+  background:#fff8e8;
+  border-color:#ecd79e;
+}
+.leave-row.leave-rejected{
+  background:#f6f4fb;
+  border-color:#ded8ef;
+}
+:root[data-theme="dark"] .leave-row.leave-validated{
+  background:#183128;
+  border-color:#315e4d;
+}
+:root[data-theme="dark"] .leave-row.leave-pending{
+  background:#342a18;
+  border-color:#695329;
+}
+:root[data-theme="dark"] .leave-row.leave-rejected{
+  background:#292638;
+  border-color:#49425f;
+}
+.v2-action-column{display:grid;gap:9px;min-width:0}
+.manual-time-action{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  align-items:center;
+  gap:12px;
+  padding:11px 12px;
+  border:1px solid var(--line);
+  border-radius:15px;
+  background:var(--card);
+}
+.manual-time-action label{min-width:0}
+.manual-time-action label>span{
+  display:block;
+  font-size:.75rem;
+  font-weight:900;
+  letter-spacing:.05em;
+  color:var(--muted);
+}
+.manual-time-action label>small{
+  display:block;
+  margin-top:3px;
+  color:var(--muted);
+  font-size:.72rem;
+  font-weight:650;
+}
+.manual-time-controls{display:flex;align-items:center;gap:8px}
+.manual-time-controls input[type="time"]{
+  width:108px;
+  min-width:0;
+  padding:9px 10px;
+  border:1px solid var(--line);
+  border-radius:11px;
+  background:var(--card);
+  color:var(--text);
+  font-weight:850;
+  font-variant-numeric:tabular-nums;
+}
+:root[data-theme="dark"] .manual-time-action,
+:root[data-theme="dark"] .manual-time-controls input[type="time"]{
+  background:#1c2027;
+  color:var(--text);
+}
+@media(max-width:620px){
+  .leave-row{grid-template-columns:1fr}
+  .leave-actions{justify-content:flex-start;flex-wrap:wrap;width:100%}
+  .manual-time-action{grid-template-columns:1fr}
+  .manual-time-controls{display:grid;grid-template-columns:minmax(0,1fr) auto}
+  .manual-time-controls input[type="time"]{width:100%;font-size:16px}
+}
