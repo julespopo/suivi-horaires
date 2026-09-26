@@ -119,3 +119,19 @@ Aucun identifiant privé ni PIN n'est documenté ici.
 - Le texte d'aide inférieur n'apparaît plus que lorsqu'une action est nécessaire (installation iPhone, notifications bloquées, incompatibilité).
 - Suppression du terme « pointer » dans l'interface salarié.
 - Saisie manuelle renommée « Heure de début » / « Heure de fin ».
+
+
+### Alpha 1.8 — corrections issues de l'audit
+- Protection contre les créneaux qui se chevauchent et les créneaux de durée nulle (avec patch Supabase associé).
+- Détection d'un ancien créneau resté ouvert : il doit être corrigé avant de commencer une nouvelle journée.
+- « À compléter » couvre désormais 62 jours et inclut le travail exceptionnel sur un jour initialement non travaillé.
+- Une pause manuelle n'est plus écrasée lors d'une modification de créneaux ; contrôle si la pause dépasse le temps travaillé.
+- Distinction serveur entre heure enregistrée « maintenant » et heure saisie manuellement.
+- Un salarié sans association employeur ne voit plus tous les employeurs par défaut.
+- Le pilotage inclut les travailleurs réellement présents dans la vue semaine et utilise réellement le seuil de dépassement.
+- Possibilité de réactiver un employeur archivé ; doublons de noms bloqués côté Supabase.
+- Correction de la moyenne journalière de l'historique et de la sélection de congé à l'envers.
+- CSV retiré de l'interface (la fonction interne a été réécrite sur les créneaux V2).
+- Notification employé : URL de retour enregistrée ; les tests forcés n'écrivent plus dans les logs métier avec la nouvelle Edge Function.
+- Les jetons des liens employés ne sont plus présents dans les manifests publics ; l'app mémorise le lien privé localement.
+- Correction de `pointerdown` du menu flottant et suppression du dernier texte « pointer » du pilotage.

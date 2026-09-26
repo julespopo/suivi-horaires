@@ -814,3 +814,14 @@ img,svg,canvas,video{max-width:100%}
     grid-template-columns:1fr;
   }
 }
+
+
+/* V2.0 Alpha 1.8 — audit fonctionnel */
+.kpi-badges{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.archived-employers{border-top:1px solid var(--line);padding-top:14px}
+.archived-employers summary{cursor:pointer;font-weight:800;color:var(--muted)}
+.archived-employer-list{display:grid;gap:8px;margin-top:10px}
+.archived-employer-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--soft)}
+:root[data-theme="dark"] .archived-employer-row{background:#1c2027}
+#staleSegmentBanner{border-color:#e2b85f;background:#fff8e8}
+:root[data-theme="dark"] #staleSegmentBanner{background:#342a18;border-color:#695329}
