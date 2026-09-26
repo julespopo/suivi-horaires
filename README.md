@@ -56,3 +56,7 @@ Ce dépôt contient uniquement le code public de l'application. Les accès priv�
 ## Statut
 
 Application développée pour simplifier le suivi quotidien des horaires d'une petite équipe.
+
+## Correctifs récents
+
+- Correction de l’affichage du planning mois/semaine dans le poste de pilotage.
