@@ -134,3 +134,7 @@ input[type="time"]::-webkit-clear-button,input[type="time"]::-webkit-inner-spin-
   .sheet .toolbar-actions{display:grid;grid-template-columns:1fr 1fr;width:100%}
   .sheet .toolbar-actions .btn{min-width:0;width:100%}
 }
+
+/* V1.9 — rappels push */
+.reminder-card{overflow:hidden}.reminder-card .toolbar-actions{justify-content:flex-start}.reminder-card .note{margin-top:10px}.reminder-card .status{white-space:nowrap}
+@media (max-width:620px){.reminder-card .toolbar-actions{display:grid;grid-template-columns:1fr}.reminder-card .toolbar-actions .btn{width:100%}}

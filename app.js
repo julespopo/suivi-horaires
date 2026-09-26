@@ -95,12 +95,50 @@ async function rpc(name,args={}){
   }
   return payload;
 }
+function urlBase64ToUint8Array(base64String){
+  const padding='='.repeat((4-base64String.length%4)%4);
+  const base64=(base64String+padding).replace(/-/g,'+').replace(/_/g,'/');
+  const raw=atob(base64);return Uint8Array.from([...raw].map(c=>c.charCodeAt(0)));
+}
+function pushSupported(){return 'serviceWorker' in navigator&&'PushManager' in window&&'Notification' in window}
+function isStandalonePWA(){return window.matchMedia?.('(display-mode: standalone)').matches||window.navigator.standalone===true}
+async function getPushSubscription(){if(!pushSupported())return null;const reg=await navigator.serviceWorker.ready;return reg.pushManager.getSubscription()}
+async function enablePushReminders(){
+  if(!pushSupported())throw new Error('push_not_supported');
+  const ua=navigator.userAgent||'';const isiOS=/iPad|iPhone|iPod/.test(ua)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+  if(isiOS&&!isStandalonePWA())throw new Error('ios_install_required');
+  if(Notification.permission==='denied')throw new Error('notifications_denied');
+  const permission=Notification.permission==='granted'?'granted':await Notification.requestPermission();
+  if(permission!=='granted')throw new Error('notifications_denied');
+  const publicKey=window.APP_CONFIG?.vapidPublicKey;if(!publicKey)throw new Error('vapid_missing');
+  const reg=await navigator.serviceWorker.ready;
+  let sub=await reg.pushManager.getSubscription();
+  if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlBase64ToUint8Array(publicKey)});
+  const json=sub.toJSON();const sess=getSession();if(!sess?.sessionToken)throw new Error('unauthorized');
+  await rpc('api_employee_save_push_subscription',{p_session_token:sess.sessionToken,p_endpoint:sub.endpoint,p_p256dh:json.keys?.p256dh||'',p_auth:json.keys?.auth||'',p_user_agent:navigator.userAgent||''});
+  return sub;
+}
+async function disablePushReminders(){
+  const sub=await getPushSubscription();if(!sub)return false;const sess=getSession();
+  if(sess?.sessionToken){try{await rpc('api_employee_remove_push_subscription',{p_session_token:sess.sessionToken,p_endpoint:sub.endpoint})}catch{}}
+  await sub.unsubscribe();return true;
+}
+async function showLocalTestNotification(){
+  if(!pushSupported())throw new Error('push_not_supported');
+  const reg=await navigator.serviceWorker.ready;
+  await reg.showNotification('Mes horaires',{body:'Les rappels sont bien activés sur ce téléphone.',tag:'suivi-horaires-test'});
+}
+
 function friendlyError(err){
   const m=String(err?.message||err||'');
   if(m.includes('invalid_credentials')) return 'Code PIN incorrect.';
   if(m.includes('unauthorized')) return 'Votre session n’est plus valide. Reconnectez-vous.';
   if(m.includes('entry_not_complete')) return 'La journée doit être complète avant validation.';
   if(m.includes('Failed to fetch')) return 'Connexion impossible. Vérifiez votre accès Internet.';
+  if(m.includes('push_not_supported')) return 'Les notifications push ne sont pas prises en charge sur ce navigateur.';
+  if(m.includes('ios_install_required')) return 'Sur iPhone, ajoute d’abord ce site à l’écran d’accueil puis ouvre-le depuis son icône.';
+  if(m.includes('notifications_denied')) return 'Les notifications sont bloquées dans les réglages du navigateur ou du téléphone.';
+  if(m.includes('vapid_missing')) return 'Configuration des notifications incomplète.';
   return 'Une erreur est survenue. Réessayez.';
 }
 function cleanTime(v){return v?String(v).slice(0,5):''}
