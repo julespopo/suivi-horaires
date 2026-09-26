@@ -43,7 +43,7 @@ async function rpc(name,args={}){
   if(!SUPABASE_URL||!SUPABASE_KEY) throw new Error('Configuration Supabase manquante.');
   const res=await fetch(`${SUPABASE_URL}/rest/v1/rpc/${name}`,{
     method:'POST',
-    headers:{'apikey':SUPABASE_KEY,'Content-Type':'application/json','Accept':'application/json'},
+    headers:{'apikey':SUPABASE_KEY,'Content-Type':'application/json','Accept':'application/json','Content-Profile':'public','Accept-Profile':'public'},
     body:JSON.stringify(args)
   });
   const raw=await res.text();
