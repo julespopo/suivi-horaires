@@ -344,6 +344,19 @@ img,svg,canvas,video{max-width:100%}
 .settings-explainer>div{min-width:0}
 @media(max-width:700px){.settings-explainer{grid-template-columns:1fr}}
 
+
+/* V2.0 Alpha 1.1 — surfaces V2 compatibles jour/nuit */
+:root{
+  --surface:var(--card);
+  --surface-2:#f4f6f8;
+  --border:var(--line);
+}
+:root[data-theme="dark"]{
+  --surface:var(--card);
+  --surface-2:#20242c;
+  --border:var(--line);
+}
+
 /* ============================================================
    V2.0 ALPHA 1 — multi-employeurs / congés / créneaux
    ============================================================ */
@@ -382,4 +395,17 @@ img,svg,canvas,video{max-width:100%}
   .segment-remove{grid-column:1/-1;width:100%}
   .leave-row{align-items:flex-start;flex-direction:column}
   .leave-actions{justify-content:flex-start;width:100%}
+}
+
+.leave-main{min-width:0}
+.leave-pending{border-color:#ead39f}
+:root[data-theme="dark"] .leave-pending{border-color:#5c4822}
+:root[data-theme="dark"] .leave-row,
+:root[data-theme="dark"] .leave-banner,
+:root[data-theme="dark"] .segment-item,
+:root[data-theme="dark"] .segment-edit-row,
+:root[data-theme="dark"] .employer-admin-card,
+:root[data-theme="dark"] .v2-active-segment,
+:root[data-theme="dark"] .v2-badge{
+  color:var(--text);
 }

@@ -72,3 +72,9 @@ La V2 ajoute quatre tables :
 Le démarrage et l'arrêt d'un créneau V2 demandent actuellement une connexion Internet. La PWA reste installable et le cache d'interface fonctionne, mais la nouvelle saisie multi-employeurs n'est pas encore mise en file d'attente hors connexion.
 
 Aucun identifiant privé ni PIN n'est documenté ici.
+
+
+### Alpha 1.1
+- Congés pilotage : suppression du doublon visuel « À valider » sur chaque demande en attente.
+- Le compteur global indique désormais « demande(s) en attente ».
+- Correction des cartes V2 en mode nuit : congés, employeurs et créneaux utilisent désormais des surfaces réellement adaptées au thème sombre.
