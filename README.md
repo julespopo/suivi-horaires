@@ -60,3 +60,5 @@ Application développée pour simplifier le suivi quotidien des horaires d'une p
 ## Correctifs récents
 
 - Correction de l’affichage du planning mois/semaine dans le poste de pilotage.
+
+- Le planning du pilotage permet aussi d'appliquer « travaillé » ou « non travaillé » à plusieurs jours en une seule action.

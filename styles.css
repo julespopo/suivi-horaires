@@ -249,3 +249,9 @@ img,svg,canvas,video{max-width:100%}
 :root[data-theme="dark"] .bulk-planning-bar{background:#2a201f;border-color:#5d3632}:root[data-theme="dark"] .btn-danger{background:#35201f;color:#ff9d95;border-color:#5d3632}:root[data-theme="dark"] .working-names span{background:rgba(255,255,255,.07)}:root[data-theme="dark"] .completion-day.selected-for-bulk{background:#2a2540;border-color:#8b82ff}
 @media(max-width:900px){.planning-week-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.planning-week-grid .calendar-empty{display:none}.bulk-planning-bar{align-items:flex-start;flex-direction:column}.bulk-planning-bar .toolbar-actions{width:100%}}
 @media(max-width:560px){.planning-week-grid{grid-template-columns:1fr}.planning-toolbar{align-items:stretch}.planning-view-switch,.planning-view-switch .btn,#multiSelectBtn{width:100%}.planning-view-switch .btn{flex:1}.week-detail-day{min-height:118px}}
+
+.bulk-planning-actions{display:flex;gap:8px;flex-wrap:wrap}
+@media(max-width:640px){
+  .bulk-planning-actions{display:grid;grid-template-columns:1fr 1fr;width:100%}
+  .bulk-planning-actions .btn:first-child{grid-column:1/-1}
+}
