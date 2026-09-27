@@ -1694,3 +1694,95 @@ th,td{border-color:var(--line)}
   .today-work-status{width:100%;}
   .today-work-status-btn{min-height:50px;font-size:15px}
 }
+
+
+/* ============================================================
+   V2.0 Alpha 2.8 — stabilité du créneau en cours
+   ============================================================ */
+
+/* Le bloc "créneau en cours" garde toujours la même structure,
+   indépendamment de la largeur et des contrôles natifs iOS. */
+.v2-active-segment{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr)!important;
+  gap:14px!important;
+  align-items:stretch!important;
+  width:100%!important;
+  max-width:100%!important;
+  min-width:0!important;
+  box-sizing:border-box!important;
+}
+
+.active-segment-heading{
+  min-width:0;
+  width:100%;
+}
+
+.active-segment-heading .h2{
+  overflow-wrap:anywhere;
+}
+
+/* Dans le créneau actif, les deux actions sont volontairement empilées.
+   Ça évite tout changement brutal entre l'arrivée et le départ. */
+.v2-active-segment .v2-action-column{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr)!important;
+  width:100%!important;
+  max-width:100%!important;
+  min-width:0!important;
+  gap:10px!important;
+}
+
+/* Le champ heure + bouton tiennent strictement dans leur carte.
+   Plus de width:max-content : c'était la source du débordement sur iPhone. */
+.manual-time-controls{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) 108px!important;
+  width:min(100%,340px)!important;
+  max-width:100%!important;
+  min-width:0!important;
+  margin-inline:auto!important;
+  gap:10px!important;
+  align-items:stretch!important;
+  box-sizing:border-box!important;
+}
+
+.manual-time-controls input[type="time"]{
+  width:100%!important;
+  max-width:100%!important;
+  min-width:0!important;
+  inline-size:100%!important;
+  min-inline-size:0!important;
+  box-sizing:border-box!important;
+  text-align:center!important;
+}
+
+.manual-time-controls .btn{
+  width:108px!important;
+  min-width:0!important;
+  max-width:108px!important;
+  padding-inline:10px!important;
+  box-sizing:border-box!important;
+}
+
+/* La carte de saisie elle-même ne peut jamais déborder. */
+.manual-time-action{
+  width:100%!important;
+  max-width:100%!important;
+  min-width:0!important;
+  box-sizing:border-box!important;
+  overflow:hidden;
+}
+
+/* Sur les très petits écrans, on empile simplement heure / bouton. */
+@media(max-width:360px){
+  .manual-time-controls{
+    grid-template-columns:minmax(0,1fr)!important;
+    width:100%!important;
+  }
+
+  .manual-time-controls .btn{
+    width:100%!important;
+    max-width:none!important;
+  }
+}

@@ -203,3 +203,11 @@ Aucun identifiant privé ni PIN n'est documenté ici.
 - Le statut visuel redondant en haut et le bloc « Jour non travaillé » en bas ont été supprimés.
 - Quand « Non travaillé » est sélectionné, les champs de travail sont masqués ; ils réapparaissent immédiatement si le salarié choisit « Travaillé ».
 - Le fonctionnement hors ligne et la confirmation avant suppression de créneaux restent inchangés.
+
+
+### Alpha 2.8
+- Correction du décalage de l’interface lorsqu’un créneau est en cours.
+- Le bloc « Créneau en cours » reste désormais sur une seule colonne, avec une largeur stable.
+- Le champ « Heure de fin » et le bouton « Enregistrer » sont contraints à la largeur disponible, y compris sur iPhone.
+- Suppression du `width: max-content` sur les contrôles horaires qui pouvait provoquer un débordement.
+- Aucun changement de logique métier ou Supabase.
