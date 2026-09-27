@@ -1,0 +1,485 @@
+/* ============================================================
+   V2.0 Alpha 2.5 — refonte visuelle finale avant RC
+   Design calme, lisible, tactile et cohérent sur mobile/desktop
+   ============================================================ */
+:root{
+  --bg:#f3f6f5;
+  --card:#ffffff;
+  --text:#17211f;
+  --muted:#68736f;
+  --line:#dce5e1;
+  --accent:#2f6f68;
+  --accent-strong:#245a55;
+  --accent-soft:#e8f2f0;
+  --ok:#177a59;
+  --warn:#a66a16;
+  --danger:#b94b3f;
+  --shadow:0 8px 28px rgba(28,48,43,.055);
+  --radius:22px;
+  --soft:#f7f9f8;
+  --control-bg:#fff;
+  --control-border:#d8e2de;
+  --control-focus:#5b9d95;
+}
+:root[data-theme="dark"]{
+  --bg:#101614;
+  --card:#171f1d;
+  --text:#eef5f2;
+  --muted:#a8b4b0;
+  --line:#2a3733;
+  --accent:#79b9b0;
+  --accent-strong:#9bd0c8;
+  --accent-soft:#203632;
+  --ok:#76d1aa;
+  --warn:#e9bb6a;
+  --danger:#f09a90;
+  --shadow:0 12px 34px rgba(0,0,0,.18);
+  --soft:#1c2522;
+  --control-bg:#151d1b;
+  --control-border:#33423d;
+  --control-focus:#79b9b0;
+}
+
+html{background:var(--bg)}
+body{
+  background:linear-gradient(180deg,color-mix(in srgb,var(--bg) 92%,var(--accent-soft)) 0,var(--bg) 240px);
+  color:var(--text);
+  -webkit-font-smoothing:antialiased;
+}
+.shell{max-width:1160px;padding:28px 24px 104px}
+.card{
+  border-color:var(--line);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
+}
+.hero{
+  background:linear-gradient(180deg,var(--card),color-mix(in srgb,var(--card) 96%,var(--accent-soft)));
+}
+.brand{font-weight:860;letter-spacing:-.03em}
+.v2-badge{
+  background:var(--accent-soft)!important;
+  color:var(--accent-strong)!important;
+  border-color:color-mix(in srgb,var(--accent) 25%,var(--line))!important;
+}
+.eyebrow{color:var(--accent);font-weight:850}
+.h1,.h2,.h3{color:var(--text)}
+.h1{letter-spacing:-.035em}
+.h2{letter-spacing:-.025em}
+.subtle{color:var(--muted)}
+.footer-note{opacity:.7;text-align:center}
+
+/* Navigation */
+.tabs{gap:6px;background:transparent;padding:3px 0 5px}
+.tab{
+  min-height:42px;
+  padding:10px 15px;
+  border:1px solid transparent;
+  background:color-mix(in srgb,var(--card) 72%,var(--bg));
+  color:var(--muted);
+  font-weight:780;
+}
+.tab:hover{border-color:var(--line)}
+.tab.active{
+  background:var(--accent);
+  color:#fff;
+  box-shadow:0 5px 15px color-mix(in srgb,var(--accent) 20%,transparent);
+}
+
+/* Buttons */
+.btn{border-radius:13px;font-weight:800;box-shadow:none}
+.btn:hover{transform:none;filter:brightness(.985)}
+.btn:active{transform:scale(.985)}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover{background:var(--accent-strong)}
+.btn-outline{background:var(--card);border:1px solid var(--line);color:var(--text)}
+
+.btn-green{background:#e8f6f0;color:#126747}
+.btn-danger{background:#fff1ef;color:var(--danger);border:1px solid #f4d3ce}
+:root[data-theme="dark"] .btn-outline{background:var(--card);color:var(--text);border-color:var(--line)}
+:root[data-theme="dark"] .btn-danger{background:#34201e;border-color:#57302c}
+
+/* Status chips */
+.status{min-height:32px;padding:7px 11px;justify-content:center;line-height:1;text-align:center}
+.status.ok{background:#e8f6f0;color:#126f50}
+.status.warn{background:#fff4df;color:#936018}
+.status.neutral{background:#edf1ef;color:#5f6965}
+.status.off{background:#f0eef8;color:#665b91}
+:root[data-theme="dark"] .status.ok{background:#1e352c;color:#89d8b8}
+:root[data-theme="dark"] .status.warn{background:#392d1b;color:#efc77d}
+:root[data-theme="dark"] .status.neutral{background:#222c29;color:#b1bcb8}
+:root[data-theme="dark"] .status.off{background:#29263b;color:#c5bdec}
+
+/* Network state */
+.network-chip{border-radius:999px;font-weight:850;min-width:auto}
+.network-chip.state-current{background:#e8f6f0;border-color:#c8e6d9;color:#126f50}
+.network-chip.state-pending{background:#fff4df;border-color:#efd9a9;color:#936018}
+:root[data-theme="dark"] .network-chip.state-current{background:#1e352c;border-color:#315846;color:#89d8b8}
+:root[data-theme="dark"] .network-chip.state-pending{background:#392d1b;border-color:#604a2a;color:#efc77d}
+.net-dot{width:7px;height:7px}
+
+/* Inputs: size matches the type of data instead of forcing everything full width */
+.field input,.field select,.field textarea,
+.manual-time-controls input[type="time"]{
+  border-color:var(--control-border)!important;
+  background:var(--control-bg)!important;
+  color:var(--text)!important;
+  border-radius:13px!important;
+  box-shadow:none!important;
+}
+.field input:focus,.field select:focus,.field textarea:focus,
+.manual-time-controls input[type="time"]:focus{
+  border-color:var(--control-focus)!important;
+  outline:3px solid color-mix(in srgb,var(--control-focus) 18%,transparent)!important;
+}
+.field input[type="time"],
+.segment-edit-row input[type="time"]{
+  width:9.5rem!important;
+  max-width:100%!important;
+  text-align:center;
+  font-variant-numeric:tabular-nums;
+}
+.field input[type="number"],
+.settings-row input[type="number"]{
+  width:9rem!important;
+  max-width:100%!important;
+  text-align:center;
+  font-variant-numeric:tabular-nums;
+}
+.field input[type="date"]{width:12.5rem!important;max-width:100%!important}
+.pause-duration-text{width:7.5rem!important;max-width:100%!important;text-align:center;font-variant-numeric:tabular-nums}
+.pin-setting,.pin-input{max-width:9rem!important;margin-inline:auto;text-align:center}
+.field textarea{max-width:100%;min-height:78px}
+.field select{min-height:48px}
+
+/* Manual start/end: compact central control */
+.manual-time-action{
+  padding:16px!important;
+  background:var(--soft)!important;
+  border-color:var(--line)!important;
+  border-radius:18px!important;
+  gap:12px!important;
+}
+.manual-time-action label{text-align:center!important}
+.manual-time-action label>span{color:var(--text)!important;font-size:.76rem;letter-spacing:.065em}
+.manual-time-action label>small{font-size:.78rem!important;color:var(--muted)!important}
+.manual-time-controls{
+  grid-template-columns:9.5rem auto!important;
+  width:max-content!important;
+  max-width:100%!important;
+  margin:0 auto!important;
+  gap:9px!important;
+  align-items:center!important;
+}
+.manual-time-controls input[type="time"]{
+  width:9.5rem!important;
+  min-height:46px!important;
+  padding:0 12px!important;
+  font-size:1rem!important;
+  font-weight:850!important;
+}
+.manual-time-controls .btn{
+  width:auto!important;
+  min-width:104px;
+  min-height:46px!important;
+  padding-inline:15px;
+}
+
+/* Main employee actions */
+.employee-big-action{border-radius:18px;box-shadow:none}
+.employee-arrive{background:#e6f4ef;color:#176a51}
+.employee-leave{background:#e8f0f8;color:#315f82}
+.employee-action-icon{border-radius:14px}
+:root[data-theme="dark"] .employee-arrive{background:#1e342c;color:#8fd9b9}
+:root[data-theme="dark"] .employee-leave{background:#1d2d38;color:#9cc5e1}
+.v2-action-column{gap:10px}
+
+/* Today's content */
+.segment-list{display:grid;gap:8px}
+.segment-item{padding:13px 14px;border-radius:15px;background:var(--soft)}
+.segment-item.active{border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}
+.employee-time-box{background:var(--soft);border-color:var(--line);border-radius:17px}
+.employee-pause-panel{background:color-mix(in srgb,var(--card) 86%,#fff3d8)}
+.employee-total-panel{background:color-mix(in srgb,var(--card) 84%,var(--accent-soft))}
+.employee-total-value{color:var(--accent-strong)}
+
+.employee-off-button.active{background:#f0eef8;color:#665b91;border-color:#ddd6f0}
+
+/* Tasks */
+#tasks .task{padding:13px 0}
+#tasks .task:first-child{padding-top:2px}
+#tasks .task-meta{margin-top:4px}
+.simple-section-head{min-height:34px}
+.section-title-alone{margin:0}
+
+/* Leave cards */
+.leave-row{border-radius:16px;padding:14px 15px}
+.leave-row.leave-validated{background:#edf8f3;border-color:#c5e6d8}
+.leave-row
+.leave-row.leave-rejected{background:#f5f2f2;border-color:#e4d6d4}
+:root[data-theme="dark"] .leave-row.leave-validated{background:#1b3028;border-color:#315344}
+:root[data-theme="dark"] .leave-row
+:root[data-theme="dark"] .leave-row.leave-rejected{background:#302321;border-color:#503530}
+
+/* Calendar */
+.calendar-day{border-radius:16px;background:var(--card);border-color:var(--line)}
+.calendar-day.today{outline:2px solid color-mix(in srgb,var(--accent) 38%,transparent);border-color:var(--accent)}
+.calendar-day.complete{background:#f0f8f5}
+.calendar-day.incomplete{background:#fff8ea}
+.calendar-day.off{background:#f6f4fa}
+.calendar-day.weekend{background:var(--soft)}
+.active-chip{background:var(--accent)!important;color:#fff!important;border-color:var(--accent)!important}
+
+/* Charts / stats */
+.mini-stat,.chart-card,.time-card{background:var(--soft);border-color:var(--line)}
+.bar.complete{background:linear-gradient(180deg,#73b4a8,#2f6f68)}
+.bar.incomplete{background:linear-gradient(180deg,#e9bd70,#b5761f)}
+.team-chart-fill{background:linear-gradient(90deg,#79b9b0,#2f6f68)!important}
+
+/* Pilotage cards and planning */
+.kpi,.employer-admin-card,.settings-row,.planning-row,.validation-row{border-color:var(--line)}
+.employer-admin-card,.settings-row,.planning-row,.validation-row{background:var(--soft)}
+.completion-day{border-radius:15px}
+.bulk-planning-bar{border-radius:16px}
+.export-card{background:linear-gradient(135deg,var(--card),var(--accent-soft))}
+
+/* Modals */
+.modal{backdrop-filter:blur(4px);background:rgba(15,23,21,.42)}
+.sheet{background:var(--card)!important;border:1px solid var(--line);border-radius:24px!important;box-shadow:0 24px 70px rgba(0,0,0,.18)}
+.range-picker{background:var(--card);border-color:var(--line)}
+.range-nav{background:var(--soft)}
+.range-day.range-start,.range-day.range-end{background:var(--accent)!important;color:#fff!important}
+.range-day.range-middle{background:var(--accent-soft)!important;color:var(--accent-strong)!important}
+
+/* Floating menu */
+.floating-settings{background:var(--card)!important;color:var(--text)!important;border-color:var(--line)!important;box-shadow:0 12px 34px rgba(20,38,34,.16)!important}
+.floating-action{background:var(--card)!important;color:var(--text)!important;border-color:var(--line)!important}
+.floating-action-danger{color:var(--danger)!important}
+
+/* Tables */
+table{background:var(--card)}
+th{background:var(--soft);color:var(--muted)}
+th,td{border-color:var(--line)}
+
+/* Mobile polish */
+@media(max-width:620px){
+  .shell{padding:12px 12px 100px}
+  .card{border-radius:19px;box-shadow:0 5px 18px rgba(28,48,43,.045)}
+  .hero{padding:17px}
+  .h1{font-size:29px}
+  .h2{font-size:21px}
+  .tabs{margin-inline:-1px}
+  .tab{padding:10px 14px}
+  .manual-time-action{padding:14px!important}
+  .manual-time-controls{
+    grid-template-columns:minmax(8rem,9.5rem) auto!important;
+    width:max-content!important;
+  }
+  .manual-time-controls .btn{min-width:98px!important;padding-inline:12px!important}
+  .employee-time-summary{gap:8px}
+  .employee-time-box{padding:14px}
+  .employee-pause-input{font-size:1.55rem!important}
+  .employee-total-value{font-size:1.8rem}
+  .leave-row{padding:13px 14px}
+  .field input[type="time"],.segment-edit-row input[type="time"],.field input[type="number"],.settings-row input[type="number"],.pause-duration-text{font-size:16px!important}
+  .segment-edit-row{padding:11px}
+}
+@media(max-width:390px){
+  .manual-time-controls{
+    grid-template-columns:8.6rem minmax(92px,auto)!important;
+    gap:8px!important;
+  }
+  .manual-time-controls input[type="time"]{width:8.6rem!important}
+  .manual-time-controls .btn{min-width:92px!important}
+  .network-chip{font-size:11px}
+}
+
+
+/* Alpha 2.6 — suppression explicite d'un créneau terminé */
+.segment-main{min-width:0;flex:1 1 auto}
+.segment-item-actions{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:10px;
+  flex:0 0 auto;
+}
+.segment-delete-btn{
+  min-height:36px;
+  padding:8px 11px;
+  border:1px solid color-mix(in srgb,var(--danger) 35%,var(--line));
+  border-radius:11px;
+  background:transparent;
+  color:var(--danger);
+  font:inherit;
+  font-size:12px;
+  font-weight:800;
+  cursor:pointer;
+  touch-action:manipulation;
+}
+.segment-delete-btn:hover{background:color-mix(in srgb,var(--danger) 8%,transparent)}
+.segment-delete-btn:active{transform:scale(.98)}
+:root[data-theme="dark"] .segment-delete-btn{
+  border-color:color-mix(in srgb,var(--danger) 55%,var(--line));
+}
+@media(max-width:620px){
+  .segment-item{align-items:flex-start}
+  .segment-item-actions{
+    flex-direction:column;
+    align-items:flex-end;
+    gap:7px;
+  }
+  .segment-delete-btn{min-height:34px}
+}
+
+
+/* Alpha 2.7 — statut de journée simplifié en haut */
+.today-work-status{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+  width:min(100%,420px);
+  padding:5px;
+  border:1px solid var(--line);
+  border-radius:17px;
+  background:var(--soft);
+}
+.today-work-status-btn{
+  min-height:48px;
+  padding:10px 16px;
+  border:0;
+  border-radius:13px;
+  background:transparent;
+  color:var(--muted);
+  font:inherit;
+  font-weight:850;
+  line-height:1.1;
+  cursor:pointer;
+  touch-action:manipulation;
+  transition:background .15s ease,color .15s ease,box-shadow .15s ease,transform .1s ease;
+}
+.today-work-status-btn:active{transform:scale(.985)}
+.today-work-status-btn.active:first-child{
+  background:#dff3ea;
+  color:#17664f;
+  box-shadow:0 1px 2px rgba(19,87,67,.08);
+}
+.today-work-status-btn.active:last-child{
+  background:#eeeaf7;
+  color:#655b8c;
+  box-shadow:0 1px 2px rgba(85,73,125,.08);
+}
+.today-work-status.pending-sync{
+  border-style:dashed;
+  border-color:#d8ad4f;
+}
+.today-work-status-btn:disabled{
+  opacity:.55;
+  cursor:not-allowed;
+}
+#today>.today-heading-copy .h1{margin-bottom:0}
+:root[data-theme="dark"] .today-work-status{background:#191d22;border-color:var(--line)}
+:root[data-theme="dark"] .today-work-status-btn.active:first-child{background:#1c382e;color:#88dcb9}
+:root[data-theme="dark"] .today-work-status-btn.active:last-child{background:#2b2740;color:#c9c0ef}
+@media(max-width:620px){
+  .today-work-status{width:100%;}
+  .today-work-status-btn{min-height:50px;font-size:15px}
+}
+
+
+/* ============================================================
+   V2.0 Alpha 2.8 — stabilité du créneau en cours
+   ============================================================ */
+
+/* Le bloc "créneau en cours" garde toujours la même structure,
+   indépendamment de la largeur et des contrôles natifs iOS. */
+.v2-active-segment{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr)!important;
+  gap:14px!important;
+  align-items:stretch!important;
+  width:100%!important;
+  max-width:100%!important;
+  min-width:0!important;
+  box-sizing:border-box!important;
+}
+
+.active-segment-heading{
+  min-width:0;
+  width:100%;
+}
+
+.active-segment-heading .h2{
+  overflow-wrap:anywhere;
+}
+
+/* Dans le créneau actif, les deux actions sont volontairement empilées.
+   Ça évite tout changement brutal entre l'arrivée et le départ. */
+.v2-active-segment .v2-action-column{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr)!important;
+  width:100%!important;
+  max-width:100%!important;
+  min-width:0!important;
+  gap:10px!important;
+}
+
+/* Le champ heure + bouton tiennent strictement dans leur carte.
+   Plus de width:max-content : c'était la source du débordement sur iPhone. */
+.manual-time-controls{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) 108px!important;
+  width:min(100%,340px)!important;
+  max-width:100%!important;
+  min-width:0!important;
+  margin-inline:auto!important;
+  gap:10px!important;
+  align-items:stretch!important;
+  box-sizing:border-box!important;
+}
+
+.manual-time-controls input[type="time"]{
+  width:100%!important;
+  max-width:100%!important;
+  min-width:0!important;
+  inline-size:100%!important;
+  min-inline-size:0!important;
+  box-sizing:border-box!important;
+  text-align:center!important;
+}
+
+.manual-time-controls .btn{
+  width:108px!important;
+  min-width:0!important;
+  max-width:108px!important;
+  padding-inline:10px!important;
+  box-sizing:border-box!important;
+}
+
+/* La carte de saisie elle-même ne peut jamais déborder. */
+.manual-time-action{
+  width:100%!important;
+  max-width:100%!important;
+  min-width:0!important;
+  box-sizing:border-box!important;
+  overflow:hidden;
+}
+
+/* Sur les très petits écrans, on empile simplement heure / bouton. */
+@media(max-width:360px){
+  .manual-time-controls{
+    grid-template-columns:minmax(0,1fr)!important;
+    width:100%!important;
+  }
+
+  .manual-time-controls .btn{
+    width:100%!important;
+    max-width:none!important;
+  }
+}
+
+
+/* V2.0 Alpha 2.9 — visibilité correcte du créneau en cours
+   Le display:grid!important de l'Alpha 2.8 ne doit jamais annuler .hidden. */
+.v2-active-segment.hidden{
+  display:none!important;
+}
