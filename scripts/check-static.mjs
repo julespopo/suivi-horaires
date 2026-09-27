@@ -78,12 +78,6 @@ for (const path of publicFiles) {
   ok(`Pas de secret serveur dans ${path}`, !forbiddenSecrets.some((re) => re.test(source)));
 }
 
-if (failures.length) {
-  console.error("\nÉchecs:");
-  failures.forEach((failure) => console.error(`- ${failure}`));
-  process.exit(1);
-}
-console.log("\nTous les contrôles statiques sont passés.");
 
 
 const cssFiles = ["styles/base.css", "styles/v2.css", "styles/current.css"];
@@ -97,3 +91,10 @@ for (const page of ["index.html", "employee.html", "pilotage.html"]) {
   ok(`CSS modulaire chargé dans ${page}`,
     cssFiles.every((path) => html.includes(path)));
 }
+
+if (failures.length) {
+  console.error("\nÉchecs:");
+  failures.forEach((failure) => console.error(`- ${failure}`));
+  process.exit(1);
+}
+console.log("\nTous les contrôles statiques sont passés.");
