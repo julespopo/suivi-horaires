@@ -1267,3 +1267,42 @@ img,svg,canvas,video{max-width:100%}
   border-color:var(--control-border)!important;
   color:var(--text)!important;
 }
+
+
+/* Alpha 2.4 — simplification employee UI */
+.manual-time-action{
+  grid-template-columns:1fr !important;
+  align-items:stretch !important;
+}
+.manual-time-action label{
+  text-align:left;
+}
+.manual-time-controls{
+  display:grid !important;
+  grid-template-columns:1fr !important;
+  gap:12px !important;
+  width:100%;
+  max-width:320px;
+  margin:0 auto;
+}
+.manual-time-controls input[type="time"]{
+  width:100% !important;
+  text-align:center;
+  justify-self:center;
+}
+.manual-time-controls .btn{
+  width:100%;
+  justify-self:center;
+}
+.simple-section-head{
+  align-items:center;
+}
+.section-title-alone{
+  margin:0;
+}
+#tasks .row, #leaves .row{
+  margin-bottom:0;
+}
+@media (max-width:800px){
+  .manual-time-controls{max-width:none;}
+}
