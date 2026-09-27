@@ -197,3 +197,9 @@ Aucun identifiant privé ni PIN n'est documenté ici.
 - La suppression remet la journée à valider et recalcule automatiquement le total.
 - Si c’était le dernier créneau, la journée redevient à renseigner (ou non travaillée prévue selon le planning).
 - L’action fonctionne aussi hors ligne et se synchronise au retour d’Internet.
+
+### Alpha 2.7 — statut du jour simplifié
+- Le choix « Travaillé / Non travaillé » est placé immédiatement sous la date.
+- Le statut visuel redondant en haut et le bloc « Jour non travaillé » en bas ont été supprimés.
+- Quand « Non travaillé » est sélectionné, les champs de travail sont masqués ; ils réapparaissent immédiatement si le salarié choisit « Travaillé ».
+- Le fonctionnement hors ligne et la confirmation avant suppression de créneaux restent inchangés.

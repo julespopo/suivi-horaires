@@ -1640,3 +1640,57 @@ th,td{border-color:var(--line)}
   }
   .segment-delete-btn{min-height:34px}
 }
+
+
+/* Alpha 2.7 — statut de journée simplifié en haut */
+.today-work-status{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+  width:min(100%,420px);
+  padding:5px;
+  border:1px solid var(--line);
+  border-radius:17px;
+  background:var(--soft);
+}
+.today-work-status-btn{
+  min-height:48px;
+  padding:10px 16px;
+  border:0;
+  border-radius:13px;
+  background:transparent;
+  color:var(--muted);
+  font:inherit;
+  font-weight:850;
+  line-height:1.1;
+  cursor:pointer;
+  touch-action:manipulation;
+  transition:background .15s ease,color .15s ease,box-shadow .15s ease,transform .1s ease;
+}
+.today-work-status-btn:active{transform:scale(.985)}
+.today-work-status-btn.active:first-child{
+  background:#dff3ea;
+  color:#17664f;
+  box-shadow:0 1px 2px rgba(19,87,67,.08);
+}
+.today-work-status-btn.active:last-child{
+  background:#eeeaf7;
+  color:#655b8c;
+  box-shadow:0 1px 2px rgba(85,73,125,.08);
+}
+.today-work-status.pending-sync{
+  border-style:dashed;
+  border-color:#d8ad4f;
+}
+.today-work-status-btn:disabled{
+  opacity:.55;
+  cursor:not-allowed;
+}
+#today>.today-heading-copy .h1{margin-bottom:0}
+:root[data-theme="dark"] .today-work-status{background:#191d22;border-color:var(--line)}
+:root[data-theme="dark"] .today-work-status-btn.active:first-child{background:#1c382e;color:#88dcb9}
+:root[data-theme="dark"] .today-work-status-btn.active:last-child{background:#2b2740;color:#c9c0ef}
+@media(max-width:620px){
+  .today-work-status{width:100%;}
+  .today-work-status-btn{min-height:50px;font-size:15px}
+}

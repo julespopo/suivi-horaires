@@ -1,4 +1,4 @@
-<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5,user-scalable=yes"><meta name="theme-color" content="#2f6f68"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="apple-mobile-web-app-title" content="Mes horaires"><meta name="robots" content="noindex,nofollow"><title>Mes horaires</title><link rel="icon" href="icons/icon.svg" type="image/svg+xml"><link rel="manifest" href="manifest-employee.json?v=2.0-alpha2.6"><link rel="stylesheet" href="styles.css?v=2.0-alpha2.6"></head><body>
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5,user-scalable=yes"><meta name="theme-color" content="#2f6f68"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="apple-mobile-web-app-title" content="Mes horaires"><meta name="robots" content="noindex,nofollow"><title>Mes horaires</title><link rel="icon" href="icons/icon.svg" type="image/svg+xml"><link rel="manifest" href="manifest-employee.json?v=2.0-alpha2.7"><link rel="stylesheet" href="styles.css?v=2.0-alpha2.7"></head><body>
 <div id="authView" class="auth-wrap hidden"><section class="card pin-card"><div class="eyebrow">Espace personnel · V2</div><div class="pin-name" id="authName">Bonjour</div><p class="subtle">Entrez votre code PIN à 4 chiffres.</p><div class="field section"><input id="pin" class="pin-input" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" aria-label="Code PIN"></div><button id="loginBtn" class="btn btn-primary btn-block section">Continuer</button><div id="pinError" class="error"></div><div class="security-box section">Connexion sécurisée : le code PIN est vérifié côté serveur et n’est pas présent dans le code du site.</div></section></div>
 <div id="invalidView" class="auth-wrap hidden"><section class="card pin-card"><div class="eyebrow">Accès privé</div><div class="pin-name">Lien invalide</div><p class="subtle">Ce lien personnel n’est pas reconnu.</p></section></div>
 <main id="appView" class="shell hidden">
@@ -8,7 +8,12 @@
 
   <section class="card hero section" id="today">
     <div class="eyebrow">Aujourd’hui</div>
-    <div class="row mobile-stack today-heading-row"><div class="today-heading-copy"><h1 class="h1" id="todayDate"></h1><div class="subtle">Choisis l’employeur au moment où tu commences un créneau.</div></div><span class="status neutral today-status" id="dayStatus">À renseigner</span></div>
+    <div class="today-heading-copy"><h1 class="h1" id="todayDate"></h1></div>
+    <div id="todayWorkStatusControl" class="today-work-status section" role="group" aria-label="Statut de la journée">
+      <button id="todayWorkedButton" class="today-work-status-btn" type="button" onclick="setTodayWorkStatus(true)">Travaillé</button>
+      <button id="todayOffButton" class="today-work-status-btn" type="button" onclick="setTodayWorkStatus(false)">Non travaillé</button>
+    </div>
+    <span class="visually-hidden" id="dayStatus" aria-live="polite">À renseigner</span>
 
     <div id="todayLeaveBanner" class="leave-banner hidden section"></div>
     <div id="staleSegmentBanner" class="note warn hidden section"></div>
@@ -45,7 +50,6 @@
       <div class="field section"><label>Commentaire facultatif</label><textarea id="comment" rows="2" placeholder="Ex. rendez-vous extérieur, horaire exceptionnel…"></textarea></div>
     </div>
 
-    <div class="employee-off-row section"><button id="todayOffButton" class="employee-off-button" type="button" onclick="toggleTodayOff()">○ Jour non travaillé</button><div class="subtle">Si la journée était prévue non travaillée mais que tu travailles finalement, appuie ici pour la réactiver.</div></div>
   </section>
 
   <section class="card section" id="tasks"><div class="row simple-section-head"><div class="h2 section-title-alone">À compléter</div><span class="status warn" id="taskBadge"></span></div><div id="taskList" class="section"></div></section>
@@ -67,7 +71,7 @@
 
 <div class="modal" id="userSettingsModal"><div class="sheet pin-settings-sheet"><div class="row"><div><div class="h2">Changer mon PIN</div><div class="subtle">Le PIN doit contenir exactement 4 chiffres.</div></div><button class="btn btn-outline" onclick="closeUserSettings()">Fermer</button></div><div class="form-grid section"><div class="field"><label>PIN actuel</label><input id="currentPinSetting" class="pin-setting" inputmode="numeric" maxlength="4" autocomplete="current-password"></div><div class="field"><label>Nouveau PIN</label><input id="newPinSetting" class="pin-setting" inputmode="numeric" maxlength="4" autocomplete="new-password"></div></div><div class="field section"><label>Confirmer le nouveau PIN</label><input id="confirmPinSetting" class="pin-setting" inputmode="numeric" maxlength="4" autocomplete="new-password"></div><div id="settingsPinError" class="error"></div><button id="savePinBtn" class="btn btn-primary btn-block section" onclick="saveNewEmployeePin()">Changer mon PIN</button></div></div>
 
-<script src="config.js?v=2.0-alpha2.6"></script><script src="app.js?v=2.0-alpha2.6"></script><script>
+<script src="config.js?v=2.0-alpha2.7"></script><script src="app.js?v=2.0-alpha2.7"></script><script>
 const params=new URLSearchParams(location.search),EMPLOYEE_LINK_KEY='hours_employee_link_token_v2';
 let linkToken=params.get('token')||localStorage.getItem(EMPLOYEE_LINK_KEY)||'';let emp=null,saving=false,dayEditMode='task',dayPauseTouched=false,daySegmentsDraft=[];
 if(params.get('token'))localStorage.setItem(EMPLOYEE_LINK_KEY,linkToken);
@@ -157,7 +161,7 @@ function escapeHtml(v){return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;',
 function renderToday(){const date=iso(),entry=todayEntry(),segs=segmentsFor(emp.id,date),open=openSegmentFor(emp.id,date),stale=staleOpenSegmentFor(emp.id,date),leave=leaveForDate(emp.id,date,'validated'),planned=isPlannedWorkingDay(emp.id,date),scheduledOff=!planned&&!entry&&!segs.length,explicitOff=entry?.status==='off',off=scheduledOff||explicitOff;
   todayLeaveBanner.classList.toggle('hidden',!leave);todayLeaveBanner.innerHTML=leave?`<strong>Congé validé</strong><div>Du ${shortDate(leave.startDate)} au ${shortDate(leave.endDate)}${leave.note?` · ${escapeHtml(leave.note)}`:''}</div>`:'';
   staleSegmentBanner.classList.toggle('hidden',!stale);staleSegmentBanner.innerHTML=stale?`<strong>Ancien créneau encore ouvert</strong><div>${shortDate(stale.date)} · ${escapeHtml(stale.employerName)} depuis ${stale.start}. Termine ou corrige cette journée avant d’en commencer une nouvelle.</div><button class="btn btn-outline btn-small section" type="button" onclick="openDay('${stale.date}','task')">Corriger la journée</button>`:'';
-  todayWorked.classList.toggle('hidden',!!leave);todayOffButton.disabled=!!leave;
+  todayWorkStatusControl.classList.toggle('hidden',!!leave);todayWorked.classList.toggle('hidden',!!leave||off);todayOffButton.disabled=!!leave;todayWorkedButton.disabled=!!leave;
   const employers=assignedEmployers(emp.id);todayEmployerSelect.innerHTML=employerOptions(todayEmployerSelect.value);arrivalNowBtn.disabled=off||!!leave||!!stale||!employers.length||!!open;arrivalNowTitle.textContent=employers.length?'J’arrive maintenant':'Aucun employeur disponible';arrivalNowSubtitle.textContent=employers.length?(todayEmployerSelect.selectedOptions[0]?.textContent||'Choisis un employeur'):'Demande au pilotage de t’associer à un employeur';
   if(!todayArrivalManual.value)todayArrivalManual.value=hm();
   if(!todayDepartureManual.value)todayDepartureManual.value=hm();
@@ -167,8 +171,10 @@ function renderToday(){const date=iso(),entry=todayEntry(),segs=segmentsFor(emp.
   todaySegmentsList.innerHTML=segs.length?segs.map(s=>`<div class="segment-item ${s.end?'':'active'} ${s.pendingSync?'pending-sync':''}"><div class="segment-main"><strong>${escapeHtml(s.employerName)}</strong><div class="subtle">${s.start} → ${s.end||'en cours'}${s.pendingSync?' · en attente de synchronisation':''}</div></div><div class="segment-item-actions"><span class="status ${s.pendingSync?'warn':s.end?'ok':'warn'}">${s.pendingSync?'À synchroniser':s.end?fmtMin(timeSpanMinutes(s.start,s.end)):'En cours'}</span>${s.end?`<button class="segment-delete-btn" type="button" onclick="deleteTodaySegment('${s.id}')">Supprimer</button>`:''}</div></div>`).join(''):'<div class="empty">Aucun créneau pour le moment.</div>';
   const pause=todayPauseValue();if(document.activeElement!==pauseMinutesInput)pauseMinutesInput.value=fmtDurationMinutes(pause);pauseMinutesInput.disabled=off||!!leave;todayTotal.textContent=fmtMin(workMinutesForDay(emp.id,date,{includeOpen:true}));comment.value=entry?.comment||'';comment.disabled=off||!!leave;
   const pendingDay=!!entry?.pendingSync;
-  todayOffButton.classList.toggle('active',off);todayOffButton.textContent=(scheduledOff?'✓ Non travaillé prévu — appuie si finalement travaillé':`${explicitOff?'✓':'○'} Jour non travaillé`)+(pendingDay?' · à synchroniser':'');
-  const complete=segs.length>0&&!open;dayStatus.textContent=leave?'Congé':pendingDay&&off?'Non travaillé · à synchroniser':pendingDay&&!off?'Travaillé · à synchroniser':off?(scheduledOff?'Non travaillé prévu':'Jour non travaillé'):open?`Chez ${open.employerName}`:complete?'Journée complète':segs.length?'À compléter':'À renseigner';dayStatus.className='status '+(pendingDay?'warn':leave||off?'off':complete?'ok':open?'warn':'neutral')}
+  todayWorkedButton.classList.toggle('active',!off);
+  todayOffButton.classList.toggle('active',off);
+  todayWorkStatusControl.classList.toggle('pending-sync',pendingDay);
+  const complete=segs.length>0&&!open;dayStatus.textContent=leave?'Congé':pendingDay&&off?'Non travaillé, à synchroniser':pendingDay&&!off?'Travaillé, à synchroniser':off?'Non travaillé':open?`Travail en cours chez ${open.employerName}`:complete?'Journée complète':segs.length?'À compléter':'Travaillé'}
 async function deleteTodaySegment(segmentId){
   const segment=V2_DATA.segments.find(s=>s.id===segmentId);
   if(!segment)return;
@@ -185,7 +191,17 @@ async function stopEmployerManual(){const open=openSegmentFor(emp.id),time=today
 async function setDirectPause(value){const parsed=parseDurationMinutes(value);if(parsed===null){pauseMinutesInput.value=fmtDurationMinutes(todayPauseValue());return}const segs=segmentsFor(emp.id,iso()),open=openSegmentFor(emp.id,iso()),gross=grossSegmentsMinutes(segs);if(segs.length&&!open&&parsed>gross){alert('La pause ne peut pas dépasser le temps travaillé.');pauseMinutesInput.value=fmtDurationMinutes(todayPauseValue());return}pauseMinutesInput.value=fmtDurationMinutes(parsed);await withSave(async()=>{await employeeUpdateDayMetaV2(iso(),parsed,comment.value);emp=CURRENT_EMPLOYEE;render()})}
 function addPauseMinutes(delta){const parsed=parseDurationMinutes(pauseMinutesInput.value);setDirectPause(Math.max(0,Math.min(720,(parsed===null?todayPauseValue():parsed)+Number(delta||0))))}
 pauseMinutesInput.addEventListener('change',e=>setDirectPause(e.target.value));document.querySelectorAll('[data-pause-add]').forEach(btn=>btn.addEventListener('click',()=>addPauseMinutes(btn.dataset.pauseAdd)));comment.addEventListener('change',()=>{const parsed=parseDurationMinutes(pauseMinutesInput.value);withSave(async()=>{await employeeUpdateDayMetaV2(iso(),parsed===null?todayPauseValue():parsed,comment.value);emp=CURRENT_EMPLOYEE;render()})});
-async function toggleTodayOff(){const entry=todayEntry(),segs=segmentsFor(emp.id,iso()),planned=isPlannedWorkingDay(emp.id,iso()),scheduledOff=!planned&&!entry&&!segs.length,currentlyOff=scheduledOff||entry?.status==='off';if(!currentlyOff&&segs.length&&!confirm(`Cette journée contient ${segs.length} créneau${segs.length>1?'x':''} de travail. Les heures seront supprimées pour la déclarer non travaillée. Continuer ?`))return;await withSave(async()=>{await employeeSetDayOffV2(iso(),!currentlyOff);emp=CURRENT_EMPLOYEE;render()})}
+async function setTodayWorkStatus(worked){
+  const entry=todayEntry(),segs=segmentsFor(emp.id,iso()),planned=isPlannedWorkingDay(emp.id,iso()),scheduledOff=!planned&&!entry&&!segs.length,currentlyOff=scheduledOff||entry?.status==='off';
+  const wantsOff=!worked;
+  if(wantsOff===currentlyOff)return;
+  if(wantsOff&&segs.length&&!confirm(`Cette journée contient ${segs.length} créneau${segs.length>1?'x':''} de travail. Les heures seront supprimées pour la déclarer non travaillée. Continuer ?`))return;
+  await withSave(async()=>{await employeeSetDayOffV2(iso(),wantsOff);emp=CURRENT_EMPLOYEE;render()});
+}
+async function toggleTodayOff(){
+  const entry=todayEntry(),segs=segmentsFor(emp.id,iso()),planned=isPlannedWorkingDay(emp.id,iso()),scheduledOff=!planned&&!entry&&!segs.length,currentlyOff=scheduledOff||entry?.status==='off';
+  return setTodayWorkStatus(currentlyOff);
+}
 
 function renderTasks(){
   const tasks=tasksFor(emp.id);
