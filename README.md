@@ -180,3 +180,13 @@ Aucun identifiant privé ni PIN n'est documenté ici.
 - Alignement renforcé des saisies manuelles de début/fin, des cartes de créneaux et des modales.
 - Amélioration de la lisibilité mobile pour un usage par des personnes peu habituées aux interfaces numériques.
 - Aucun changement de données ni de logique métier.
+
+
+### Alpha 2.5 — refonte visuelle
+- Nouvelle palette vert pétrole / sauge, plus douce et plus identifiable.
+- Champs compacts adaptés au type de donnée : heures, nombres, PIN et durées n’occupent plus inutilement toute la largeur.
+- Saisie manuelle début/fin recentrée et compacte.
+- Cartes, états, calendriers, congés et boutons harmonisés.
+- Mode nuit refondu avec les mêmes repères visuels.
+- Textes secondaires allégés côté salarié pour réduire la charge visuelle.
+- Aucun changement de logique métier, Supabase ou synchronisation hors ligne.
