@@ -897,3 +897,373 @@ img,svg,canvas,video{max-width:100%}
     flex:1 1 180px;
   }
 }
+
+
+/* ============================================================
+   V2.0 Alpha 2.3 — passe ergonomique / lisibilité
+   ============================================================ */
+:root{
+  --soft:#f4f6f8;
+  --control-bg:#fff;
+  --control-border:#dde1e7;
+  --control-focus:#76a7f7;
+  --tap-size:48px;
+}
+:root[data-theme="dark"]{
+  --soft:#20242c;
+  --control-bg:#1c2027;
+  --control-border:#343a45;
+  --control-focus:#78a9ff;
+}
+
+/* Hiérarchie générale plus calme et régulière */
+.shell{padding-bottom:92px}
+.card{overflow:hidden}
+.section{margin-top:20px}
+.h1,.h2,.h3,.brand{letter-spacing:-.018em}
+.h2{line-height:1.2}
+.subtle{max-width:72ch}
+.app-header{min-height:52px}
+.app-identity{min-width:0}
+
+/* États : hauteur fixe, texte réellement centré et vocabulaire simple */
+.status,
+.network-chip{
+  min-height:34px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  line-height:1;
+  vertical-align:middle;
+}
+.status{
+  padding:8px 12px;
+}
+.network-chip{
+  min-width:88px;
+  padding:8px 12px;
+  gap:8px;
+  font-size:12px;
+  font-weight:850;
+}
+.network-chip .net-dot{
+  flex:0 0 8px;
+}
+.network-chip.state-current{
+  color:#0b704c;
+  background:#eaf7f1;
+  border-color:#cbe8da;
+}
+.network-chip.state-pending{
+  color:#8b5a00;
+  background:#fff6df;
+  border-color:#efdba9;
+}
+:root[data-theme="dark"] .network-chip.state-current{
+  color:#82dbb6;
+  background:#1d342c;
+  border-color:#315545;
+}
+:root[data-theme="dark"] .network-chip.state-pending{
+  color:#f2c673;
+  background:#352a18;
+  border-color:#5b4827;
+}
+
+/* En-tête de la journée : le statut ne s'étire jamais */
+.today-heading-row{
+  align-items:flex-start;
+}
+.today-heading-copy{
+  min-width:0;
+}
+.today-status{
+  flex:0 0 auto;
+  align-self:flex-start;
+  max-width:100%;
+}
+
+/* Contrôles : une seule géométrie partout */
+.field label{
+  font-size:12px;
+  line-height:1.25;
+  margin-bottom:7px;
+}
+.field input,
+.field select,
+.field textarea,
+.manual-time-controls input[type="time"]{
+  width:100%;
+  max-width:100%;
+  min-width:0;
+  border:1px solid var(--control-border)!important;
+  border-radius:14px!important;
+  background:var(--control-bg)!important;
+  color:var(--text)!important;
+  box-shadow:none!important;
+  box-sizing:border-box!important;
+}
+.field input,
+.field select,
+.manual-time-controls input[type="time"]{
+  min-height:var(--tap-size);
+  padding:0 14px!important;
+}
+.field textarea{
+  min-height:82px;
+  padding:12px 14px!important;
+  resize:vertical;
+}
+.field input:focus,
+.field select:focus,
+.field textarea:focus,
+.manual-time-controls input[type="time"]:focus{
+  outline:3px solid color-mix(in srgb,var(--control-focus) 22%,transparent)!important;
+  border-color:var(--control-focus)!important;
+}
+
+/* Boutons : zones tactiles cohérentes et labels centrés */
+.btn{
+  min-height:44px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  line-height:1.15;
+}
+.btn-small{
+  min-height:40px;
+}
+.employee-big-action{
+  justify-content:flex-start;
+  line-height:1.15;
+}
+.employee-big-action strong,
+.employee-big-action small{
+  line-height:1.22;
+}
+
+/* Bloc début/fin : alignement stable, aucune zone ne déborde */
+.v2-action-column{
+  align-items:stretch;
+}
+.manual-time-action{
+  padding:14px;
+  gap:14px;
+  border-radius:18px;
+}
+.manual-time-action label>span{
+  line-height:1.15;
+}
+.manual-time-action label>small{
+  line-height:1.35;
+}
+.manual-time-controls{
+  align-items:stretch;
+}
+.manual-time-controls input[type="time"],
+.manual-time-controls .btn{
+  min-height:46px;
+}
+
+/* Listes et cartes opérationnelles */
+.segment-item,
+.leave-row,
+.employer-admin-card,
+.planning-row,
+.validation-row{
+  min-width:0;
+}
+.segment-item>div:first-child,
+.leave-main,
+.planning-person{
+  min-width:0;
+  overflow-wrap:anywhere;
+}
+.segment-item .status,
+.leave-actions .status{
+  flex:0 0 auto;
+}
+
+/* Pause / total : lecture immédiate */
+.v2-summary-grid{
+  align-items:stretch;
+}
+.employee-time-box{
+  height:100%;
+}
+.employee-pause-input-wrap{
+  justify-content:center;
+}
+.employee-pause-input{
+  text-align:center!important;
+}
+.employee-total-panel{
+  text-align:center;
+  align-items:center;
+}
+.pause-quick-add button{
+  min-height:44px;
+  display:grid;
+  place-items:center;
+  line-height:1;
+}
+
+/* Bandeau de synchronisation */
+.offline-notice{
+  min-width:0;
+  align-items:center;
+  line-height:1.4;
+}
+#syncNoticeText{
+  flex:1 1 auto;
+  overflow-wrap:anywhere;
+}
+.offline-notice-actions{
+  flex:0 0 auto;
+}
+
+/* Onglets : meilleure cible tactile sans changer le fonctionnement horizontal */
+.tabs{
+  gap:7px;
+  padding:2px 0 4px;
+  scrollbar-width:none;
+}
+.tabs::-webkit-scrollbar{display:none}
+.tab{
+  min-height:44px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:10px 15px;
+  line-height:1;
+}
+
+/* Fenêtres : en-tête et champs stables */
+.sheet{
+  border-radius:22px;
+}
+.sheet>.row:first-child{
+  align-items:flex-start;
+}
+.sheet>.row:first-child>.btn{
+  flex:0 0 auto;
+}
+.toggle-row{
+  min-height:54px;
+}
+
+/* Pilotage : boutons/status moins tassés */
+.toolbar-actions{
+  align-items:center;
+}
+.kpi-badges .status{
+  white-space:nowrap;
+}
+.settings-row,
+.planning-row,
+.validation-row{
+  align-items:center;
+}
+
+/* Mobile : priorité à la lisibilité et aux gros appuis */
+@media(max-width:620px){
+  .shell{padding:12px 12px 96px}
+  .topbar.app-header{
+    align-items:center;
+    gap:10px;
+    margin-bottom:16px;
+  }
+  .brand{font-size:19px}
+  .network-chip{
+    min-width:82px;
+    min-height:36px;
+    padding:8px 10px;
+  }
+  .today-heading-row{
+    gap:12px;
+  }
+  .today-heading-row.mobile-stack{
+    align-items:flex-start;
+  }
+  .today-status{
+    width:auto!important;
+  }
+  .hero{
+    padding:18px;
+  }
+  .card{
+    padding:16px;
+  }
+  .v2-action-column{
+    gap:10px;
+  }
+  .manual-time-action{
+    padding:13px;
+  }
+  .manual-time-controls{
+    grid-template-columns:minmax(0,1fr) auto!important;
+  }
+  .manual-time-controls .btn{
+    min-width:104px;
+  }
+  .employee-big-action{
+    min-height:82px;
+  }
+  .segment-item{
+    align-items:flex-start;
+  }
+  .segment-item .status{
+    margin-top:1px;
+  }
+  .offline-notice{
+    padding:12px;
+    border-radius:14px;
+  }
+  .offline-notice-actions{
+    display:grid;
+    grid-template-columns:1fr;
+    width:100%;
+  }
+  .offline-notice-actions .btn{
+    width:100%;
+  }
+}
+
+@media(max-width:430px){
+  .topbar.app-header{
+    align-items:flex-start;
+  }
+  .network-chip{
+    margin-top:1px;
+  }
+  .manual-time-controls{
+    grid-template-columns:1fr!important;
+  }
+  .manual-time-controls .btn{
+    width:100%;
+  }
+  .employee-big-action{
+    padding:14px;
+  }
+  .employee-action-icon{
+    width:46px;
+    height:46px;
+    flex-basis:46px;
+  }
+  .tabs{
+    margin-left:-2px;
+    margin-right:-2px;
+  }
+}
+
+/* Cohérence mode nuit */
+:root[data-theme="dark"] .field input,
+:root[data-theme="dark"] .field select,
+:root[data-theme="dark"] .field textarea,
+:root[data-theme="dark"] .manual-time-controls input[type="time"]{
+  background:var(--control-bg)!important;
+  border-color:var(--control-border)!important;
+  color:var(--text)!important;
+}

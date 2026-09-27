@@ -171,3 +171,12 @@ Aucun identifiant privé ni PIN n'est documenté ici.
 - Les modifications locales sont affichées avec l’état « À synchroniser ».
 - Les modifications destructives vérifient l’état serveur à la reconnexion ; si la journée a été modifiée entre-temps, la synchronisation se bloque au lieu d’écraser silencieusement les données.
 - Les corrections complexes de l’historique restent volontairement en ligne.
+
+
+### Alpha 2.3 — passe ergonomique
+- Le statut de synchronisation affiche désormais des libellés simples : « À jour », « Hors ligne », « À synchroniser » ou « Synchronisation ».
+- Centrage vertical/horizontal corrigé pour les pastilles d’état.
+- Uniformisation des champs, sélecteurs, boutons et zones tactiles.
+- Alignement renforcé des saisies manuelles de début/fin, des cartes de créneaux et des modales.
+- Amélioration de la lisibilité mobile pour un usage par des personnes peu habituées aux interfaces numériques.
+- Aucun changement de données ni de logique métier.

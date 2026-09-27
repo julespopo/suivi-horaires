@@ -1,14 +1,14 @@
-<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5,user-scalable=yes"><meta name="theme-color" content="#16181d"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="apple-mobile-web-app-title" content="Mes horaires"><meta name="robots" content="noindex,nofollow"><title>Mes horaires</title><link rel="icon" href="icons/icon.svg" type="image/svg+xml"><link rel="manifest" href="manifest-employee.json?v=2.0-alpha2.2"><link rel="stylesheet" href="styles.css?v=2.0-alpha2.2"></head><body>
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5,user-scalable=yes"><meta name="theme-color" content="#16181d"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="apple-mobile-web-app-title" content="Mes horaires"><meta name="robots" content="noindex,nofollow"><title>Mes horaires</title><link rel="icon" href="icons/icon.svg" type="image/svg+xml"><link rel="manifest" href="manifest-employee.json?v=2.0-alpha2.3"><link rel="stylesheet" href="styles.css?v=2.0-alpha2.3"></head><body>
 <div id="authView" class="auth-wrap hidden"><section class="card pin-card"><div class="eyebrow">Espace personnel · V2</div><div class="pin-name" id="authName">Bonjour</div><p class="subtle">Entrez votre code PIN à 4 chiffres.</p><div class="field section"><input id="pin" class="pin-input" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" aria-label="Code PIN"></div><button id="loginBtn" class="btn btn-primary btn-block section">Continuer</button><div id="pinError" class="error"></div><div class="security-box section">Connexion sécurisée : le code PIN est vérifié côté serveur et n’est pas présent dans le code du site.</div></section></div>
 <div id="invalidView" class="auth-wrap hidden"><section class="card pin-card"><div class="eyebrow">Accès privé</div><div class="pin-name">Lien invalide</div><p class="subtle">Ce lien personnel n’est pas reconnu.</p></section></div>
 <main id="appView" class="shell hidden">
-  <div class="topbar"><div><div class="brand">Mes horaires <span class="v2-badge">V2</span></div><div class="subtle" id="hello"></div></div><div id="networkChip" class="network-chip" aria-live="polite"><span class="net-dot"></span><span id="networkText">En ligne</span></div></div>
+  <div class="topbar app-header"><div class="app-identity"><div class="brand">Mes horaires <span class="v2-badge">V2</span></div><div class="subtle" id="hello"></div></div><div id="networkChip" class="network-chip state-current" aria-live="polite"><span class="net-dot" aria-hidden="true"></span><span id="networkText">À jour</span></div></div>
   <div id="syncNotice" class="offline-notice hidden" aria-live="polite"><span id="syncNoticeText"></span><div class="offline-notice-actions"><button id="syncRetryBtn" class="btn btn-outline btn-small hidden" type="button" onclick="retryOfflineSync()">Réessayer</button><button id="syncDiscardBtn" class="btn btn-outline btn-small hidden" type="button" onclick="discardOfflineAction()">Annuler cette action</button></div></div>
   <div class="tabs"><a class="tab active" href="#today">Aujourd’hui</a><a class="tab" href="#tasks">À compléter <span id="taskCount"></span></a><a class="tab" href="#leaves">Congés</a><a class="tab" href="#history">Historique</a></div>
 
   <section class="card hero section" id="today">
     <div class="eyebrow">Aujourd’hui</div>
-    <div class="row mobile-stack"><div><h1 class="h1" id="todayDate"></h1><div class="subtle">Choisis l’employeur au moment où tu commences un créneau.</div></div><span class="status neutral" id="dayStatus">À renseigner</span></div>
+    <div class="row mobile-stack today-heading-row"><div class="today-heading-copy"><h1 class="h1" id="todayDate"></h1><div class="subtle">Choisis l’employeur au moment où tu commences un créneau.</div></div><span class="status neutral today-status" id="dayStatus">À renseigner</span></div>
 
     <div id="todayLeaveBanner" class="leave-banner hidden section"></div>
     <div id="staleSegmentBanner" class="note warn hidden section"></div>
@@ -67,7 +67,7 @@
 
 <div class="modal" id="userSettingsModal"><div class="sheet pin-settings-sheet"><div class="row"><div><div class="h2">Changer mon PIN</div><div class="subtle">Le PIN doit contenir exactement 4 chiffres.</div></div><button class="btn btn-outline" onclick="closeUserSettings()">Fermer</button></div><div class="form-grid section"><div class="field"><label>PIN actuel</label><input id="currentPinSetting" class="pin-setting" inputmode="numeric" maxlength="4" autocomplete="current-password"></div><div class="field"><label>Nouveau PIN</label><input id="newPinSetting" class="pin-setting" inputmode="numeric" maxlength="4" autocomplete="new-password"></div></div><div class="field section"><label>Confirmer le nouveau PIN</label><input id="confirmPinSetting" class="pin-setting" inputmode="numeric" maxlength="4" autocomplete="new-password"></div><div id="settingsPinError" class="error"></div><button id="savePinBtn" class="btn btn-primary btn-block section" onclick="saveNewEmployeePin()">Changer mon PIN</button></div></div>
 
-<script src="config.js?v=2.0-alpha2.2"></script><script src="app.js?v=2.0-alpha2.2"></script><script>
+<script src="config.js?v=2.0-alpha2.3"></script><script src="app.js?v=2.0-alpha2.3"></script><script>
 const params=new URLSearchParams(location.search),EMPLOYEE_LINK_KEY='hours_employee_link_token_v2';
 let linkToken=params.get('token')||localStorage.getItem(EMPLOYEE_LINK_KEY)||'';let emp=null,saving=false,dayEditMode='task',dayPauseTouched=false,daySegmentsDraft=[];
 if(params.get('token'))localStorage.setItem(EMPLOYEE_LINK_KEY,linkToken);
@@ -101,12 +101,22 @@ let floatingMenuOpen=false;function toggleFloatingMenu(){floatingMenuOpen?closeF
 
 function renderNetworkState(){
   const offline=!navigator.onLine,state=employeeOfflineState(),count=state.count;
+  networkChip.classList.remove('offline','syncing','state-current','state-pending');
   networkChip.classList.toggle('offline',offline);
   networkChip.classList.toggle('syncing',state.syncing);
-  if(state.syncing)networkText.textContent='Synchronisation…';
-  else if(offline)networkText.textContent=count?`Hors ligne · ${count} en attente`:'Hors ligne';
-  else if(count)networkText.textContent=`${count} à synchroniser`;
-  else networkText.textContent='En ligne';
+  if(state.syncing){
+    networkChip.classList.add('state-pending');
+    networkText.textContent='Synchronisation';
+  }else if(offline){
+    networkChip.classList.add('state-pending');
+    networkText.textContent=count?`Hors ligne · ${count}`:'Hors ligne';
+  }else if(count){
+    networkChip.classList.add('state-pending');
+    networkText.textContent=`À synchroniser · ${count}`;
+  }else{
+    networkChip.classList.add('state-current');
+    networkText.textContent='À jour';
+  }
 
   syncNotice.classList.toggle('hidden',!count);
   syncRetryBtn.classList.add('hidden');
@@ -114,15 +124,15 @@ function renderNetworkState(){
   if(count){
     if(state.syncing)syncNoticeText.textContent='Synchronisation des modifications en cours…';
     else if(state.blocked){
-      syncNoticeText.textContent=`Synchronisation bloquée : ${offlineQueueFriendlyError()}`;
+      syncNoticeText.textContent=`Une modification nécessite ton attention : ${offlineQueueFriendlyError()}`;
       if(navigator.onLine){
         syncRetryBtn.classList.remove('hidden');
         syncDiscardBtn.classList.remove('hidden');
       }
     }else if(offline){
-      syncNoticeText.textContent=`${count} modification${count>1?'s':''} enregistrée${count>1?'s':''} sur ce téléphone. Synchronisation automatique au retour d’Internet.`;
+      syncNoticeText.textContent=`${count} modification${count>1?'s':''} sauvegardée${count>1?'s':''} sur ce téléphone. Elle${count>1?'s':''} sera${count>1?'ont':''} envoyée${count>1?'s':''} dès le retour d’Internet.`;
     }else{
-      syncNoticeText.textContent=`${count} modification${count>1?'s':''} en attente de synchronisation.`;
+      syncNoticeText.textContent=`${count} modification${count>1?'s':''} à synchroniser.`;
       syncRetryBtn.classList.remove('hidden');
     }
   }
