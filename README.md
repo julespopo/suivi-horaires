@@ -160,3 +160,14 @@ Aucun identifiant privé ni PIN n'est documenté ici.
 - Lors de l’installation, l’URL privée actuellement ouverte (avec son jeton personnel) devient l’URL de lancement.
 - Aucun jeton salarié n’est ajouté aux fichiers publics du dépôt.
 - Après mise à jour, une ancienne icône déjà installée doit être supprimée puis réinstallée depuis le lien privé ouvert dans Safari.
+
+
+### Alpha 2.2 — hors ligne étendu
+- Le salarié peut maintenant passer une journée « travaillée » / « non travaillée » sans connexion.
+- Une journée prévue non travaillée peut être réactivée hors ligne puis recevoir immédiatement des créneaux de travail.
+- Les demandes de congé peuvent être créées hors ligne et sont envoyées automatiquement à la reconnexion.
+- Une demande de congé en attente peut être annulée hors ligne.
+- La pause et le commentaire de la journée peuvent être modifiés hors ligne.
+- Les modifications locales sont affichées avec l’état « À synchroniser ».
+- Les modifications destructives vérifient l’état serveur à la reconnexion ; si la journée a été modifiée entre-temps, la synchronisation se bloque au lieu d’écraser silencieusement les données.
+- Les corrections complexes de l’historique restent volontairement en ligne.
