@@ -1153,18 +1153,7 @@ async function changeEmployeePin(currentPin,newPin){const s=getSession();if(!s?.
 async function changeOwnerPin(currentPin,newPin){const s=getSession();if(!s?.sessionToken)throw new Error('unauthorized');return rpc('api_owner_change_pin',{p_session_token:s.sessionToken,p_current_pin:currentPin,p_new_pin:newPin})}
 async function logout(){const s=getSession();try{if(s?.sessionToken)await rpc('api_logout',{p_session_token:s.sessionToken})}catch{}clearSession();location.reload()}
 
-function downloadCSV(){
-  const rows=[['Employé','Date','Employeurs / créneaux','Pause','Temps travaillé','Statut','Validation','Commentaire']];
-  const dates=new Set([...APP_DATA.entries.map(e=>`${e.employeeId}|${e.date}`),...V2_DATA.segments.map(s=>`${s.employeeId}|${s.date}`)]);
-  [...dates].sort().forEach(key=>{
-    const [employeeId,date]=key.split('|'),emp=EMPLOYEES.find(x=>x.id===employeeId),entry=entryFor(employeeId,date,false),segs=segmentsFor(employeeId,date),leave=leaveForDate(employeeId,date,'validated');
-    const detail=segs.map(s=>`${s.employerName} ${s.start}–${s.end||'…'}`).join(' / ');
-    rows.push([emp?.name||employeeId,date,leave?'Congé':entry?.status==='off'?'Non travaillé':detail||'—',entry?.status==='off'||leave?'—':fmtDurationMinutes(entry?.pause||0),fmtMin(workMinutesForDay(employeeId,date)),leave?'Congé':entry?.status==='off'?'Non travaillé':'Travaillé',entry?.validationStatus==='validated'?'Validé':entry?.validationStatus==='pending'?'À valider':'',entry?.comment||'']);
-  });
-  const csv=rows.map(r=>r.map(v=>'"'+String(v??'').replaceAll('"','""')+'"').join(';')).join('\n');
-  const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='horaires-v2.csv';a.click();URL.revokeObjectURL(a.href)
-}
-function setManifestFor(){let link=document.querySelector('link[rel="manifest"]');if(!link){link=document.createElement('link');link.rel='manifest';document.head.appendChild(link)}link.href='manifest-employee.json?v=2.0-alpha2.1'}
+function setManifestFor(){let link=document.querySelector('link[rel="manifest"]');if(!link){link=document.createElement('link');link.rel='manifest';document.head.appendChild(link)}link.href='manifest-employee.json?v=2.0-alpha2.9'}
 
 // V1.7 — ergonomie clavier des formulaires
 function timeToMinutes(value){if(!/^\d{2}:\d{2}$/.test(value||''))return null;const [h,m]=value.split(':').map(Number);return h*60+m}
