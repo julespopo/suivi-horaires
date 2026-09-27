@@ -42,6 +42,8 @@ Le projet est hébergé sur GitHub Pages et utilise Supabase pour les données, 
 ├── employee.html
 ├── pilotage.html
 ├── app.js
+├── employee.js
+├── pilotage.js
 ├── styles.css
 ├── config.js
 ├── sw.js
