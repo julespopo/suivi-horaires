@@ -1,219 +1,106 @@
-# Suivi horaires — V2.0 Alpha 1
+# Suivi horaires
 
-Cette branche de test ajoute les fonctions nécessaires au fonctionnement réel d'un groupement d'employeurs tout en conservant la V1.10.11 comme version de secours.
+Application web légère de suivi des horaires pour une petite équipe travaillant auprès de plusieurs employeurs.
 
-## Nouveautés V2
+**Version actuelle : V2.0 Alpha 2.9**
 
-### Plusieurs employeurs dans une même journée
+Le projet est hébergé sur GitHub Pages et utilise Supabase pour les données, l'authentification par lien privé + PIN et les notifications.
 
-Le poste de pilotage peut créer plusieurs employeurs et choisir lesquels sont accessibles à chaque salarié.
+## Fonctionnalités
 
-Un salarié peut ensuite enregistrer plusieurs créneaux dans une même journée, par exemple :
+### Espace salarié
+- lien personnel + PIN à 4 chiffres ;
+- journée travaillée / non travaillée ;
+- plusieurs créneaux et plusieurs employeurs dans une même journée ;
+- heure de début / heure de fin en direct ou saisie manuelle ;
+- pause modifiable ;
+- suppression d'un créneau saisi par erreur ;
+- historique semaine / mois ;
+- journées à compléter ;
+- demandes de congés ;
+- mode jour / nuit ;
+- installation sur l'écran d'accueil ;
+- fonctionnement hors ligne pour les actions quotidiennes, avec synchronisation automatique au retour du réseau.
 
-- 08:00–12:00 chez un premier employeur
-- 13:30–17:00 chez un second employeur
-
-Un seul créneau peut être ouvert à la fois. Le total journalier est calculé à partir de la somme réelle des créneaux.
-
-### Congés
-
-- Un salarié peut déclarer une période de congé à l'avance.
-- Une demande créée par le salarié apparaît dans le pilotage en attente de validation.
-- Le pilotage peut valider ou refuser la demande.
-- Le pilotage peut également créer directement un congé validé pour un salarié.
-- Un congé validé retire le salarié des journées à compléter et des rappels de 19 h.
-- Une période contenant déjà des heures de travail ne peut pas être validée comme congé sans correction préalable.
-
-### Pause simplifiée
-
-Le chronomètre de pause a été supprimé.
-
-- 1 seul créneau : pause automatique de 1h30 par défaut.
-- 2 créneaux ou plus : pause automatique de 0h00, puisque les intervalles entre les créneaux ne sont déjà pas comptés comme temps travaillé.
-- Toute modification manuelle de la pause est conservée.
-- Raccourcis : -5 / -30 / +5 / +30.
-- Affichage : 0h45, 1h30, 2h00, etc.
+### Pilotage
+- vue globale des salariés ;
+- planning semaine / mois ;
+- sélection de plusieurs jours pour les passer travaillés ou non travaillés ;
+- détail des salariés prévus en vue semaine ;
+- validation et correction des journées ;
+- gestion des employeurs et de leurs affectations ;
+- gestion / validation des congés ;
+- objectifs horaires ;
+- synthèses et export PDF ;
+- notifications de synthèse.
 
 ## Architecture
 
-Les tables Supabase restent privées. Le navigateur n'y accède pas directement : les opérations utilisateur passent par des fonctions RPC `security definer` et les opérations serveur des notifications utilisent la clé `service_role` dans l'Edge Function.
+```text
+.
+├── index.html
+├── employee.html
+├── pilotage.html
+├── app.js
+├── styles.css
+├── config.js
+├── sw.js
+├── manifest.json
+├── manifest-employee.json
+├── manifest-pilotage.json
+├── icons/
+└── supabase/
+    ├── README.md
+    └── functions/
+        └── send-reminders/
+```
 
-La V2 ajoute quatre tables :
+Le frontend reste volontairement en **HTML / CSS / JavaScript sans framework**.
 
-- `employers`
-- `employee_employers`
-- `work_segments`
-- `leave_requests`
+## Sécurité
 
-`work_entries` reste le résumé quotidien utilisé par le reste de l'application et par la validation.
+`config.js` contient uniquement des valeurs prévues pour être publiques dans le navigateur :
+- URL du projet Supabase ;
+- clé Supabase publishable ;
+- clé VAPID publique.
 
-## Installation de l'Alpha 1
+Les tables Supabase ne sont pas accessibles directement aux utilisateurs : les opérations passent par des RPC serveur.
 
-1. Conserver une copie de la V1.10.11.
-2. Exécuter `supabase_v2_0_alpha1.sql` dans Supabase SQL Editor. La vérification finale doit afficher 4 lignes.
-3. Remplacer le code de l'Edge Function `send-reminders` par la version V2 et la redéployer. Les secrets VAPID et le cron existants ne changent pas.
-4. Publier les fichiers web V2 sur GitHub Pages.
-5. Dans Pilotage, créer les employeurs puis cocher les salariés autorisés pour chacun.
-6. Tester avec un seul salarié avant d'étendre à toute l'équipe.
+Ne jamais ajouter au dépôt :
+- clé `service_role` ;
+- clé VAPID privée ;
+- `CRON_SECRET` ;
+- PIN réels ;
+- liens privés / `link_token` réels ;
+- exports de données salariés.
 
-## Parcours de test conseillé
+## Mode hors ligne
 
-1. Créer deux employeurs dans Pilotage et les affecter à un salarié.
-2. Côté salarié : démarrer un créneau chez le premier employeur, le terminer, puis démarrer et terminer un second créneau chez le deuxième.
-3. Vérifier le total de la journée et le comportement de la pause automatique.
-4. Modifier la pause avec les boutons rapides.
-5. Vérifier que la journée apparaît à valider dans Pilotage et que les deux créneaux sont visibles.
-6. Déclarer un congé futur côté salarié, puis le valider dans Pilotage.
-7. Vérifier que les dates de congé ne sont plus indiquées comme journées à compléter.
-8. Tester le rappel de 19 h sur une journée incomplète et la synthèse Pilotage.
+Après une première connexion en ligne, l'espace salarié conserve localement les données nécessaires.
 
-## Limitation connue de cette Alpha
+Les actions quotidiennes hors ligne sont placées dans une file locale puis synchronisées automatiquement. Des identifiants d'idempotence côté serveur évitent les doublons lors des reprises réseau.
 
-Le démarrage et l'arrêt d'un créneau V2 demandent actuellement une connexion Internet. La PWA reste installable et le cache d'interface fonctionne, mais la nouvelle saisie multi-employeurs n'est pas encore mise en file d'attente hors connexion.
+Les corrections complexes de l'historique restent volontairement réservées au mode en ligne.
 
-Aucun identifiant privé ni PIN n'est documenté ici.
+## Notifications
 
+À 19 h (Europe/Paris) :
+- un salarié prévu au travail avec une journée incomplète peut recevoir un rappel ;
+- le Pilotage peut recevoir une synthèse du nombre de journées complétées.
 
-### Alpha 1.1
-- Congés pilotage : suppression du doublon visuel « À valider » sur chaque demande en attente.
-- Le compteur global indique désormais « demande(s) en attente ».
-- Correction des cartes V2 en mode nuit : congés, employeurs et créneaux utilisent désormais des surfaces réellement adaptées au thème sombre.
+La fonction serveur de référence se trouve dans `supabase/functions/send-reminders/`.
 
+## Développement
 
-### Alpha 1.2
-- Correction du contraste du sélecteur Semaine / Mois en mode nuit.
-- Nouveau calendrier de congés en sélection continue : premier clic = premier jour, second clic = dernier jour.
-- Navigation entre les mois par flèches ou glissement horizontal sur mobile.
-- Le même sélecteur est utilisé côté salarié et côté pilotage.
+La branche `main` doit rester utilisable.
 
+Pour une modification importante :
+1. créer une branche ;
+2. effectuer les changements ;
+3. tester les espaces salarié et Pilotage ;
+4. vérifier le fonctionnement PWA / hors ligne ;
+5. fusionner seulement après validation.
 
-### Alpha 1.3 — correctif de stabilité
-- Forçage du chargement des versions cohérentes de `app.js` et `styles.css` afin d’éviter un mélange HTML récent / JavaScript en cache.
-- Le nouveau calendrier de congés ne peut plus bloquer tout le reste de l’application s’il ne se charge pas : un sélecteur de dates natif sert de repli.
-- Initialisation anticipée de l’éditeur de créneaux pour éviter le blocage des journées à compléter après une erreur JavaScript annexe.
-- Nouveau cache PWA `v2-0-alpha1-3`.
+## Mise en service
 
-
-### Alpha 1.4
-- Congés : cartes vertes lorsqu'elles sont validées, jaunes lorsqu'elles sont en attente, avec alignement stabilisé.
-- Retour d'une saisie manuelle distincte pour l'heure d'arrivée et l'heure de départ sur la journée en cours.
-- Un salarié peut convertir une journée déjà saisie en « non travaillée » après confirmation ; les créneaux existants sont alors supprimés.
-- Dans l'historique, retirer tous les créneaux propose directement de passer la journée en « non travaillée ».
-
-
-### Alpha 1.5
-- Correction du gros décalage du bloc arrivée/départ sur ordinateur et téléphone.
-- La sélection de l'employeur occupe maintenant toute la largeur.
-- « J'arrive maintenant » et la saisie manuelle sont correctement alignés et responsives.
-- Correction de l'héritage CSS qui envoyait la saisie manuelle dans une zone de grille incorrecte.
-
-
-### Alpha 1.6
-- La section « Rappels » n'occupe plus une carte permanente dans la page salarié.
-- Une icône cloche a été ajoutée au menu flottant.
-- La cloche ouvre une fenêtre dédiée pour activer/désactiver les rappels et tester les notifications.
-
-
-### Alpha 1.7
-- Fenêtre des rappels : texte recentré et suppression de l'explication répétée en bas.
-- Le texte d'aide inférieur n'apparaît plus que lorsqu'une action est nécessaire (installation iPhone, notifications bloquées, incompatibilité).
-- Suppression du terme « pointer » dans l'interface salarié.
-- Saisie manuelle renommée « Heure de début » / « Heure de fin ».
-
-
-### Alpha 1.8 — corrections issues de l'audit
-- Protection contre les créneaux qui se chevauchent et les créneaux de durée nulle (avec patch Supabase associé).
-- Détection d'un ancien créneau resté ouvert : il doit être corrigé avant de commencer une nouvelle journée.
-- « À compléter » couvre désormais 62 jours et inclut le travail exceptionnel sur un jour initialement non travaillé.
-- Une pause manuelle n'est plus écrasée lors d'une modification de créneaux ; contrôle si la pause dépasse le temps travaillé.
-- Distinction serveur entre heure enregistrée « maintenant » et heure saisie manuellement.
-- Un salarié sans association employeur ne voit plus tous les employeurs par défaut.
-- Le pilotage inclut les travailleurs réellement présents dans la vue semaine et utilise réellement le seuil de dépassement.
-- Possibilité de réactiver un employeur archivé ; doublons de noms bloqués côté Supabase.
-- Correction de la moyenne journalière de l'historique et de la sélection de congé à l'envers.
-- CSV retiré de l'interface (la fonction interne a été réécrite sur les créneaux V2).
-- Notification employé : URL de retour enregistrée ; les tests forcés n'écrivent plus dans les logs métier avec la nouvelle Edge Function.
-- Les jetons des liens employés ne sont plus présents dans les manifests publics ; l'app mémorise le lien privé localement.
-- Correction de `pointerdown` du menu flottant et suppression du dernier texte « pointer » du pilotage.
-
-
-### Alpha 1.9
-- Date de début officielle de l'application : 1er septembre 2026.
-- Les journées antérieures ne sont plus proposées dans « À compléter ».
-- L'historique, le planning et les calendriers de congés sont bornés au 01/09/2026.
-- Les écritures antérieures au 01/09/2026 sont bloquées côté interface.
-
-
-## V2.0 Alpha 2 — mode hors ligne
-- Le compte salarié conserve localement la dernière copie de ses données afin de pouvoir rouvrir l'application sans réseau après une première connexion.
-- Les heures de début et de fin peuvent être enregistrées hors ligne.
-- Chaque action est ajoutée dans une file locale persistante puis synchronisée automatiquement au retour d'Internet ou à la prochaine ouverture de l'application.
-- Les créneaux locaux apparaissent immédiatement avec l'état « À synchroniser ».
-- Le démarrage hors ligne utilise un identifiant d'idempotence côté serveur pour empêcher la création de doublons lors des reprises réseau.
-- La fin d'un créneau est également idempotente : une réponse réseau perdue peut être rejouée sans dupliquer l'action.
-- Les modifications complexes (congés, pause, historique, statut non travaillé) restent volontairement réservées au mode en ligne pour cette première version hors ligne.
-
-
-### Alpha 2.1 — installation écran d’accueil
-- Correction du lancement des espaces salariés installés sur l’écran d’accueil.
-- Le manifeste salarié ne force plus `employee.html` comme URL de démarrage.
-- Lors de l’installation, l’URL privée actuellement ouverte (avec son jeton personnel) devient l’URL de lancement.
-- Aucun jeton salarié n’est ajouté aux fichiers publics du dépôt.
-- Après mise à jour, une ancienne icône déjà installée doit être supprimée puis réinstallée depuis le lien privé ouvert dans Safari.
-
-
-### Alpha 2.2 — hors ligne étendu
-- Le salarié peut maintenant passer une journée « travaillée » / « non travaillée » sans connexion.
-- Une journée prévue non travaillée peut être réactivée hors ligne puis recevoir immédiatement des créneaux de travail.
-- Les demandes de congé peuvent être créées hors ligne et sont envoyées automatiquement à la reconnexion.
-- Une demande de congé en attente peut être annulée hors ligne.
-- La pause et le commentaire de la journée peuvent être modifiés hors ligne.
-- Les modifications locales sont affichées avec l’état « À synchroniser ».
-- Les modifications destructives vérifient l’état serveur à la reconnexion ; si la journée a été modifiée entre-temps, la synchronisation se bloque au lieu d’écraser silencieusement les données.
-- Les corrections complexes de l’historique restent volontairement en ligne.
-
-
-### Alpha 2.3 — passe ergonomique
-- Le statut de synchronisation affiche désormais des libellés simples : « À jour », « Hors ligne », « À synchroniser » ou « Synchronisation ».
-- Centrage vertical/horizontal corrigé pour les pastilles d’état.
-- Uniformisation des champs, sélecteurs, boutons et zones tactiles.
-- Alignement renforcé des saisies manuelles de début/fin, des cartes de créneaux et des modales.
-- Amélioration de la lisibilité mobile pour un usage par des personnes peu habituées aux interfaces numériques.
-- Aucun changement de données ni de logique métier.
-
-
-### Alpha 2.5 — refonte visuelle
-- Nouvelle palette vert pétrole / sauge, plus douce et plus identifiable.
-- Champs compacts adaptés au type de donnée : heures, nombres, PIN et durées n’occupent plus inutilement toute la largeur.
-- Saisie manuelle début/fin recentrée et compacte.
-- Cartes, états, calendriers, congés et boutons harmonisés.
-- Mode nuit refondu avec les mêmes repères visuels.
-- Textes secondaires allégés côté salarié pour réduire la charge visuelle.
-- Aucun changement de logique métier, Supabase ou synchronisation hors ligne.
-
-### Alpha 2.6 — suppression de créneau
-- Un créneau terminé affiche désormais une action « Supprimer ».
-- Une confirmation rappelle l’employeur et les heures avant suppression.
-- La suppression remet la journée à valider et recalcule automatiquement le total.
-- Si c’était le dernier créneau, la journée redevient à renseigner (ou non travaillée prévue selon le planning).
-- L’action fonctionne aussi hors ligne et se synchronise au retour d’Internet.
-
-### Alpha 2.7 — statut du jour simplifié
-- Le choix « Travaillé / Non travaillé » est placé immédiatement sous la date.
-- Le statut visuel redondant en haut et le bloc « Jour non travaillé » en bas ont été supprimés.
-- Quand « Non travaillé » est sélectionné, les champs de travail sont masqués ; ils réapparaissent immédiatement si le salarié choisit « Travaillé ».
-- Le fonctionnement hors ligne et la confirmation avant suppression de créneaux restent inchangés.
-
-
-### Alpha 2.8
-- Correction du décalage de l’interface lorsqu’un créneau est en cours.
-- Le bloc « Créneau en cours » reste désormais sur une seule colonne, avec une largeur stable.
-- Le champ « Heure de fin » et le bouton « Enregistrer » sont contraints à la largeur disponible, y compris sur iPhone.
-- Suppression du `width: max-content` sur les contrôles horaires qui pouvait provoquer un débordement.
-- Aucun changement de logique métier ou Supabase.
-
-
-### Alpha 2.9
-- Correction d’un conflit CSS : le panneau « Créneau en cours » restait visible après l’enregistrement de l’heure de fin.
-- Dès qu’un créneau est terminé, le panneau de départ disparaît immédiatement et l’interface revient à l’état normal.
-- Aucun changement Supabase ou logique métier.
+La période suivie par l'application commence au **1er septembre 2026**. Les périodes antérieures ont été gérées manuellement et ne sont pas proposées comme journées à compléter.
