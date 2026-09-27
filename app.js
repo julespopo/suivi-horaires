@@ -902,7 +902,7 @@ function downloadCSV(){
   const csv=rows.map(r=>r.map(v=>'"'+String(v??'').replaceAll('"','""')+'"').join(';')).join('\n');
   const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='horaires-v2.csv';a.click();URL.revokeObjectURL(a.href)
 }
-function setManifestFor(){let link=document.querySelector('link[rel="manifest"]');if(!link){link=document.createElement('link');link.rel='manifest';document.head.appendChild(link)}link.href='manifest-employee.json'}
+function setManifestFor(){let link=document.querySelector('link[rel="manifest"]');if(!link){link=document.createElement('link');link.rel='manifest';document.head.appendChild(link)}link.href='manifest-employee.json?v=2.0-alpha2.1'}
 
 // V1.7 — ergonomie clavier des formulaires
 function timeToMinutes(value){if(!/^\d{2}:\d{2}$/.test(value||''))return null;const [h,m]=value.split(':').map(Number);return h*60+m}

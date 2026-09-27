@@ -152,3 +152,11 @@ Aucun identifiant privé ni PIN n'est documenté ici.
 - Le démarrage hors ligne utilise un identifiant d'idempotence côté serveur pour empêcher la création de doublons lors des reprises réseau.
 - La fin d'un créneau est également idempotente : une réponse réseau perdue peut être rejouée sans dupliquer l'action.
 - Les modifications complexes (congés, pause, historique, statut non travaillé) restent volontairement réservées au mode en ligne pour cette première version hors ligne.
+
+
+### Alpha 2.1 — installation écran d’accueil
+- Correction du lancement des espaces salariés installés sur l’écran d’accueil.
+- Le manifeste salarié ne force plus `employee.html` comme URL de démarrage.
+- Lors de l’installation, l’URL privée actuellement ouverte (avec son jeton personnel) devient l’URL de lancement.
+- Aucun jeton salarié n’est ajouté aux fichiers publics du dépôt.
+- Après mise à jour, une ancienne icône déjà installée doit être supprimée puis réinstallée depuis le lien privé ouvert dans Safari.
