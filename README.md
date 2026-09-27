@@ -190,3 +190,10 @@ Aucun identifiant privé ni PIN n'est documenté ici.
 - Mode nuit refondu avec les mêmes repères visuels.
 - Textes secondaires allégés côté salarié pour réduire la charge visuelle.
 - Aucun changement de logique métier, Supabase ou synchronisation hors ligne.
+
+### Alpha 2.6 — suppression de créneau
+- Un créneau terminé affiche désormais une action « Supprimer ».
+- Une confirmation rappelle l’employeur et les heures avant suppression.
+- La suppression remet la journée à valider et recalcule automatiquement le total.
+- Si c’était le dernier créneau, la journée redevient à renseigner (ou non travaillée prévue selon le planning).
+- L’action fonctionne aussi hors ligne et se synchronise au retour d’Internet.

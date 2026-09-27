@@ -1,5 +1,5 @@
 // ============================================================
-// SUIVI HORAIRES — V2.0 ALPHA 2.2
+// SUIVI HORAIRES — V2.0 ALPHA 2.6
 // Les données métier sont désormais centralisées dans Supabase.
 // GitHub Pages ne contient aucune clé secrète ni aucun PIN.
 // ============================================================
@@ -331,6 +331,21 @@ function optimisticStopAction(action){
     segment.updatedAt=action.createdAt||new Date().toISOString();
   }
 }
+function optimisticDeleteSegmentAction(action){
+  const map=getEmployeeOfflineMap();
+  const ref=map[action.segmentRef]||action.segmentRef;
+  const segment=V2_DATA.segments.find(s=>s.id===action.segmentRef||s.id===ref);
+  if(!segment)return;
+  const date=segment.date;
+  V2_DATA.segments=V2_DATA.segments.filter(s=>s.id!==action.segmentRef&&s.id!==ref);
+  const remaining=segmentsFor(action.employeeId,date);
+  if(!remaining.length){
+    APP_DATA.entries=APP_DATA.entries.filter(e=>!(e.employeeId===action.employeeId&&e.date===date));
+  }else{
+    const entry=entryFor(action.employeeId,date,false);
+    if(entry){entry.pendingSync=true;entry.validationStatus=remaining.some(s=>!s.end)?'':'pending';entry.updatedAt=action.createdAt||new Date().toISOString()}
+  }
+}
 function optimisticDayStatusAction(action){
   const entry=ensureOptimisticEntry(action.date);
   if(action.isOff){
@@ -381,6 +396,7 @@ function optimisticLeaveCancelAction(action){
 function applyOptimisticOfflineAction(action){
   if(action.type==='start')optimisticStartAction(action);
   else if(action.type==='stop')optimisticStopAction(action);
+  else if(action.type==='segment_delete')optimisticDeleteSegmentAction(action);
   else if(action.type==='day_status')optimisticDayStatusAction(action);
   else if(action.type==='meta')optimisticMetaAction(action);
   else if(action.type==='leave_request')optimisticLeaveRequestAction(action);
@@ -459,6 +475,15 @@ async function syncEmployeeOfflineQueue({reload=true}={}){
             p_segment_id:serverId,
             p_end_time:action.end,
             p_mode:action.mode||'now'
+          });
+        }else if(action.type==='segment_delete'){
+          const serverId=idMap[action.segmentRef]||action.segmentRef;
+          if(!serverId||String(serverId).startsWith('local-'))throw new Error('offline_start_not_synced');
+          await rpc('api_employee_delete_segment_offline',{
+            p_session_token:sess.sessionToken,
+            p_segment_id:serverId,
+            p_client_event_id:action.clientEventId,
+            p_expected_updated_at:action.expectedUpdatedAt||null
           });
         }else if(action.type==='day_status'){
           await rpc('api_employee_set_day_status_offline',{
@@ -707,6 +732,9 @@ function friendlyError(err){
   if(m.includes('offline_leave_not_synced')) return 'La demande de congé doit d’abord être synchronisée.';
   if(m.includes('day_changed_on_server')) return 'Cette journée a été modifiée depuis ton dernier accès. Vérifie-la avant de poursuivre.';
   if(m.includes('offline_action_unknown')) return 'Une action hors ligne n’est pas reconnue. Recharge l’application.';
+  if(m.includes('segment_changed_on_server')) return 'Ce créneau a été modifié depuis ton dernier accès. Recharge la journée avant de le supprimer.';
+  if(m.includes('segment_still_open')) return 'Termine d’abord ce créneau avant de le supprimer.';
+  if(m.includes('segment_not_found')) return 'Ce créneau n’existe plus. Recharge l’application.';
   if(m.includes('invalid_current_pin')) return 'Le PIN actuel est incorrect.';
   if(m.includes('invalid_new_pin')) return 'Le nouveau PIN doit contenir exactement 4 chiffres.';
   return 'Une erreur est survenue. Réessayez.';
@@ -976,6 +1004,33 @@ async function employeeStopSegment(segmentId,end=hm(),mode='now'){
     segmentRef:segment.id,
     employeeId,date:segment.date,end,mode,
     createdAt:new Date().toISOString()
+  };
+  saveEmployeeOfflineAction(action);
+  if(navigator.onLine)await syncEmployeeOfflineQueue();
+  return true;
+}
+async function employeeDeleteSegmentV2(segmentId){
+  const s=getSession();if(!s?.sessionToken)throw new Error('unauthorized');
+  const employeeId=CURRENT_EMPLOYEE?.id;if(!employeeId)throw new Error('unauthorized');
+  const segment=V2_DATA.segments.find(x=>x.employeeId===employeeId&&x.id===segmentId);
+  if(!segment)throw new Error('segment_not_found');
+  if(!segment.end)throw new Error('segment_still_open');
+
+  // Si le créneau n'a jamais atteint le serveur, on annule simplement les actions locales associées.
+  if(String(segment.id).startsWith('local-')){
+    let queue=getEmployeeOfflineQueue();
+    queue=queue.filter(a=>!(a.type==='start'&&a.localSegmentId===segment.id)&&!(a.type==='stop'&&a.segmentRef===segment.id)&&!(a.type==='segment_delete'&&a.segmentRef===segment.id));
+    setEmployeeOfflineQueue(queue);
+    optimisticDeleteSegmentAction({type:'segment_delete',segmentRef:segment.id,employeeId,date:segment.date,createdAt:new Date().toISOString()});
+    cacheEmployeeSnapshot();
+    notifyOfflineState();
+    return true;
+  }
+
+  const action={
+    id:makeOfflineId('action'),type:'segment_delete',clientEventId:makeOfflineId('event'),
+    segmentRef:segment.id,employeeId,date:segment.date,
+    expectedUpdatedAt:segment.serverUpdatedAt||'',createdAt:new Date().toISOString()
   };
   saveEmployeeOfflineAction(action);
   if(navigator.onLine)await syncEmployeeOfflineQueue();
