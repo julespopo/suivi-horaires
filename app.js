@@ -1,5 +1,5 @@
 // ============================================================
-// SUIVI HORAIRES — V2.0 ALPHA 1
+// SUIVI HORAIRES — V2.0 ALPHA 2
 // Les données métier sont désormais centralisées dans Supabase.
 // GitHub Pages ne contient aucune clé secrète ni aucun PIN.
 // ============================================================
@@ -11,6 +11,11 @@ const OWNER_SESSION_KEY = 'hours_supabase_owner_session_v1';
 const EMPLOYEE_SESSION_PREFIX = 'hours_supabase_employee_session_v1_';
 const THEME_KEY = 'hours_theme_preference_v1';
 const APP_START_DATE = '2026-09-01';
+const EMPLOYEE_OFFLINE_CACHE_PREFIX = 'hours_employee_cache_v2_';
+const EMPLOYEE_OFFLINE_QUEUE_PREFIX = 'hours_employee_offline_queue_v2_';
+const EMPLOYEE_OFFLINE_MAP_PREFIX = 'hours_employee_offline_map_v2_';
+let OFFLINE_SYNCING = false;
+let OFFLINE_LAST_ERROR = '';
 let THEME_MEDIA = null;
 
 function preferredTheme(){
@@ -214,6 +219,188 @@ function clearSession(){
 function isEmployeeSession(linkToken){const s=getSession();return !!s&&s.role==='employee'&&s.sessionToken&&s.linkToken===linkToken}
 function isOwnerSession(linkToken){const s=getSession();return !!s&&s.role==='owner'&&s.sessionToken&&s.linkToken===linkToken}
 
+function employeeOfflineScope(){
+  const token=currentEmployeeLinkToken();
+  return token||CURRENT_EMPLOYEE?.id||'unknown';
+}
+function employeeOfflineKey(prefix){return prefix+employeeOfflineScope()}
+function safeParseLocal(key,fallback){
+  try{const raw=localStorage.getItem(key);return raw?JSON.parse(raw):fallback}catch{return fallback}
+}
+function getEmployeeOfflineQueue(){const q=safeParseLocal(employeeOfflineKey(EMPLOYEE_OFFLINE_QUEUE_PREFIX),[]);return Array.isArray(q)?q:[]}
+function setEmployeeOfflineQueue(queue){
+  localStorage.setItem(employeeOfflineKey(EMPLOYEE_OFFLINE_QUEUE_PREFIX),JSON.stringify(queue||[]));
+  notifyOfflineState();
+}
+function getEmployeeOfflineMap(){const map=safeParseLocal(employeeOfflineKey(EMPLOYEE_OFFLINE_MAP_PREFIX),{});return map&&typeof map==='object'?map:{}}
+function setEmployeeOfflineMap(map){localStorage.setItem(employeeOfflineKey(EMPLOYEE_OFFLINE_MAP_PREFIX),JSON.stringify(map||{}))}
+function makeOfflineId(prefix='local'){
+  const id=globalThis.crypto?.randomUUID?.()||`${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  return `${prefix}-${id}`;
+}
+function notifyOfflineState(){
+  try{window.dispatchEvent(new CustomEvent('hours:offline-state'))}catch{}
+}
+function employeeOfflineState(){
+  const queue=getEmployeeOfflineQueue();
+  const blocked=queue.find(a=>a.status==='error'||a.status==='auth')||null;
+  return {count:queue.length,blocked,syncing:OFFLINE_SYNCING,lastError:OFFLINE_LAST_ERROR};
+}
+function cacheEmployeeSnapshot(){
+  if(!CURRENT_EMPLOYEE)return false;
+  try{
+    const snapshot={
+      employee:CURRENT_EMPLOYEE,
+      employees:EMPLOYEES,
+      appData:APP_DATA,
+      v2Data:V2_DATA,
+      dataRange:DATA_RANGE,
+      savedAt:new Date().toISOString()
+    };
+    localStorage.setItem(employeeOfflineKey(EMPLOYEE_OFFLINE_CACHE_PREFIX),JSON.stringify(snapshot));
+    return true;
+  }catch{return false}
+}
+function restoreEmployeeSnapshot(){
+  const snap=safeParseLocal(employeeOfflineKey(EMPLOYEE_OFFLINE_CACHE_PREFIX),null);
+  if(!snap?.employee||!snap?.appData||!snap?.v2Data)return false;
+  CURRENT_EMPLOYEE=snap.employee;
+  EMPLOYEES=Array.isArray(snap.employees)&&snap.employees.length?snap.employees:[CURRENT_EMPLOYEE];
+  APP_DATA=snap.appData;
+  V2_DATA=snap.v2Data;
+  DATA_RANGE=snap.dataRange||defaultRange();
+  reapplyEmployeeOfflineQueue();
+  return true;
+}
+function queueSegmentByRef(ref){
+  if(!ref)return null;
+  return V2_DATA.segments.find(s=>s.id===ref)||null;
+}
+function optimisticStartAction(action){
+  if(V2_DATA.segments.some(s=>s.id===action.localSegmentId))return;
+  const employer=employerFor(action.employerId);
+  V2_DATA.segments.push({
+    id:action.localSegmentId,
+    employeeId:action.employeeId,
+    date:action.date,
+    employerId:action.employerId,
+    employerName:employer?.name||'Employeur',
+    start:action.start,
+    end:'',
+    source:action.mode||'now',
+    comment:'',
+    updatedAt:action.createdAt||new Date().toISOString(),
+    pendingSync:true,
+    clientEventId:action.clientEventId||''
+  });
+}
+function optimisticStopAction(action){
+  const map=getEmployeeOfflineMap();
+  const ref=map[action.segmentRef]||action.segmentRef;
+  const segment=V2_DATA.segments.find(s=>s.id===action.segmentRef||s.id===ref);
+  if(segment){
+    segment.end=action.end;
+    segment.pendingSync=true;
+    segment.updatedAt=action.createdAt||new Date().toISOString();
+  }
+}
+function reapplyEmployeeOfflineQueue(){
+  const queue=getEmployeeOfflineQueue();
+  queue.forEach(action=>{
+    if(action.type==='start')optimisticStartAction(action);
+    else if(action.type==='stop')optimisticStopAction(action);
+  });
+}
+function saveEmployeeOfflineAction(action){
+  const queue=getEmployeeOfflineQueue();
+  queue.push({...action,status:'pending',lastError:''});
+  setEmployeeOfflineQueue(queue);
+  if(action.type==='start')optimisticStartAction(action);
+  else if(action.type==='stop')optimisticStopAction(action);
+  cacheEmployeeSnapshot();
+  notifyOfflineState();
+  return action;
+}
+function offlineActionTransientError(err){
+  const m=String(err?.message||err||'').toLowerCase();
+  const status=Number(err?.status||0);
+  return !navigator.onLine||m.includes('failed to fetch')||m.includes('networkerror')||m.includes('load failed')||status===408||status===429||status>=500;
+}
+function offlineQueueFriendlyError(){
+  const state=employeeOfflineState();
+  if(!state.blocked)return '';
+  return friendlyError(new Error(state.blocked.lastError||'offline_sync_error'));
+}
+async function syncEmployeeOfflineQueue({reload=true}={}){
+  if(OFFLINE_SYNCING||!navigator.onLine)return {ok:false,pending:getEmployeeOfflineQueue().length};
+  let queue=getEmployeeOfflineQueue();
+  if(!queue.length){OFFLINE_LAST_ERROR='';notifyOfflineState();return {ok:true,pending:0}}
+  const sess=getSession();if(!sess?.sessionToken)return {ok:false,pending:queue.length};
+  OFFLINE_SYNCING=true;OFFLINE_LAST_ERROR='';notifyOfflineState();
+  const idMap=getEmployeeOfflineMap();
+  let changed=false;
+  try{
+    while(queue.length&&navigator.onLine){
+      const action=queue[0];
+      action.status='syncing';action.lastError='';setEmployeeOfflineQueue(queue);
+      try{
+        if(action.type==='start'){
+          const serverId=await rpc('api_employee_start_segment_offline',{
+            p_session_token:sess.sessionToken,
+            p_work_date:action.date,
+            p_employer_id:action.employerId,
+            p_start_time:action.start,
+            p_mode:action.mode||'now',
+            p_client_event_id:action.clientEventId
+          });
+          idMap[action.localSegmentId]=serverId;
+          setEmployeeOfflineMap(idMap);
+          const local=V2_DATA.segments.find(s=>s.id===action.localSegmentId);
+          if(local){local.id=serverId;local.pendingSync=false}
+          queue.slice(1).forEach(next=>{
+            if(next.type==='stop'&&next.segmentRef===action.localSegmentId)next.segmentRef=serverId;
+          });
+        }else if(action.type==='stop'){
+          const serverId=idMap[action.segmentRef]||action.segmentRef;
+          if(!serverId||String(serverId).startsWith('local-'))throw new Error('offline_start_not_synced');
+          await rpc('api_employee_stop_segment_offline',{
+            p_session_token:sess.sessionToken,
+            p_segment_id:serverId,
+            p_end_time:action.end,
+            p_mode:action.mode||'now'
+          });
+          const local=V2_DATA.segments.find(s=>s.id===action.segmentRef||s.id===serverId);
+          if(local){local.id=serverId;local.end=action.end;local.pendingSync=false}
+        }
+        queue.shift();
+        changed=true;
+        setEmployeeOfflineQueue(queue);
+        cacheEmployeeSnapshot();
+      }catch(err){
+        action.status=isUnauthorizedError(err)?'auth':'error';
+        action.lastError=String(err?.message||err||'');
+        OFFLINE_LAST_ERROR=action.lastError;
+        if(offlineActionTransientError(err))action.status='pending';
+        queue[0]=action;
+        setEmployeeOfflineQueue(queue);
+        break;
+      }
+    }
+  }finally{
+    OFFLINE_SYNCING=false;notifyOfflineState();
+  }
+  if(changed&&reload&&navigator.onLine){
+    try{await loadEmployeeData()}catch{}
+  }
+  if(!getEmployeeOfflineQueue().length){
+    setEmployeeOfflineMap({});
+    OFFLINE_LAST_ERROR='';
+    notifyOfflineState();
+  }
+  return {ok:!getEmployeeOfflineQueue().length,pending:getEmployeeOfflineQueue().length};
+}
+
+
 async function rpc(name,args={}){
   if(!SUPABASE_URL||!SUPABASE_KEY) throw new Error('Configuration Supabase manquante.');
   const res=await fetch(`${SUPABASE_URL}/rest/v1/rpc/${name}`,{
@@ -360,6 +547,9 @@ function friendlyError(err){
   if(m.includes('notifications_denied')) return 'Les notifications sont bloquées dans les réglages du navigateur ou du téléphone.';
   if(m.includes('vapid_missing')) return 'Configuration des notifications incomplète.';
   if(m.includes('date_before_app_start')) return 'Les journées antérieures au 1er septembre 2026 ne sont plus gérées dans l’application.';
+  if(m.includes('offline_start_not_synced')) return 'Le début du travail doit d’abord être synchronisé avant la fin.';
+  if(m.includes('segment_already_closed')) return 'Ce créneau a déjà été terminé avec une autre heure.';
+  if(m.includes('offline_edit_not_supported')) return 'Cette modification nécessite Internet. Les heures de début et de fin peuvent, elles, être enregistrées hors ligne.';
   if(m.includes('invalid_current_pin')) return 'Le PIN actuel est incorrect.';
   if(m.includes('invalid_new_pin')) return 'Le nouveau PIN doit contenir exactement 4 chiffres.';
   return 'Une erreur est survenue. Réessayez.';
@@ -397,7 +587,9 @@ function normalizeSegment(r){return {
   end:cleanTime(r.end_time),
   source:r.source||'',
   comment:r.comment||'',
-  updatedAt:r.updated_at||''
+  updatedAt:r.updated_at||'',
+  pendingSync:false,
+  clientEventId:r.client_event_id||''
 }}
 function normalizeLeave(r){return {
   id:r.id,
@@ -543,6 +735,8 @@ async function loadEmployeeData(){
   hydrateEmployeeSettings();
   hydrateSchedule((out.schedule||[]).map(r=>({...r,employee_id:CURRENT_EMPLOYEE.id})));
   setV2Data(v2,'employee');
+  reapplyEmployeeOfflineQueue();
+  cacheEmployeeSnapshot();
   return CURRENT_EMPLOYEE;
 }
 async function loadOwnerData(){
@@ -578,39 +772,76 @@ async function setEmployeeSettings(empId,patch){const s=getSession();const curre
 
 async function employeeStartSegment(employerId,date=iso(),start=hm(),mode='now'){
   const s=getSession();if(!s?.sessionToken)throw new Error('unauthorized');
-  if(!navigator.onLine)throw new Error('Connexion requise pour démarrer ou terminer un créneau.');
-  const fn=mode==='manual'?'api_employee_start_segment_manual':'api_employee_start_segment';
-  await rpc(fn,{p_session_token:s.sessionToken,p_work_date:date,p_employer_id:employerId,p_start_time:start});
-  await loadEmployeeData();
+  if(isBeforeAppStart(date))throw new Error('date_before_app_start');
+  const employeeId=CURRENT_EMPLOYEE?.id;if(!employeeId)throw new Error('unauthorized');
+  if(!assignedEmployers(employeeId).some(e=>e.id===employerId))throw new Error('employer_not_allowed');
+  const stale=staleOpenSegmentFor(employeeId,date),open=openSegmentFor(employeeId,date);
+  if(stale)throw new Error('stale_open_segment');
+  if(open)throw new Error('segment_already_open');
+  if(isOnValidatedLeave(employeeId,date))throw new Error('validated_leave');
+  const startMin=timeToMinutes(start);if(startMin===null)throw new Error('invalid_start_time');
+  const overlap=segmentsFor(employeeId,date).some(seg=>seg.end&&startMin>=timeToMinutes(seg.start)&&startMin<timeToMinutes(seg.end));
+  if(overlap)throw new Error('overlapping_segments');
+  const action={
+    id:makeOfflineId('action'),
+    type:'start',
+    localSegmentId:makeOfflineId('local'),
+    clientEventId:makeOfflineId('event'),
+    employeeId,date,employerId,start,mode,
+    createdAt:new Date().toISOString()
+  };
+  saveEmployeeOfflineAction(action);
+  if(navigator.onLine)await syncEmployeeOfflineQueue();
+  return action.localSegmentId;
 }
 async function employeeStopSegment(segmentId,end=hm(),mode='now'){
   const s=getSession();if(!s?.sessionToken)throw new Error('unauthorized');
-  if(!navigator.onLine)throw new Error('Connexion requise pour démarrer ou terminer un créneau.');
-  const fn=mode==='manual'?'api_employee_stop_segment_manual':'api_employee_stop_segment';
-  await rpc(fn,{p_session_token:s.sessionToken,p_segment_id:segmentId,p_end_time:end});
-  await loadEmployeeData();
+  const employeeId=CURRENT_EMPLOYEE?.id;if(!employeeId)throw new Error('unauthorized');
+  const segment=V2_DATA.segments.find(x=>x.employeeId===employeeId&&x.id===segmentId&&!x.end);
+  if(!segment)throw new Error('open_segment_not_found');
+  const endMin=timeToMinutes(end),startMin=timeToMinutes(segment.start);
+  if(endMin===null)throw new Error('invalid_end_time');
+  if(endMin<startMin)throw new Error('end_before_start');
+  if(endMin===startMin)throw new Error('zero_length_segment');
+  const overlap=segmentsFor(employeeId,segment.date).some(other=>other.id!==segment.id&&other.end&&startMin<timeToMinutes(other.end)&&timeToMinutes(other.start)<endMin);
+  if(overlap)throw new Error('overlapping_segments');
+  const action={
+    id:makeOfflineId('action'),
+    type:'stop',
+    segmentRef:segment.id,
+    employeeId,date:segment.date,end,mode,
+    createdAt:new Date().toISOString()
+  };
+  saveEmployeeOfflineAction(action);
+  if(navigator.onLine)await syncEmployeeOfflineQueue();
+  return true;
 }
 async function employeeReplaceDayV2(date,segments,pauseMinutes,comment=''){
+  if(!navigator.onLine)throw new Error('offline_edit_not_supported');
   const s=getSession();if(!s?.sessionToken)throw new Error('unauthorized');
   await rpc('api_employee_replace_day_v2',{p_session_token:s.sessionToken,p_work_date:date,p_segments:segments,p_pause_minutes:Number(pauseMinutes||0),p_comment:comment||''});
   await loadEmployeeData();
 }
 async function employeeUpdateDayMetaV2(date,pauseMinutes,comment=''){
+  if(!navigator.onLine)throw new Error('offline_edit_not_supported');
   const s=getSession();if(!s?.sessionToken)throw new Error('unauthorized');
   await rpc('api_employee_update_day_meta_v2',{p_session_token:s.sessionToken,p_work_date:date,p_pause_minutes:Number(pauseMinutes||0),p_comment:comment||''});
   await loadEmployeeData();
 }
 async function employeeSetDayOffV2(date,isOff){if(isBeforeAppStart(date))throw new Error('date_before_app_start');
+  if(!navigator.onLine)throw new Error('offline_edit_not_supported');
   const s=getSession();if(!s?.sessionToken)throw new Error('unauthorized');
   await rpc('api_employee_set_day_off_v2',{p_session_token:s.sessionToken,p_work_date:date,p_is_off:!!isOff});
   await loadEmployeeData();
 }
 async function employeeRequestLeave(startDate,endDate,note=''){
+  if(!navigator.onLine)throw new Error('offline_edit_not_supported');
   const s=getSession();if(!s?.sessionToken)throw new Error('unauthorized');
   await rpc('api_employee_request_leave',{p_session_token:s.sessionToken,p_start_date:startDate,p_end_date:endDate,p_note:note||''});
   await loadEmployeeData();
 }
 async function employeeCancelLeave(leaveId){
+  if(!navigator.onLine)throw new Error('offline_edit_not_supported');
   const s=getSession();if(!s?.sessionToken)throw new Error('unauthorized');
   await rpc('api_employee_cancel_leave',{p_session_token:s.sessionToken,p_leave_id:leaveId});
   await loadEmployeeData();

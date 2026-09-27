@@ -142,3 +142,13 @@ Aucun identifiant privé ni PIN n'est documenté ici.
 - Les journées antérieures ne sont plus proposées dans « À compléter ».
 - L'historique, le planning et les calendriers de congés sont bornés au 01/09/2026.
 - Les écritures antérieures au 01/09/2026 sont bloquées côté interface.
+
+
+## V2.0 Alpha 2 — mode hors ligne
+- Le compte salarié conserve localement la dernière copie de ses données afin de pouvoir rouvrir l'application sans réseau après une première connexion.
+- Les heures de début et de fin peuvent être enregistrées hors ligne.
+- Chaque action est ajoutée dans une file locale persistante puis synchronisée automatiquement au retour d'Internet ou à la prochaine ouverture de l'application.
+- Les créneaux locaux apparaissent immédiatement avec l'état « À synchroniser ».
+- Le démarrage hors ligne utilise un identifiant d'idempotence côté serveur pour empêcher la création de doublons lors des reprises réseau.
+- La fin d'un créneau est également idempotente : une réponse réseau perdue peut être rejouée sans dupliquer l'action.
+- Les modifications complexes (congés, pause, historique, statut non travaillé) restent volontairement réservées au mode en ligne pour cette première version hors ligne.

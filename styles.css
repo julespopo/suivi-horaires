@@ -838,3 +838,41 @@ img,svg,canvas,video{max-width:100%}
 :root[data-theme="dark"] .calendar-day.before-start{
   background:#1b1e24;
 }
+
+
+/* V2.0 Alpha 2 — mode hors ligne et synchronisation */
+.segment-item.pending-sync{
+  border-style:dashed;
+  border-color:#e2bf68;
+  background:#fff9e9;
+}
+.network-chip.syncing{
+  color:var(--accent);
+  border-color:#b8caef;
+  background:#eef4ff;
+}
+#syncNotice{
+  margin-top:0;
+  margin-bottom:12px;
+}
+#syncNoticeText{
+  min-width:0;
+}
+:root[data-theme="dark"] .segment-item.pending-sync{
+  background:#342a19;
+  border-color:#6a5427;
+}
+:root[data-theme="dark"] .network-chip.syncing{
+  background:#202c43;
+  border-color:#3e5681;
+  color:#aac8ff;
+}
+@media(max-width:620px){
+  #syncNotice{
+    align-items:flex-start;
+    flex-direction:column;
+  }
+  #syncRetryBtn{
+    width:100%;
+  }
+}
