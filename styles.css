@@ -1786,3 +1786,10 @@ th,td{border-color:var(--line)}
     max-width:none!important;
   }
 }
+
+
+/* V2.0 Alpha 2.9 — visibilité correcte du créneau en cours
+   Le display:grid!important de l'Alpha 2.8 ne doit jamais annuler .hidden. */
+.v2-active-segment.hidden{
+  display:none!important;
+}

@@ -211,3 +211,9 @@ Aucun identifiant privé ni PIN n'est documenté ici.
 - Le champ « Heure de fin » et le bouton « Enregistrer » sont contraints à la largeur disponible, y compris sur iPhone.
 - Suppression du `width: max-content` sur les contrôles horaires qui pouvait provoquer un débordement.
 - Aucun changement de logique métier ou Supabase.
+
+
+### Alpha 2.9
+- Correction d’un conflit CSS : le panneau « Créneau en cours » restait visible après l’enregistrement de l’heure de fin.
+- Dès qu’un créneau est terminé, le panneau de départ disparaît immédiatement et l’interface revient à l’état normal.
+- Aucun changement Supabase ou logique métier.
