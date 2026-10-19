@@ -71,6 +71,14 @@ Le frontend reste volontairement en **HTML / CSS / JavaScript sans framework**.
 
 Les tables Supabase ne sont pas accessibles directement aux utilisateurs : les opérations passent par des RPC serveur.
 
+Les connexions par PIN sont protégées côté serveur :
+- 5 échecs maximum sur une fenêtre de 15 minutes ;
+- blocage de 15 minutes au 5e échec ;
+- remise à zéro après une connexion réussie ;
+- le compteur est indexé par un hash du lien privé, jamais par le lien lui-même.
+
+La migration correspondante est `supabase/migrations/20261019_001_login_rate_limit.sql`.
+
 Ne jamais ajouter au dépôt :
 - clé `service_role` ;
 - clé VAPID privée ;
