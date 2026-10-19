@@ -148,14 +148,59 @@ body{
 .field input[type="date"]{width:12.5rem!important;max-width:100%!important}
 .pause-duration-text{width:7.5rem!important;max-width:100%!important;text-align:center;font-variant-numeric:tabular-nums}
 .pin-setting{max-width:9rem!important;margin-inline:auto;text-align:center}
-.field .pin-input{
-  width:11.5rem!important;
-  max-width:100%!important;
+.pin-entry{
+  position:relative;
+  width:12rem;
+  max-width:100%;
   margin-inline:auto;
-  text-align:center;
-  letter-spacing:.32em;
-  padding-inline:1.25rem!important;
+}
+.field .pin-input{
+  position:absolute;
+  inset:0;
+  z-index:2;
+  width:100%!important;
+  height:100%!important;
+  max-width:100%!important;
+  margin:0!important;
+  padding:0!important;
+  border:0!important;
+  background:transparent!important;
+  color:transparent!important;
+  caret-color:transparent!important;
+  opacity:.01;
+  letter-spacing:0!important;
+  box-shadow:none!important;
+  cursor:text;
+}
+.pin-display{
+  min-height:4.7rem;
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  align-items:center;
+  gap:.28rem;
+  padding:.55rem .75rem;
+  border:1px solid var(--control-border);
+  border-radius:1rem;
+  background:var(--control-bg);
+  transition:border-color .15s ease,box-shadow .15s ease,background-color .3s ease;
+}
+.pin-entry:focus-within .pin-display{
+  border-color:var(--control-focus);
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--control-focus) 18%,transparent);
+}
+.pin-slot{
+  display:grid;
+  place-items:center;
+  min-width:0;
+  font-size:2rem;
+  line-height:1;
+  font-weight:900;
   font-variant-numeric:tabular-nums;
+  color:var(--text);
+}
+.pin-slot.is-placeholder{
+  color:var(--muted);
+  font-weight:700;
 }
 .field textarea{max-width:100%;min-height:78px}
 .field select{min-height:48px}
