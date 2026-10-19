@@ -1,37 +1,10 @@
-<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5,user-scalable=yes"><meta name="theme-color" content="#2f6f68"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="apple-mobile-web-app-title" content="Pilotage"><meta name="robots" content="noindex,nofollow"><title>Suivi des horaires</title><link rel="icon" href="icons/icon.svg" type="image/svg+xml"><link rel="manifest" href="manifest-pilotage.json?v=2.0-alpha2.9"><link rel="stylesheet" href="styles/base.css?v=rc1"><link rel="stylesheet" href="styles/v2.css?v=rc1"><link rel="stylesheet" href="styles/current.css?v=rc1-pin-slots"></head><body>
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5,user-scalable=yes"><meta name="theme-color" content="#2f6f68"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="apple-mobile-web-app-title" content="Pilotage"><meta name="robots" content="noindex,nofollow"><title>Suivi des horaires</title><link rel="icon" href="icons/icon.svg" type="image/svg+xml"><link rel="manifest" href="manifest-pilotage.json?v=2.0-alpha2.9"><link rel="stylesheet" href="styles/base.css?v=rc1"><link rel="stylesheet" href="styles/v2.css?v=rc1"><link rel="stylesheet" href="styles/current.css?v=rc1-simple1"></head><body>
 <div id="authView" class="auth-wrap hidden"><section class="card pin-card"><div class="eyebrow">Accès réservé</div><div class="pin-name">Suivi des horaires</div><p class="subtle">Entrez votre code PIN à 4 chiffres.</p><div class="field section"><div class="pin-entry"><input id="pin" class="pin-input" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" aria-label="Code PIN"><div class="pin-display" aria-hidden="true"><span class="pin-slot">–</span><span class="pin-slot">–</span><span class="pin-slot">–</span><span class="pin-slot">–</span></div></div></div><button id="loginBtn" class="btn btn-primary btn-block section">Continuer</button><div id="pinError" class="error"></div><div class="security-box section">Connexion sécurisée : le code PIN est vérifié côté serveur et n’est pas présent dans le code du site.</div></section></div>
 <div id="invalidView" class="auth-wrap hidden"><section class="card pin-card"><div class="eyebrow">Accès privé</div><div class="pin-name">Lien invalide</div><p class="subtle">Ce lien n’est pas reconnu.</p></section></div>
 <main id="appView" class="shell hidden">
   <div class="topbar app-header"><div><div class="brand">Suivi des horaires <span class="v2-badge">V2</span></div><div class="subtle">Équipe · horaires · congés</div></div></div>
-  <div class="row mobile-stack"><div><h1 class="h1">Vue d’ensemble</h1><div class="subtle">Les informations essentielles de l’équipe, au même endroit.</div></div><div class="toolbar-actions"><button class="btn btn-outline" onclick="openSettings()">Réglages du temps de travail</button></div></div>
+  <div class="owner-main-head"><div class="eyebrow">Pilotage</div><h1 class="h1">Heures de travail</h1><div class="subtle">Suis les heures, les journées à compléter et les validations de l’équipe.</div></div>
   <div id="cards" class="kpis section"></div>
-
-  <section class="card section reminder-card" id="ownerReminders">
-    <div class="row mobile-stack">
-      <div>
-        <div class="h2">Synthèse de 19h</div>
-        <div class="subtle">Reçois une seule notification avec le nombre d’employés prévus ayant complété leur journée.</div>
-      </div>
-      <span id="ownerPushStatus" class="status neutral">Vérification…</span>
-    </div>
-    <div class="toolbar-actions section">
-      <button id="ownerPushToggleBtn" class="btn btn-primary" onclick="toggleOwnerPushSummary()">Activer les notifications</button>
-      <button id="ownerPushTestBtn" class="btn btn-outline hidden" onclick="testOwnerPushSummary()">Tester sur ce téléphone</button>
-    </div>
-    <div id="ownerPushHelp" class="note section"></div>
-  </section>
-
-  <section class="grid grid-2 section">
-    <div class="card">
-      <div class="row mobile-stack"><div><div class="h2">Employeurs</div><div class="subtle">Crée les structures et choisis quels salariés peuvent travailler chez chacune.</div></div><button class="btn btn-primary btn-small" onclick="openEmployerModal()">+ Ajouter</button></div>
-      <div id="employerList" class="section employer-list"></div>
-    </div>
-    <div class="card">
-      <div class="row mobile-stack"><div><div class="h2">Congés</div><div class="subtle">Valide les demandes des salariés ou ajoute directement une période.</div></div><button class="btn btn-primary btn-small" onclick="openOwnerLeaveModal()">+ Ajouter</button></div>
-      <div class="row section"><span id="ownerLeaveBadge" class="status neutral"></span></div>
-      <div id="ownerLeaveList" class="leave-list"></div>
-    </div>
-  </section>
 
   <section class="grid grid-2 section"><div class="card"><div class="h2">Cette semaine</div><div class="subtle">Volume horaire par employé et écart aux heures prévues.</div><div id="weekTeamChart" class="team-chart section"></div></div><div class="card"><div class="h2">Ce mois</div><div class="subtle">Volume horaire cumulé par employé.</div><div id="monthTeamChart" class="team-chart section"></div></div></section>
 
@@ -49,16 +22,49 @@
 
   <section class="card section"><div class="row mobile-stack"><div><div class="h2">À valider</div><div class="subtle">Une journée complète ou corrigée par un employé arrive ici avant validation.</div></div><span id="validationBadge" class="status neutral"></span></div><div id="validationList" class="section"></div></section>
 
-  <section class="card section"><div class="row mobile-stack"><div><div class="h2">Journal d’activité</div><div class="subtle">Historique technique des saisies récentes, masqué par défaut.</div></div><button id="logToggleBtn" class="btn btn-outline btn-small" onclick="toggleLog()">Afficher</button></div><div id="logPanel" class="hidden"><div class="table-wrap section"><table><thead><tr><th>Employé</th><th>Date</th><th>Arrivée</th><th>Départ</th><th>Pause</th><th>Total</th><th>Validation</th></tr></thead><tbody id="rows"></tbody></table></div></div></section>
-  <section class="card section export-card"><div><div class="h2">Exports</div><div class="subtle">À utiliser ponctuellement pour transmettre ou archiver les données du mois.</div></div><div class="toolbar-actions section"><button class="btn btn-primary" onclick="exportMonthlyPDF()">Rapport PDF mensuel</button></div></section>
+  <section class="card section owner-leaves-primary" id="ownerLeaves">
+    <div class="row mobile-stack"><div><div class="h2">Congés</div><div class="subtle">Les demandes en attente restent visibles sans prendre la place du suivi des heures.</div></div><button class="btn btn-outline btn-small" onclick="openOwnerLeaveModal()">+ Ajouter</button></div>
+    <div class="row section"><span id="ownerLeaveBadge" class="status neutral"></span></div>
+    <div id="ownerLeaveList" class="leave-list"></div>
+  </section>
   <div class="footer-note">Les durées de référence et les seuils de suivi sont paramétrables. Ils servent au suivi interne et ne constituent pas un calcul juridique des heures supplémentaires.</div>
 </main>
 <button class="floating-settings hidden" id="floatingSettings" onclick="toggleFloatingMenu()" aria-label="Ouvrir le menu" aria-expanded="false" title="Menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1.1V21h-4v-.1A1.7 1.7 0 0 0 8.6 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1 1.7 1.7 0 0 0-1.1-.4H3v-4h.1A1.7 1.7 0 0 0 4.6 8.6a1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6 1.7 1.7 0 0 0 .4-1.1V3h4v.1A1.7 1.7 0 0 0 15.4 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.4 9c.16.36.37.69.6 1 .3.36.68.55 1.1.6h.1v4h-.1c-.42.05-.8.24-1.1.6-.23.31-.44.64-.6 1Z"/></svg></button>
 <div class="floating-actions" id="floatingActions" aria-hidden="true">
   <button class="floating-action theme-orbit-btn" id="floatingThemeAction" data-theme-state="light" type="button" tabindex="-1" onclick="toggleThemeFromFloatingMenu()" aria-label="Basculer le mode jour/nuit" title="Mode jour/nuit"><span class="theme-orbit" aria-hidden="true"><span class="theme-celestial theme-sun">☀</span><span class="theme-celestial theme-moon">☾</span></span></button>
+  <button class="floating-action" type="button" tabindex="-1" onclick="openOwnerTools();closeFloatingMenu()" aria-label="Outils et réglages" title="Outils et réglages"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10M14 4v6M6 14v6"/></svg></button>
   <button class="floating-action" type="button" tabindex="-1" onclick="openOwnerAccountSettings();closeFloatingMenu()" aria-label="Changer le PIN" title="Changer le PIN"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="m11 12 8-8m-2 2 2 2m-5 1 2 2"/></svg></button>
   <button class="floating-action floating-action-danger" type="button" tabindex="-1" onclick="closeFloatingMenu();logout()" aria-label="Se déconnecter" title="Se déconnecter"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg></button>
 </div>
+
+<div class="modal" id="ownerToolsModal"><div class="sheet wide-sheet owner-tools-sheet">
+  <div class="row"><div><div class="h2">Outils et réglages</div><div class="subtle">Les éléments que tu modifies rarement sont regroupés ici.</div></div><button class="btn btn-outline" onclick="closeOwnerTools()">Fermer</button></div>
+  <div class="owner-tools-grid section">
+    <section class="owner-tool-panel owner-tool-wide">
+      <div class="row mobile-stack"><div><div class="h3">Employeurs</div><div class="subtle">Structures disponibles et salariés associés.</div></div><button class="btn btn-primary btn-small" onclick="closeOwnerTools();openEmployerModal()">+ Ajouter</button></div>
+      <div id="employerList" class="section employer-list"></div>
+    </section>
+    <section class="owner-tool-panel">
+      <div class="h3">Repères hebdomadaires</div>
+      <div class="subtle">Heures prévues et seuils de suivi par salarié.</div>
+      <button class="btn btn-outline btn-block section" onclick="closeOwnerTools();openSettings()">Modifier les repères</button>
+    </section>
+    <section class="owner-tool-panel reminder-card" id="ownerReminders">
+      <div class="row mobile-stack"><div><div class="h3">Synthèse de 19h</div><div class="subtle">Une notification si des journées prévues restent à suivre.</div></div><span id="ownerPushStatus" class="status neutral">Vérification…</span></div>
+      <div class="toolbar-actions section"><button id="ownerPushToggleBtn" class="btn btn-primary" onclick="toggleOwnerPushSummary()">Activer les notifications</button><button id="ownerPushTestBtn" class="btn btn-outline hidden" onclick="testOwnerPushSummary()">Tester</button></div>
+      <div id="ownerPushHelp" class="note section"></div>
+    </section>
+    <section class="owner-tool-panel">
+      <div class="h3">Exports</div>
+      <div class="subtle">Génère ponctuellement le relevé mensuel.</div>
+      <button class="btn btn-outline btn-block section" onclick="closeOwnerTools();exportMonthlyPDF()">Rapport PDF mensuel</button>
+    </section>
+    <section class="owner-tool-panel owner-tool-wide">
+      <div class="row mobile-stack"><div><div class="h3">Journal d’activité</div><div class="subtle">Historique technique des dernières saisies.</div></div><button id="logToggleBtn" class="btn btn-outline btn-small" onclick="toggleLog()">Afficher</button></div>
+      <div id="logPanel" class="hidden"><div class="table-wrap section"><table><thead><tr><th>Employé</th><th>Date</th><th>Arrivée</th><th>Départ</th><th>Pause</th><th>Total</th><th>Validation</th></tr></thead><tbody id="rows"></tbody></table></div></div>
+    </section>
+  </div>
+</div></div>
 
 <div class="modal" id="planningModal"><div class="sheet wide-sheet"><div class="row"><div><div class="h2">Organisation de la journée</div><div class="subtle" id="planningDateLabel"></div></div><button class="btn btn-outline" onclick="closePlanning()">Fermer</button></div><div class="row section"><div class="subtle">Par défaut : lundi à vendredi travaillés, samedi et dimanche non travaillés.</div><div class="toolbar-actions"><button class="btn btn-outline btn-small" onclick="setAllPlanning(true)">Tous travaillés</button><button class="btn btn-outline btn-small" onclick="setAllPlanning(false)">Tous non travaillés</button></div></div><div id="planningRows" class="planning-list section"></div><button class="btn btn-primary btn-block section" onclick="savePlanning()">Enregistrer le planning</button></div></div>
 
