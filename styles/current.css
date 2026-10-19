@@ -709,3 +709,172 @@ th,td{border-color:var(--line)}
     margin:-4px -4px -40px auto;
   }
 }
+
+
+/* ============================================================
+   V2.0 RC1 — export PDF mensuel
+   ============================================================ */
+.pdf-export-sheet{width:min(620px,calc(100vw - 28px))}
+.pdf-export-fields{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+  gap:12px;
+}
+.pdf-export-fields .field{margin:0}
+.pdf-export-fields input,
+.pdf-export-fields select{width:100%!important;max-width:none!important}
+
+@media(max-width:620px){
+  .pdf-export-fields{grid-template-columns:1fr}
+}
+
+/* L'interface écran reste inchangée : le rapport n'existe visuellement
+   que pendant l'impression / l'enregistrement PDF. */
+@media print{
+  @page{size:A4 portrait;margin:10mm 9mm 11mm}
+  html,body{background:#fff!important}
+  body{margin:0!important}
+  .print-report{
+    display:block!important;
+    width:auto!important;
+    color:#17211f!important;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif!important;
+    font-size:8.5pt!important;
+    line-height:1.3!important;
+  }
+  .print-employee{
+    page-break-after:always;
+    break-after:page;
+  }
+  .print-employee:last-of-type{
+    page-break-after:auto;
+    break-after:auto;
+  }
+  .print-employee-head{
+    display:flex;
+    align-items:flex-end;
+    justify-content:space-between;
+    gap:16px;
+    padding-bottom:8px;
+    margin-bottom:9px;
+    border-bottom:2px solid #245a55;
+  }
+  .print-kicker{
+    margin-bottom:2px;
+    color:#245a55;
+    font-size:7.5pt;
+    font-weight:800;
+    letter-spacing:.06em;
+    text-transform:uppercase;
+  }
+  .print-employee-head h1{
+    margin:0;
+    color:#17211f;
+    font-size:18pt;
+    line-height:1.05;
+    letter-spacing:-.02em;
+  }
+  .print-period{
+    margin-top:3px;
+    font-size:10pt;
+    font-weight:700;
+    text-transform:capitalize;
+  }
+  .print-generated{
+    flex:0 0 auto;
+    color:#68736f;
+    font-size:7.5pt;
+    white-space:nowrap;
+  }
+  .print-summary{
+    display:grid!important;
+    grid-template-columns:repeat(5,minmax(0,1fr));
+    gap:5px!important;
+    margin:0 0 9px!important;
+  }
+  .print-summary>div{
+    display:grid;
+    gap:2px;
+    padding:6px 7px;
+    border:1px solid #dce5e1;
+    border-radius:6px;
+    background:#f7f9f8;
+  }
+  .print-summary span{
+    color:#68736f;
+    font-size:6.8pt;
+  }
+  .print-summary strong{
+    color:#17211f;
+    font-size:10pt;
+  }
+  .print-summary-alert{
+    border-color:#ead4aa!important;
+    background:#fff8ea!important;
+  }
+  .print-hours-table{
+    width:100%!important;
+    min-width:0!important;
+    border-collapse:collapse!important;
+    table-layout:fixed;
+  }
+  .print-hours-table thead{display:table-header-group}
+  .print-hours-table tr{
+    page-break-inside:avoid;
+    break-inside:avoid;
+  }
+  .print-hours-table th{
+    padding:5px 4px!important;
+    border:1px solid #cfd9d5!important;
+    background:#edf3f1!important;
+    color:#34413d!important;
+    font-size:6.6pt!important;
+    line-height:1.15!important;
+    text-align:left!important;
+    text-transform:none!important;
+    letter-spacing:0!important;
+  }
+  .print-hours-table td{
+    padding:4px!important;
+    border:1px solid #dce5e1!important;
+    color:#17211f!important;
+    font-size:7.3pt!important;
+    line-height:1.25!important;
+    vertical-align:top!important;
+    overflow-wrap:anywhere;
+  }
+  .print-hours-table th:nth-child(1),.print-hours-table td:nth-child(1){width:9%}
+  .print-hours-table th:nth-child(2),.print-hours-table td:nth-child(2){width:12%}
+  .print-hours-table th:nth-child(3),.print-hours-table td:nth-child(3){width:27%}
+  .print-hours-table th:nth-child(4),.print-hours-table td:nth-child(4){width:9%}
+  .print-hours-table th:nth-child(5),.print-hours-table td:nth-child(5){width:9%}
+  .print-hours-table th:nth-child(6),.print-hours-table td:nth-child(6){width:12%}
+  .print-hours-table th:nth-child(7),.print-hours-table td:nth-child(7){width:22%}
+  .print-number-cell,.print-date-cell{white-space:nowrap}
+  .print-slot{
+    display:flex;
+    justify-content:space-between;
+    gap:5px;
+    margin-bottom:2px;
+  }
+  .print-slot:last-child{margin-bottom:0}
+  .print-slot span{white-space:nowrap}
+  .print-row-warning td{background:#fffaf0!important}
+  .print-comment-cell{color:#46534f!important}
+  .print-empty{
+    padding:18px!important;
+    text-align:center;
+    color:#68736f!important;
+  }
+  .print-employee-foot{
+    margin-top:7px;
+    padding-top:5px;
+    border-top:1px solid #dce5e1;
+    color:#7b8581;
+    font-size:6.5pt;
+    text-align:right;
+  }
+  .print-global-note{
+    display:none!important;
+  }
+}
