@@ -293,51 +293,109 @@ buildPrintReport=function(monthValue,employeeId='all'){
   const {start,end}=bounds,dates=listDates(start,end),d=getData();
   const employees=employeeId==='all'?EMPLOYEES:EMPLOYEES.filter(emp=>emp.id===employeeId);
   const generatedAt=new Intl.DateTimeFormat('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric'}).format(new Date());
+  const monthStartIso=iso(start),monthEndIso=iso(end);
+
+  const cleanPdfNote=value=>String(value||'').replace(/^\[TEST PDF [^\]]+\]\s*/i,'').trim();
+  const pdfDateLabel=date=>{
+    const obj=dateObjFromIso(date);
+    const weekday=new Intl.DateTimeFormat('fr-FR',{weekday:'short'}).format(obj);
+    return `${weekday} ${shortDate(date)}`;
+  };
+  const weekMeta=date=>{
+    const obj=dateObjFromIso(date),day=(obj.getDay()+6)%7;
+    const ws=new Date(obj);ws.setDate(obj.getDate()-day);ws.setHours(12,0,0,0);
+    const we=new Date(ws);we.setDate(ws.getDate()+6);
+    return {key:iso(ws),start:ws,end:we};
+  };
+  const weekLabel=meta=>{
+    const ws=iso(meta.start),we=iso(meta.end);
+    const visibleStart=ws<monthStartIso?monthStartIso:ws;
+    const visibleEnd=we>monthEndIso?monthEndIso:we;
+    const partial=visibleStart!==ws||visibleEnd!==we;
+    return {
+      text:partial?`Semaine partielle · ${shortDate(visibleStart)} → ${shortDate(visibleEnd)}`:`Semaine · ${shortDate(ws)} → ${shortDate(we)}`,
+      partial
+    };
+  };
 
   const employeeHtml=employees.map(emp=>{
     let workedDays=0,incompleteDays=0,leaveDays=0;
-    const rows=dates.map(date=>{
+    const pendingDays=d.entries.filter(x=>x.employeeId===emp.id&&x.date>=monthStartIso&&x.date<=monthEndIso&&x.validationStatus==='pending').length;
+    const settings=employeeSettings(emp.id);
+    const weekTotals=new Map();
+    dates.forEach(date=>{
+      const meta=weekMeta(date);
+      weekTotals.set(meta.key,(weekTotals.get(meta.key)||0)+workMinutesForDay(emp.id,date));
+    });
+
+    const rows=dates.map((date,index)=>{
       const entry=d.entries.find(x=>x.employeeId===emp.id&&x.date===date);
       const leave=leaveForDate(emp.id,date,'validated');
       const planned=isPlannedWorkingDay(emp.id,date);
       const segs=segmentsFor(emp.id,date);
       if(!planned&&!entry&&!leave&&!segs.length)return '';
 
+      const info=dayInfoFor(emp.id,date);
+      const complete=['complete','off','leave'].includes(info.status);
       const total=leave||entry?.status==='off'?0:workMinutesForDay(emp.id,date);
       const worked=segs.length>0||entry?.status==='worked'||total>0;
+      const incomplete=planned&&!complete;
       if(worked)workedDays++;
       if(leave)leaveDays++;
-      const complete=leave||entry?.status==='off'||dayInfoFor(emp.id,date).status==='complete';
-      if(planned&&!complete)incompleteDays++;
+      if(incomplete)incompleteDays++;
 
       let status='Prévu';
-      if(leave)status='Congé';
-      else if(entry?.status==='off')status='Non travaillé';
-      else if(worked)status=planned?'Travaillé':'Hors planning';
-      else if(planned)status='À compléter';
+      let statusClass='';
+      if(leave){status='Congé';statusClass='print-status-leave'}
+      else if(entry?.status==='off'){status='Non travaillé';statusClass='print-status-off'}
+      else if(incomplete){status='À compléter';statusClass='print-status-incomplete'}
+      else if(worked&&!planned){status='Hors planning';statusClass='print-status-outside'}
+      else if(worked)status='Travaillé';
+
+      const pending=entry?.validationStatus==='pending';
+      if(pending)statusClass+=(statusClass?' ':'')+'print-status-pending';
 
       let detail='—';
-      if(leave)detail=leave.note?ownerEscape(leave.note):'Congé validé';
-      else if(segs.length)detail=segs.map(s=>`<div class="print-slot"><strong>${ownerEscape(s.employerName||'Employeur')}</strong><span>${ownerEscape(s.start||'—')} – ${ownerEscape(s.end||'…')}</span></div>`).join('');
-      else if(entry?.arrival||entry?.departure)detail=`${ownerEscape(entry.arrival||'—')} – ${ownerEscape(entry.departure||'—')}`;
-      else if(entry?.status==='off')detail='Journée déclarée non travaillée';
+      if(leave){
+        const note=cleanPdfNote(leave.note);
+        detail=note?ownerEscape(note):'Congé validé';
+      }else if(segs.length){
+        detail=segs.map(s=>`<div class="print-slot"><strong>${ownerEscape(s.employerName||'Employeur')}</strong><span>${ownerEscape(s.start||'—')} → ${ownerEscape(s.end||'…')}</span></div>`).join('');
+      }else if(entry?.arrival||entry?.departure){
+        detail=`<div class="print-slot"><strong>Horaire</strong><span>${ownerEscape(entry.arrival||'—')} → ${ownerEscape(entry.departure||'—')}</span></div>`;
+      }else if(entry?.status==='off'){
+        detail='Journée déclarée non travaillée';
+      }
 
-      const pause=worked&&!leave&&entry?.status!=='off'?fmtDurationMinutes(Number(entry?.pause||0)):'—';
-      const validation=leave?'Validé':entry?.validationStatus==='validated'?'Validé':entry?.validationStatus==='pending'?'À valider':'—';
-      const comment=leave?'':ownerEscape(entry?.comment||'');
+      const cleanedComment=leave?'':cleanPdfNote(entry?.comment||'');
+      if(cleanedComment)detail+=`<div class="print-row-note"><span>Note</span> ${ownerEscape(cleanedComment)}</div>`;
 
-      return `<tr class="${status==='À compléter'?'print-row-warning':''}">
-        <td class="print-date-cell">${shortDate(date)}</td>
-        <td>${status}</td>
+      const pause=worked&&!leave&&entry?.status!=='off'&&complete?fmtDurationMinutes(Number(entry?.pause||0)):'—';
+      const displayTotal=incomplete?'—':fmtMin(total);
+      const validation=leave?'Validé':entry?.validationStatus==='validated'?'Validé':pending?'À valider':'—';
+
+      const meta=weekMeta(date);
+      const nextDate=dates[index+1];
+      const nextMeta=nextDate?weekMeta(nextDate):null;
+      const closesWeek=!nextMeta||nextMeta.key!==meta.key;
+      let weekRow='';
+      if(closesWeek){
+        const label=weekLabel(meta);
+        const totalWeek=weekTotals.get(meta.key)||0;
+        weekRow=`<tr class="print-week-total"><td colspan="6"><div><span>${label.text}</span><strong>${fmtMin(totalWeek)} travaillées</strong>${label.partial?'':`<span>Réf. ${fmtMin(settings.weeklyObjectiveMinutes)}</span>`}</div></td></tr>`;
+      }
+
+      return `<tr class="print-day-row ${statusClass}">
+        <td class="print-date-cell">${pdfDateLabel(date)}</td>
+        <td class="print-status-cell">${status}</td>
         <td class="print-detail-cell">${detail}</td>
         <td class="print-number-cell">${pause}</td>
-        <td class="print-number-cell"><strong>${fmtMin(total)}</strong></td>
-        <td>${validation}</td>
-        <td class="print-comment-cell">${comment||'—'}</td>
-      </tr>`;
+        <td class="print-number-cell"><strong>${displayTotal}</strong></td>
+        <td class="print-validation-cell">${validation}</td>
+      </tr>${weekRow}`;
     }).join('');
 
-    const total=totalFor(emp.id,start,end),settings=employeeSettings(emp.id);
+    const total=totalFor(emp.id,start,end);
     return `<article class="print-employee">
       <header class="print-employee-head">
         <div>
@@ -353,10 +411,11 @@ buildPrintReport=function(monthValue,employeeId='all'){
         <div><span>Jours travaillés</span><strong>${workedDays}</strong></div>
         <div><span>Jours de congé</span><strong>${leaveDays}</strong></div>
         <div class="${incompleteDays?'print-summary-alert':''}"><span>À compléter</span><strong>${incompleteDays}</strong></div>
+        <div class="${pendingDays?'print-summary-pending':''}"><span>À valider</span><strong>${pendingDays}</strong></div>
       </section>
       <table class="print-hours-table">
-        <thead><tr><th>Date</th><th>Statut</th><th>Créneaux / employeur</th><th>Pause</th><th>Total</th><th>Validation</th><th>Commentaire</th></tr></thead>
-        <tbody>${rows||'<tr><td colspan="7" class="print-empty">Aucune donnée sur cette période.</td></tr>'}</tbody>
+        <thead><tr><th>Date</th><th>Statut</th><th>Créneaux / employeur</th><th>Pause</th><th>Total</th><th>Validation</th></tr></thead>
+        <tbody>${rows||'<tr><td colspan="6" class="print-empty">Aucune donnée sur cette période.</td></tr>'}</tbody>
       </table>
       <footer class="print-employee-foot">Suivi des horaires · ${ownerEscape(monthLabel(start))} · ${ownerEscape(emp.name)}</footer>
     </article>`;
