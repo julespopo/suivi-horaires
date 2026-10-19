@@ -154,10 +154,21 @@ function generateMonthlyPDF(){
   buildPrintReport(monthValue,employeeId);
   closePdfExportModal();
   const previousTitle=document.title;
+  const previousUrl=location.href;
   const employee=employeeId==='all'?null:EMPLOYEES.find(e=>e.id===employeeId);
   const period=monthLabel(bounds.start);
   document.title=`Releve-horaires-${pdfFileToken(period)}-${employee?pdfFileToken(employee.name):'equipe'}`;
-  const restore=()=>{document.title=previousTitle;window.removeEventListener('afterprint',restore)};
+  let urlSanitized=false;
+  try{
+    const cleanUrl=new URL(location.href);
+    history.replaceState(history.state,'',cleanUrl.pathname+cleanUrl.hash);
+    urlSanitized=true;
+  }catch{}
+  const restore=()=>{
+    document.title=previousTitle;
+    if(urlSanitized){try{history.replaceState(history.state,'',previousUrl)}catch{}}
+    window.removeEventListener('afterprint',restore);
+  };
   window.addEventListener('afterprint',restore);
   setTimeout(()=>window.print(),80);
 }
@@ -326,7 +337,7 @@ buildPrintReport=function(monthValue,employeeId='all'){
       </tr>`;
     }).join('');
 
-    const total=totalFor(emp,start,end),settings=employeeSettings(emp.id);
+    const total=totalFor(emp.id,start,end),settings=employeeSettings(emp.id);
     return `<article class="print-employee">
       <header class="print-employee-head">
         <div>
