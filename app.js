@@ -1178,3 +1178,22 @@ function stepTimeInput(input,direction,event){const step=event.shiftKey?15:5;let
 function submitCurrentContext(el){const modal=el.closest('.modal.open');if(modal){const primary=[...modal.querySelectorAll('button.btn-primary:not([disabled])')].pop();if(primary){primary.click();return true}}const form=el.closest('form');if(form){if(form.requestSubmit)form.requestSubmit();else form.submit();return true}return false}
 document.addEventListener('keydown',event=>{const el=event.target;if(!(el instanceof HTMLElement))return;if(el.matches('input[type="time"]')){if(event.key==='ArrowUp'||event.key==='ArrowDown'){event.preventDefault();stepTimeInput(el,event.key==='ArrowUp'?1:-1,event);return}if(event.key==='Enter'){event.preventDefault();submitCurrentContext(el);return}}if(el.matches('input:not([type="time"]):not([type="button"]):not([type="submit"]), select')&&event.key==='Enter'){const modal=el.closest('.modal.open');if(modal){event.preventDefault();submitCurrentContext(el)}}});
 document.addEventListener('focusin',event=>{const el=event.target;if(el instanceof HTMLInputElement&&el.type==='time')el.title='Flèches ↑/↓ : ±5 min · Maj + flèche : ±15 min · Entrée : valider'});
+
+
+function initPinSlots(){
+  document.querySelectorAll('.pin-entry .pin-input').forEach(input=>{
+    const slots=[...input.closest('.pin-entry').querySelectorAll('.pin-slot')];
+    const render=()=>{
+      const value=String(input.value||'').replace(/\D/g,'').slice(0,4);
+      slots.forEach((slot,index)=>{
+        const digit=value[index];
+        slot.textContent=digit||'–';
+        slot.classList.toggle('is-placeholder',!digit);
+      });
+    };
+    input.addEventListener('input',render);
+    input.addEventListener('change',render);
+    render();
+  });
+}
+initPinSlots();
