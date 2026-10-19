@@ -147,7 +147,16 @@ body{
 }
 .field input[type="date"]{width:12.5rem!important;max-width:100%!important}
 .pause-duration-text{width:7.5rem!important;max-width:100%!important;text-align:center;font-variant-numeric:tabular-nums}
-.pin-setting,.pin-input{max-width:9rem!important;margin-inline:auto;text-align:center}
+.pin-setting{max-width:9rem!important;margin-inline:auto;text-align:center}
+.field .pin-input{
+  width:11.5rem!important;
+  max-width:100%!important;
+  margin-inline:auto;
+  text-align:center;
+  letter-spacing:.32em;
+  padding-inline:1.25rem!important;
+  font-variant-numeric:tabular-nums;
+}
 .field textarea{max-width:100%;min-height:78px}
 .field select{min-height:48px}
 
