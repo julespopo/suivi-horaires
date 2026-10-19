@@ -327,13 +327,19 @@ buildPrintReport=function(monthValue,employeeId='all'){
       const meta=weekMeta(date);
       weekTotals.set(meta.key,(weekTotals.get(meta.key)||0)+workMinutesForDay(emp.id,date));
     });
-
-    const rows=dates.map((date,index)=>{
+    const visibleDates=dates.filter(date=>{
       const entry=d.entries.find(x=>x.employeeId===emp.id&&x.date===date);
       const leave=leaveForDate(emp.id,date,'validated');
       const planned=isPlannedWorkingDay(emp.id,date);
       const segs=segmentsFor(emp.id,date);
-      if(!planned&&!entry&&!leave&&!segs.length)return '';
+      return planned||!!entry||!!leave||segs.length>0;
+    });
+
+    const rows=visibleDates.map((date,index)=>{
+      const entry=d.entries.find(x=>x.employeeId===emp.id&&x.date===date);
+      const leave=leaveForDate(emp.id,date,'validated');
+      const planned=isPlannedWorkingDay(emp.id,date);
+      const segs=segmentsFor(emp.id,date);
 
       const info=dayInfoFor(emp.id,date);
       const complete=['complete','off','leave'].includes(info.status);
@@ -375,7 +381,7 @@ buildPrintReport=function(monthValue,employeeId='all'){
       const validation=leave?'Validé':entry?.validationStatus==='validated'?'Validé':pending?'À valider':'—';
 
       const meta=weekMeta(date);
-      const nextDate=dates[index+1];
+      const nextDate=visibleDates[index+1];
       const nextMeta=nextDate?weekMeta(nextDate):null;
       const closesWeek=!nextMeta||nextMeta.key!==meta.key;
       let weekRow='';
