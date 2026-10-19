@@ -80,6 +80,23 @@ for (const path of publicFiles) {
 
 
 
+const pinMigration = "supabase/migrations/20261019_001_login_rate_limit.sql";
+ok("Migration limitation PIN présente", exists(pinMigration));
+if (exists(pinMigration)) {
+  const sql = read(pinMigration);
+  ok("Migration protège les deux connexions",
+    sql.includes("api_employee_login_internal") &&
+    sql.includes("api_owner_login_internal") &&
+    sql.includes("too_many_attempts"));
+  ok("RPC internes non exposées",
+    sql.includes("revoke execute on function public.api_employee_login_internal") &&
+    sql.includes("revoke execute on function public.api_owner_login_internal"));
+}
+const appSource = read("app.js");
+ok("Frontend gère le blocage PIN",
+  appSource.includes("assertLoginResult") &&
+  appSource.includes("too_many_login_attempts"));
+
 const cssFiles = ["styles/base.css", "styles/v2.css", "styles/current.css"];
 for (const path of cssFiles) {
   ok(`CSS modulaire présent: ${path}`, exists(path));
