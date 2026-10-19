@@ -650,3 +650,62 @@ th,td{border-color:var(--line)}
   .owner-tool-wide{grid-column:auto}
   .owner-tools-sheet{width:min(100%,calc(100vw - 16px))}
 }
+
+
+/* ============================================================
+   V2.0 RC1 — fermeture confortable des fenêtres
+   ============================================================ */
+.sheet{
+  scrollbar-gutter:stable;
+}
+.modal-floating-close{
+  position:sticky;
+  top:0;
+  z-index:40;
+  display:grid;
+  place-items:center;
+  width:42px;
+  height:42px;
+  margin:-6px -6px -36px auto;
+  border:1px solid var(--line);
+  border-radius:50%;
+  background:color-mix(in srgb,var(--card) 92%,transparent);
+  color:var(--text);
+  box-shadow:0 6px 18px rgba(20,38,34,.14);
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+  font:inherit;
+  cursor:pointer;
+  touch-action:manipulation;
+}
+.modal-floating-close span{
+  display:block;
+  font-size:28px;
+  font-weight:400;
+  line-height:1;
+  transform:translateY(-1px);
+}
+.modal-floating-close:hover{
+  background:var(--soft);
+}
+.modal-floating-close:active{
+  transform:scale(.96);
+}
+.modal-legacy-close{
+  visibility:hidden!important;
+  pointer-events:none!important;
+}
+:root[data-theme="dark"] .modal-floating-close{
+  background:color-mix(in srgb,var(--card) 92%,transparent);
+  box-shadow:0 8px 22px rgba(0,0,0,.28);
+}
+@media(max-width:620px){
+  .modal{padding:8px}
+  .sheet{max-height:95vh}
+  .modal-floating-close{
+    top:2px;
+    width:44px;
+    height:44px;
+    margin:-4px -4px -40px auto;
+  }
+}
