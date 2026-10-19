@@ -691,6 +691,12 @@ async function showLocalTestNotification(){
 function friendlyError(err){
   const raw=String(err?.message||err||'');
   const m=raw.toLowerCase();
+  if(m.includes('too_many_login_attempts')||m.includes('too_many_attempts')){
+    const secondsMatch=raw.match(/(?:too_many_login_attempts|too_many_attempts)[:=](\d+)/i);
+    const seconds=secondsMatch?Number(secondsMatch[1]):900;
+    const minutes=Math.max(1,Math.ceil(seconds/60));
+    return `Trop de tentatives de connexion. Réessaie dans ${minutes} min.`;
+  }
   if(
     m.includes('invalid_credentials')||
     m.includes('invalid credentials')||
@@ -904,14 +910,24 @@ function dayInfoFor(empId,date){
   return {entry,status:'incomplete',minutes:total,label:'À compléter'};
 }
 
+function assertLoginResult(out){
+  if(out?.error==='too_many_attempts'){
+    const seconds=Math.max(1,Number(out.retry_after_seconds)||900);
+    const err=new Error(`too_many_login_attempts:${seconds}`);err.status=429;throw err;
+  }
+  if(out?.error==='invalid_credentials'||!out?.session_token){
+    const err=new Error('invalid_credentials');err.status=401;throw err;
+  }
+  return out;
+}
 async function employeeLogin(linkToken,pin){
-  const out=await rpc('api_employee_login',{p_link_token:linkToken,p_pin:pin});
+  const out=assertLoginResult(await rpc('api_employee_login',{p_link_token:linkToken,p_pin:pin}));
   setSession({role:'employee',sessionToken:out.session_token,linkToken,at:new Date().toISOString()});
   CURRENT_EMPLOYEE=normalizeEmployee(out.employee);
   return CURRENT_EMPLOYEE;
 }
 async function ownerLogin(linkToken,pin){
-  const out=await rpc('api_owner_login',{p_link_token:linkToken,p_pin:pin});
+  const out=assertLoginResult(await rpc('api_owner_login',{p_link_token:linkToken,p_pin:pin}));
   setSession({role:'owner',sessionToken:out.session_token,linkToken,at:new Date().toISOString()});
   return out;
 }
