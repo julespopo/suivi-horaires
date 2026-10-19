@@ -78,6 +78,20 @@ for (const path of publicFiles) {
   ok(`Pas de secret serveur dans ${path}`, !forbiddenSecrets.some((re) => re.test(source)));
 }
 
+
+
+const cssFiles = ["styles/base.css", "styles/v2.css", "styles/current.css"];
+for (const path of cssFiles) {
+  ok(`CSS modulaire présent: ${path}`, exists(path));
+}
+ok("Ancien styles.css supprimé", !exists("styles.css"));
+
+for (const page of ["index.html", "employee.html", "pilotage.html"]) {
+  const html = read(page);
+  ok(`CSS modulaire chargé dans ${page}`,
+    cssFiles.every((path) => html.includes(path)));
+}
+
 if (failures.length) {
   console.error("\nÉchecs:");
   failures.forEach((failure) => console.error(`- ${failure}`));

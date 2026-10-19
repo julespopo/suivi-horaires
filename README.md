@@ -44,7 +44,10 @@ Le projet est hébergé sur GitHub Pages et utilise Supabase pour les données, 
 ├── app.js
 ├── employee.js
 ├── pilotage.js
-├── styles.css
+├── styles/
+│   ├── base.css       # socle historique stable
+│   ├── v2.css         # composants V2
+│   └── current.css    # couche visuelle actuelle
 ├── config.js
 ├── sw.js
 ├── manifest.json
@@ -106,3 +109,14 @@ Pour une modification importante :
 ## Mise en service
 
 La période suivie par l'application commence au **1er septembre 2026**. Les périodes antérieures ont été gérées manuellement et ne sont pas proposées comme journées à compléter.
+
+
+## Organisation CSS
+
+Les styles sont chargés dans un ordre fixe afin de conserver exactement la cascade existante :
+
+1. `styles/base.css` — socle général et compatibilité historique ;
+2. `styles/v2.css` — composants métier V2 ;
+3. `styles/current.css` — apparence actuelle et derniers correctifs responsives.
+
+Les nouveaux ajustements visuels doivent être faits dans la couche appropriée plutôt que par ajout systématique d'overrides en fin de fichier.
