@@ -713,6 +713,8 @@ th,td{border-color:var(--line)}
 
 /* ============================================================
    V2.0 RC1 — export PDF mensuel
+   Lisibilité prioritaire : peu de colonnes, exceptions visibles,
+   notes intégrées au détail et synthèses hebdomadaires compactes.
    ============================================================ */
 .pdf-export-sheet{width:min(620px,calc(100vw - 28px))}
 .pdf-export-fields{
@@ -728,10 +730,8 @@ th,td{border-color:var(--line)}
   .pdf-export-fields{grid-template-columns:1fr}
 }
 
-/* L'interface écran reste inchangée : le rapport n'existe visuellement
-   que pendant l'impression / l'enregistrement PDF. */
 @media print{
-  @page{size:A4 portrait;margin:10mm 9mm 11mm}
+  @page{size:A4 portrait;margin:9mm 8mm 10mm}
   html,body{background:#fff!important}
   body{margin:0!important}
   .print-report{
@@ -739,30 +739,24 @@ th,td{border-color:var(--line)}
     width:auto!important;
     color:#17211f!important;
     font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif!important;
-    font-size:8.5pt!important;
-    line-height:1.3!important;
+    font-size:9pt!important;
+    line-height:1.28!important;
   }
-  .print-employee{
-    page-break-after:always;
-    break-after:page;
-  }
-  .print-employee:last-of-type{
-    page-break-after:auto;
-    break-after:auto;
-  }
+  .print-employee{page-break-after:always;break-after:page}
+  .print-employee:last-of-type{page-break-after:auto;break-after:auto}
   .print-employee-head{
     display:flex;
     align-items:flex-end;
     justify-content:space-between;
     gap:16px;
     padding-bottom:8px;
-    margin-bottom:9px;
+    margin-bottom:8px;
     border-bottom:2px solid #245a55;
   }
   .print-kicker{
     margin-bottom:2px;
     color:#245a55;
-    font-size:7.5pt;
+    font-size:7.8pt;
     font-weight:800;
     letter-spacing:.06em;
     text-transform:uppercase;
@@ -770,47 +764,53 @@ th,td{border-color:var(--line)}
   .print-employee-head h1{
     margin:0;
     color:#17211f;
-    font-size:18pt;
+    font-size:19pt;
     line-height:1.05;
     letter-spacing:-.02em;
   }
   .print-period{
     margin-top:3px;
-    font-size:10pt;
-    font-weight:700;
+    font-size:10.5pt;
+    font-weight:750;
     text-transform:capitalize;
   }
   .print-generated{
     flex:0 0 auto;
     color:#68736f;
-    font-size:7.5pt;
+    font-size:7.7pt;
     white-space:nowrap;
   }
   .print-summary{
     display:grid!important;
-    grid-template-columns:repeat(5,minmax(0,1fr));
-    gap:5px!important;
-    margin:0 0 9px!important;
+    grid-template-columns:repeat(6,minmax(0,1fr));
+    gap:4px!important;
+    margin:0 0 8px!important;
   }
   .print-summary>div{
     display:grid;
     gap:2px;
-    padding:6px 7px;
+    min-width:0;
+    padding:6px 6px;
     border:1px solid #dce5e1;
     border-radius:6px;
     background:#f7f9f8;
   }
   .print-summary span{
     color:#68736f;
-    font-size:6.8pt;
+    font-size:6.7pt;
+    line-height:1.15;
   }
   .print-summary strong{
     color:#17211f;
-    font-size:10pt;
+    font-size:10.2pt;
   }
   .print-summary-alert{
-    border-color:#ead4aa!important;
-    background:#fff8ea!important;
+    border-color:#e5c98d!important;
+    background:#fff8e8!important;
+  }
+  .print-summary-pending{
+    border-color:#d9c6e8!important;
+    background:#faf6fd!important;
   }
   .print-hours-table{
     width:100%!important;
@@ -819,62 +819,97 @@ th,td{border-color:var(--line)}
     table-layout:fixed;
   }
   .print-hours-table thead{display:table-header-group}
-  .print-hours-table tr{
-    page-break-inside:avoid;
-    break-inside:avoid;
-  }
+  .print-hours-table tr{page-break-inside:avoid;break-inside:avoid}
   .print-hours-table th{
-    padding:5px 4px!important;
-    border:1px solid #cfd9d5!important;
-    background:#edf3f1!important;
+    padding:5px!important;
+    border:1px solid #cbd8d3!important;
+    background:#eaf1ef!important;
     color:#34413d!important;
-    font-size:6.6pt!important;
+    font-size:7pt!important;
     line-height:1.15!important;
     text-align:left!important;
     text-transform:none!important;
     letter-spacing:0!important;
   }
   .print-hours-table td{
-    padding:4px!important;
+    padding:4.5px 5px!important;
     border:1px solid #dce5e1!important;
     color:#17211f!important;
-    font-size:7.3pt!important;
-    line-height:1.25!important;
+    font-size:7.8pt!important;
+    line-height:1.28!important;
     vertical-align:top!important;
     overflow-wrap:anywhere;
   }
-  .print-hours-table th:nth-child(1),.print-hours-table td:nth-child(1){width:9%}
-  .print-hours-table th:nth-child(2),.print-hours-table td:nth-child(2){width:12%}
-  .print-hours-table th:nth-child(3),.print-hours-table td:nth-child(3){width:27%}
-  .print-hours-table th:nth-child(4),.print-hours-table td:nth-child(4){width:9%}
-  .print-hours-table th:nth-child(5),.print-hours-table td:nth-child(5){width:9%}
-  .print-hours-table th:nth-child(6),.print-hours-table td:nth-child(6){width:12%}
-  .print-hours-table th:nth-child(7),.print-hours-table td:nth-child(7){width:22%}
+  .print-hours-table th:nth-child(1),.print-hours-table td:nth-child(1){width:13%}
+  .print-hours-table th:nth-child(2),.print-hours-table td:nth-child(2){width:15%}
+  .print-hours-table th:nth-child(3),.print-hours-table td:nth-child(3){width:37%}
+  .print-hours-table th:nth-child(4),.print-hours-table td:nth-child(4){width:10%}
+  .print-hours-table th:nth-child(5),.print-hours-table td:nth-child(5){width:10%}
+  .print-hours-table th:nth-child(6),.print-hours-table td:nth-child(6){width:15%}
   .print-number-cell,.print-date-cell{white-space:nowrap}
+  .print-date-cell{font-weight:650}
+  .print-status-cell{font-weight:700}
+  .print-validation-cell{white-space:nowrap}
   .print-slot{
     display:flex;
     justify-content:space-between;
-    gap:5px;
+    align-items:baseline;
+    gap:7px;
     margin-bottom:2px;
   }
   .print-slot:last-child{margin-bottom:0}
-  .print-slot span{white-space:nowrap}
-  .print-row-warning td{background:#fffaf0!important}
-  .print-comment-cell{color:#46534f!important}
+  .print-slot strong{font-weight:800}
+  .print-slot span{white-space:nowrap;color:#46534f}
+  .print-row-note{
+    margin-top:3px;
+    padding-top:3px;
+    border-top:1px dotted #cbd8d3;
+    color:#5e6965;
+    font-size:7.1pt;
+    font-style:italic;
+  }
+  .print-row-note span{
+    font-style:normal;
+    font-weight:800;
+    color:#46534f;
+  }
+  .print-status-leave td{background:#f2f7fb!important}
+  .print-status-off td{background:#f4f5f5!important;color:#5b6461!important}
+  .print-status-outside td{background:#f7f4fb!important}
+  .print-status-incomplete td{background:#fff7e6!important}
+  .print-status-pending td{box-shadow:inset 3px 0 0 #9b7bb5}
+  .print-status-leave .print-status-cell{color:#35627f!important}
+  .print-status-outside .print-status-cell{color:#65547e!important}
+  .print-status-incomplete .print-status-cell{color:#8a5c00!important}
+  .print-status-pending .print-validation-cell{color:#6f4c89!important;font-weight:800}
+  .print-week-total td{
+    padding:3.5px 5px!important;
+    border-top:1.5px solid #9eb5ad!important;
+    border-bottom:1.5px solid #9eb5ad!important;
+    background:#f1f5f3!important;
+  }
+  .print-week-total div{
+    display:flex;
+    align-items:center;
+    justify-content:flex-end;
+    gap:10px;
+    color:#55635e;
+    font-size:7pt;
+  }
+  .print-week-total div span:first-child{margin-right:auto}
+  .print-week-total strong{color:#23322d;font-size:7.7pt}
   .print-empty{
     padding:18px!important;
     text-align:center;
     color:#68736f!important;
   }
   .print-employee-foot{
-    margin-top:7px;
-    padding-top:5px;
+    margin-top:6px;
+    padding-top:4px;
     border-top:1px solid #dce5e1;
     color:#7b8581;
     font-size:6.5pt;
     text-align:right;
   }
-  .print-global-note{
-    display:none!important;
-  }
+  .print-global-note{display:none!important}
 }
