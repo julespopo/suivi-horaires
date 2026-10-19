@@ -92,11 +92,11 @@
     <div class="field"><label for="pdfExportMonth">Mois</label><input id="pdfExportMonth" type="month"></div>
     <div class="field"><label for="pdfExportEmployee">Salarié</label><select id="pdfExportEmployee"></select></div>
   </div>
-  <div class="note section">Le document est préparé au format A4. Sur ordinateur, choisis « Enregistrer au format PDF » dans la fenêtre d’impression.</div>
+  <div class="note section">Le document est préparé au format A4. Dans la fenêtre d’impression, choisis « Enregistrer au format PDF » et désactive « En-têtes et pieds de page » pour obtenir un relevé propre.</div>
   <button class="btn btn-primary btn-block section" type="button" onclick="generateMonthlyPDF()">Créer le PDF</button>
 </div></div>
 
 <section id="printReport" class="print-report"></section>
 
 <div class="modal" id="ownerAccountSettingsModal"><div class="sheet pin-settings-sheet"><div class="row"><div><div class="h2">Changer le PIN de pilotage</div><div class="subtle">Le PIN doit contenir exactement 4 chiffres.</div></div><button class="btn btn-outline" onclick="closeOwnerAccountSettings()">Fermer</button></div><div class="form-grid section"><div class="field"><label>PIN actuel</label><input id="ownerCurrentPin" class="pin-setting" inputmode="numeric" maxlength="4"></div><div class="field"><label>Nouveau PIN</label><input id="ownerNewPin" class="pin-setting" inputmode="numeric" maxlength="4"></div></div><div class="field section"><label>Confirmer le nouveau PIN</label><input id="ownerConfirmPin" class="pin-setting" inputmode="numeric" maxlength="4"></div><div id="ownerPinError" class="error"></div><button id="ownerSavePinBtn" class="btn btn-primary btn-block section" onclick="saveNewOwnerPin()">Changer le PIN</button></div></div>
-<script src="config.js?v=2.0-alpha2.9"></script><script src="app.js?v=2.0-rc1-pre3"></script><script src="pilotage.js?v=2.0-rc1-pre4"></script></body></html>
+<script src="config.js?v=2.0-alpha2.9"></script><script src="app.js?v=2.0-rc1-pre3"></script><script src="pilotage.js?v=2.0-rc1-pre5"></script></body></html>
