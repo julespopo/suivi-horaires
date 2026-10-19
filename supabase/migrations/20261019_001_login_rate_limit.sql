@@ -76,7 +76,7 @@ security definer
 set search_path = public
 as $$
 declare
-  v_key text := md5(coalesce(p_link_token,''));
+  v_key text := encode(extensions.digest(coalesce(p_link_token,''), 'sha256'), 'hex');
   v_row public.login_rate_limits%rowtype;
   v_result jsonb;
   v_failures integer;
@@ -103,12 +103,7 @@ begin
     );
   end if;
 
-  begin
-    select to_jsonb(public.api_employee_login_internal(p_link_token,p_pin))
-      into v_result;
-  exception when others then
-    v_result := null;
-  end;
+  v_result := public.api_employee_login_internal(p_link_token,p_pin);
 
   if v_result is not null
      and coalesce(v_result->>'session_token','') <> '' then
@@ -171,7 +166,7 @@ security definer
 set search_path = public
 as $$
 declare
-  v_key text := md5(coalesce(p_link_token,''));
+  v_key text := encode(extensions.digest(coalesce(p_link_token,''), 'sha256'), 'hex');
   v_row public.login_rate_limits%rowtype;
   v_result jsonb;
   v_failures integer;
@@ -198,12 +193,7 @@ begin
     );
   end if;
 
-  begin
-    select to_jsonb(public.api_owner_login_internal(p_link_token,p_pin))
-      into v_result;
-  exception when others then
-    v_result := null;
-  end;
+  v_result := public.api_owner_login_internal(p_link_token,p_pin);
 
   if v_result is not null
      and coalesce(v_result->>'session_token','') <> '' then
@@ -258,8 +248,8 @@ $$;
 
 revoke all on function public.api_employee_login(text,text) from public;
 revoke all on function public.api_owner_login(text,text) from public;
-grant execute on function public.api_employee_login(text,text) to anon, authenticated;
-grant execute on function public.api_owner_login(text,text) to anon, authenticated;
+grant execute on function public.api_employee_login(text,text) to anon, authenticated, service_role;
+grant execute on function public.api_owner_login(text,text) to anon, authenticated, service_role;
 
 comment on function public.api_employee_login(text,text) is
   'Connexion salarié protégée contre les tentatives répétées de PIN.';
