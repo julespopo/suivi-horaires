@@ -1197,3 +1197,47 @@ function initPinSlots(){
   });
 }
 initPinSlots();
+
+
+/* V2.0 RC1 — fermeture universelle des fenêtres
+   - clic sur l'arrière-plan
+   - croix toujours accessible pendant le défilement
+   - touche Échap sur ordinateur
+   On réutilise le bouton Fermer existant quand il porte une logique dédiée. */
+function dismissModal(modal){
+  if(!(modal instanceof HTMLElement)||!modal.classList.contains('modal'))return;
+  const nativeClose=[...modal.querySelectorAll('button')].find(btn=>btn.classList.contains('modal-legacy-close'));
+  if(nativeClose){nativeClose.click();return}
+  modal.classList.remove('open');
+}
+function initDismissibleModals(){
+  document.querySelectorAll('.modal').forEach(modal=>{
+    const sheet=modal.querySelector(':scope > .sheet');
+    if(!sheet)return;
+    const nativeClose=[...sheet.querySelectorAll('button')].find(btn=>btn.textContent.trim()==='Fermer');
+    if(nativeClose)nativeClose.classList.add('modal-legacy-close');
+
+    if(!sheet.querySelector(':scope > .modal-floating-close')){
+      const closeButton=document.createElement('button');
+      closeButton.type='button';
+      closeButton.className='modal-floating-close';
+      closeButton.setAttribute('aria-label','Fermer la fenêtre');
+      closeButton.setAttribute('title','Fermer');
+      closeButton.innerHTML='<span aria-hidden="true">×</span>';
+      closeButton.addEventListener('click',()=>dismissModal(modal));
+      sheet.prepend(closeButton);
+    }
+
+    modal.addEventListener('click',event=>{
+      if(event.target===modal)dismissModal(modal);
+    });
+  });
+}
+document.addEventListener('keydown',event=>{
+  if(event.key!=='Escape')return;
+  const openModals=[...document.querySelectorAll('.modal.open')];
+  if(!openModals.length)return;
+  event.preventDefault();
+  dismissModal(openModals[openModals.length-1]);
+});
+initDismissibleModals();
