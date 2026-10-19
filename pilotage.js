@@ -2,7 +2,7 @@ const params=new URLSearchParams(location.search);
 const OWNER_LINK_KEY='hours_owner_link_token_v1';
 let linkToken=params.get('access')||params.get('token')||localStorage.getItem(OWNER_LINK_KEY)||'';
 if(params.get('access')||params.get('token'))localStorage.setItem(OWNER_LINK_KEY,linkToken);
-let completionCursor=new Date(),planningDate='',ownerEditEmployee='',ownerEditDate='',saving=false,planningView='month',planningSelectionMode=false,selectedPlanningDates=new Set();
+let completionCursor=new Date(),planningDate='',ownerEditEmployee='',ownerEditDate='',saving=false,planningView='week',planningSelectionMode=false,selectedPlanningDates=new Set();
 if(!linkToken){invalidView.classList.remove('hidden')}else{bootOwner()}
 async function bootOwner(){
   if(isOwnerSession(linkToken)){
