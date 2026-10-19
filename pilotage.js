@@ -124,7 +124,43 @@ async function saveOwnerEdit(){const off=ownerOff.checked;if(!off&&(!ownerArriva
 function openSettings(){settingsRows.innerHTML=EMPLOYEES.map(emp=>{const s=employeeSettings(emp.id);return `<div class="settings-row"><strong>${emp.name}</strong><div class="field"><label>Heures prévues par semaine</label><input type="number" min="0" step="0.25" data-objective="${emp.id}" value="${(s.weeklyObjectiveMinutes/60).toFixed(2)}"></div><div class="field"><label>Signaler un dépassement à partir de</label><input type="number" min="0" step="0.25" data-threshold="${emp.id}" value="${(s.overtimeThresholdMinutes/60).toFixed(2)}"></div></div>`}).join('');settingsModal.classList.add('open')}
 function closeSettings(){settingsModal.classList.remove('open')}
 async function saveSettings(){const changes=EMPLOYEES.map(emp=>({empId:emp.id,weeklyObjectiveMinutes:Math.round(Number(document.querySelector(`[data-objective="${emp.id}"]`).value||0)*60),overtimeThresholdMinutes:Math.round(Number(document.querySelector(`[data-threshold="${emp.id}"]`).value||0)*60)}));await withOwnerSave(async()=>{for(const change of changes)await setEmployeeSettings(change.empId,change);closeSettings();renderOwner()})}
-function exportMonthlyPDF(){buildPrintReport();setTimeout(()=>window.print(),50)}
+function exportMonthlyPDF(){
+  const modal=document.getElementById('pdfExportModal');
+  const monthInput=document.getElementById('pdfExportMonth');
+  const employeeSelect=document.getElementById('pdfExportEmployee');
+  if(!modal||!monthInput||!employeeSelect)return;
+  const ref=completionCursor instanceof Date&&!Number.isNaN(completionCursor)?completionCursor:new Date();
+  monthInput.value=`${ref.getFullYear()}-${String(ref.getMonth()+1).padStart(2,'0')}`;
+  monthInput.min=String(APP_START_DATE||'').slice(0,7);
+  employeeSelect.innerHTML='<option value="all">Toute l’équipe</option>'+EMPLOYEES.map(emp=>`<option value="${emp.id}">${ownerEscape(emp.name)}</option>`).join('');
+  modal.classList.add('open');
+}
+function closePdfExportModal(){document.getElementById('pdfExportModal')?.classList.remove('open')}
+function pdfMonthBounds(value){
+  const match=/^(\d{4})-(\d{2})$/.exec(value||'');
+  if(!match)return null;
+  const year=Number(match[1]),month=Number(match[2])-1;
+  const start=new Date(year,month,1,12),end=new Date(year,month+1,0,12);
+  return {start,end};
+}
+function pdfFileToken(value){
+  return String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+}
+function generateMonthlyPDF(){
+  const monthValue=document.getElementById('pdfExportMonth')?.value||'';
+  const employeeId=document.getElementById('pdfExportEmployee')?.value||'all';
+  const bounds=pdfMonthBounds(monthValue);
+  if(!bounds){alert('Choisis un mois à exporter.');return}
+  buildPrintReport(monthValue,employeeId);
+  closePdfExportModal();
+  const previousTitle=document.title;
+  const employee=employeeId==='all'?null:EMPLOYEES.find(e=>e.id===employeeId);
+  const period=monthLabel(bounds.start);
+  document.title=`Releve-horaires-${pdfFileToken(period)}-${employee?pdfFileToken(employee.name):'equipe'}`;
+  const restore=()=>{document.title=previousTitle;window.removeEventListener('afterprint',restore)};
+  window.addEventListener('afterprint',restore);
+  setTimeout(()=>window.print(),80);
+}
 function buildPrintReport(){const start=new Date(completionCursor.getFullYear(),completionCursor.getMonth(),1,12),end=new Date(completionCursor.getFullYear(),completionCursor.getMonth()+1,0,12),dates=listDates(start,end),d=getData();printReport.innerHTML=`<div class="print-header"><h1>Relevé mensuel des horaires</h1><p>${monthLabel(start)}</p></div>${EMPLOYEES.map(emp=>{const entries=dates.map(date=>{const e=d.entries.find(x=>x.employeeId===emp.id&&x.date===date),planned=isPlannedWorkingDay(emp.id,date);if(!planned&&!e)return '';const total=e&&e.status!=='off'?workMinutesForDay(emp.id,date):0;return `<tr><td>${shortDate(date)}</td><td>${planned?'Oui':'Non'}</td><td>${e?.status==='off'?'Non travaillé':e?.arrival||'—'}</td><td>${e?.status==='off'?'—':e?.departure||'—'}</td><td>${e?.status==='off'?'—':(e?.pause!=null?fmtDurationMinutes(e.pause):'—')}</td><td>${e?.status==='off'?'0h00':fmtMin(total)}</td><td>${e?.validationStatus==='validated'?'Validé':e?.validationStatus==='pending'?'À valider':'—'}</td></tr>`}).join('');const total=totalFor(emp,start,end),s=employeeSettings(emp.id);return `<article class="print-employee"><h2>${emp.name}</h2><div class="print-summary"><span>Total du mois : <strong>${fmtMin(total)}</strong></span><span>Objectif hebdo : <strong>${fmtMin(s.weeklyObjectiveMinutes)}</strong></span><span>Seuil indicatif : <strong>${fmtMin(s.overtimeThresholdMinutes)}</strong></span></div><table><thead><tr><th>Date</th><th>Prévu</th><th>Arrivée / statut</th><th>Départ</th><th>Pause</th><th>Total</th><th>Validation</th></tr></thead><tbody>${entries||'<tr><td colspan="7">Aucune donnée</td></tr>'}</tbody></table></article>`}).join('')}<div class="print-note">Document généré depuis le suivi des horaires. Les seuils affichés sont indicatifs tant que les règles contractuelles exactes ne sont pas paramétrées.</div>`}
 function renderOwner(){const [ws,we]=weekBounds(),[ms,me]=monthBounds();const weekValues=EMPLOYEES.map(e=>({name:e.name,minutes:totalFor(e.id,ws,we),objective:employeeSettings(e.id).weeklyObjectiveMinutes})),monthValues=EMPLOYEES.map(e=>({name:e.name,minutes:totalFor(e.id,ms,me)}));cards.innerHTML=EMPLOYEES.map(e=>{const week=totalFor(e.id,ws,we),month=totalFor(e.id,ms,me),s=employeeSettings(e.id),pendingV=pendingValidationCount(e.id),thresholdReached=s.overtimeThresholdMinutes>0&&week>=s.overtimeThresholdMinutes;const badges=`<div class="kpi-badges">${pendingV?`<span class="status warn">${pendingV} à valider</span>`:'<span class="status ok">À jour</span>'}${thresholdReached?`<span class="status warn">Seuil atteint</span>`:''}</div>`;return `<div class="card kpi"><div class="row"><div class="h3">${e.name}</div>${badges}</div><div class="stat-list"><div class="stat-line"><span class="subtle">Semaine</span><strong>${fmtMin(week)}</strong></div><div class="stat-line"><span class="subtle">Prévu / semaine</span><strong>${fmtMin(s.weeklyObjectiveMinutes)}</strong></div><div class="stat-line"><span class="subtle">Écart</span><strong class="${week>=s.weeklyObjectiveMinutes?'text-positive':'text-muted'}">${fmtSignedMin(week-s.weeklyObjectiveMinutes)}</strong></div><div class="stat-line"><span class="subtle">Mois</span><strong>${fmtMin(month)}</strong></div></div></div>`}).join('');renderTeamChart(weekTeamChart,weekValues,true);renderTeamChart(monthTeamChart,monthValues,false);planningMonthBtn?.classList.toggle('active-chip',planningView==='month');planningWeekBtn?.classList.toggle('active-chip',planningView==='week');syncPlanningSelectionUi();renderCompletionCalendar();const tasks=EMPLOYEES.flatMap(e=>tasksFor(e.id).map(t=>({...t,name:e.name,employeeId:e.id})));pendingBadge.textContent=tasks.length?`${tasks.length} saisie${tasks.length>1?'s':''} à compléter`:'Tout est à jour';pendingBadge.className='status '+(tasks.length?'warn':'ok');pending.innerHTML=tasks.length?tasks.map(t=>`<div class="task row"><div><div class="task-title">${t.name}</div><div class="task-meta">${frDate(t.date)} · ${t.missing}</div></div><button class="btn btn-outline btn-small" onclick="openOwnerEdit('${t.employeeId}','${t.date}')">Corriger</button></div>`).join(''):'<div class="empty">Aucune journée à compléter.</div>';const validations=getData().entries.filter(e=>e.validationStatus==='pending'&&(e.status==='off'||(e.arrival&&e.departure))).sort((a,b)=>b.date.localeCompare(a.date));validationBadge.textContent=validations.length?`${validations.length} à valider`:'Tout est validé';validationBadge.className='status '+(validations.length?'warn':'ok');validationList.innerHTML=validations.length?validations.map(x=>{const emp=EMPLOYEES.find(e=>e.id===x.employeeId);return `<div class="validation-row"><div><strong>${emp?.name||x.employeeId}</strong><div class="subtle">${frDate(x.date)} · ${x.status==='off'?'Non travaillé':`${x.arrival} – ${x.departure} · ${fmtMin(workMinutesForDay(x.employeeId,x.date))}`}</div></div><div class="toolbar-actions"><button class="btn btn-green btn-small" onclick="validateAndRefresh('${x.employeeId}','${x.date}')">Valider</button><button class="btn btn-outline btn-small" onclick="openOwnerEdit('${x.employeeId}','${x.date}')">Modifier</button></div></div>`}).join(''):'<div class="empty">Aucune journée en attente de validation.</div>';const data=getData().entries.slice().sort((a,b)=>b.date.localeCompare(a.date)||a.employeeId.localeCompare(b.employeeId)).slice(0,50);rows.innerHTML=data.map(x=>{const e=EMPLOYEES.find(y=>y.id===x.employeeId),off=x.status==='off';return `<tr><td>${e?.name||x.employeeId}</td><td>${shortDate(x.date)}</td><td>${off?'—':x.arrival||'—'}</td><td>${off?'—':x.departure||'—'}</td><td>${off?'—':fmtDurationMinutes(x.pause||0)}</td><td><strong>${off?'0h00':fmtMin(workMinutesForDay(x.employeeId,x.date))}</strong></td><td><span class="status ${x.validationStatus==='validated'?'ok':x.validationStatus==='pending'?'warn':'neutral'}">${x.validationStatus==='validated'?'Validé':x.validationStatus==='pending'?'À valider':'—'}</span></td></tr>`}).join('')}
 async function validateAndRefresh(empId,date){await withOwnerSave(async()=>{await validateEntry(empId,date);renderOwner()})}
@@ -241,10 +277,81 @@ function renderV2Pilotage(){renderEmployersV2();renderOwnerLeavesV2()}
 const renderOwnerBaseV2=renderOwner;
 renderOwner=function(){renderOwnerBaseV2();renderV2Pilotage()};
 
-buildPrintReport=function(){
-  const start=new Date(completionCursor.getFullYear(),completionCursor.getMonth(),1,12),end=new Date(completionCursor.getFullYear(),completionCursor.getMonth()+1,0,12),dates=listDates(start,end),d=getData();
-  printReport.innerHTML=`<div class="print-header"><h1>Relevé mensuel des horaires</h1><p>${monthLabel(start)}</p></div>${EMPLOYEES.map(emp=>{const entries=dates.map(date=>{const e=d.entries.find(x=>x.employeeId===emp.id&&x.date===date),leave=leaveForDate(emp.id,date,'validated'),planned=isPlannedWorkingDay(emp.id,date);if(!planned&&!e&&!leave)return '';const segs=segmentsFor(emp.id,date),total=workMinutesForDay(emp.id,date);const detail=leave?'Congé':e?.status==='off'?'Non travaillé':segs.length?segs.map(s=>`${s.employerName} ${s.start}–${s.end||'…'}`).join(' / '):e?.arrival||'—';return `<tr><td>${shortDate(date)}</td><td>${leave?'Congé':planned?'Oui':'Non'}</td><td>${ownerEscape(detail)}</td><td>${e?.status==='off'||leave?'—':e?.departure||'—'}</td><td>${e?.status==='off'||leave?'—':fmtDurationMinutes(e?.pause||0)}</td><td>${fmtMin(total)}</td><td>${e?.validationStatus==='validated'?'Validé':e?.validationStatus==='pending'?'À valider':'—'}</td></tr>`}).join('');const total=totalFor(emp,start,end),s=employeeSettings(emp.id);return `<article class="print-employee"><h2>${ownerEscape(emp.name)}</h2><div class="print-summary"><span>Total du mois : <strong>${fmtMin(total)}</strong></span><span>Heures prévues / semaine : <strong>${fmtMin(s.weeklyObjectiveMinutes)}</strong></span></div><table><thead><tr><th>Date</th><th>Prévu</th><th>Employeur / statut</th><th>Dernier départ</th><th>Pause</th><th>Total</th><th>Validation</th></tr></thead><tbody>${entries||'<tr><td colspan="7">Aucune donnée</td></tr>'}</tbody></table></article>`}).join('')}<div class="print-note">Document généré depuis Suivi horaires V2.</div>`;
-};
+buildPrintReport=function(monthValue,employeeId='all'){
+  const bounds=pdfMonthBounds(monthValue)||{start:new Date(completionCursor.getFullYear(),completionCursor.getMonth(),1,12),end:new Date(completionCursor.getFullYear(),completionCursor.getMonth()+1,0,12)};
+  const {start,end}=bounds,dates=listDates(start,end),d=getData();
+  const employees=employeeId==='all'?EMPLOYEES:EMPLOYEES.filter(emp=>emp.id===employeeId);
+  const generatedAt=new Intl.DateTimeFormat('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric'}).format(new Date());
 
+  const employeeHtml=employees.map(emp=>{
+    let workedDays=0,incompleteDays=0,leaveDays=0;
+    const rows=dates.map(date=>{
+      const entry=d.entries.find(x=>x.employeeId===emp.id&&x.date===date);
+      const leave=leaveForDate(emp.id,date,'validated');
+      const planned=isPlannedWorkingDay(emp.id,date);
+      const segs=segmentsFor(emp.id,date);
+      if(!planned&&!entry&&!leave&&!segs.length)return '';
+
+      const total=leave||entry?.status==='off'?0:workMinutesForDay(emp.id,date);
+      const worked=segs.length>0||entry?.status==='worked'||total>0;
+      if(worked)workedDays++;
+      if(leave)leaveDays++;
+      const complete=leave||entry?.status==='off'||dayInfoFor(emp.id,date).status==='complete';
+      if(planned&&!complete)incompleteDays++;
+
+      let status='Prévu';
+      if(leave)status='Congé';
+      else if(entry?.status==='off')status='Non travaillé';
+      else if(worked)status=planned?'Travaillé':'Hors planning';
+      else if(planned)status='À compléter';
+
+      let detail='—';
+      if(leave)detail=leave.note?ownerEscape(leave.note):'Congé validé';
+      else if(segs.length)detail=segs.map(s=>`<div class="print-slot"><strong>${ownerEscape(s.employerName||'Employeur')}</strong><span>${ownerEscape(s.start||'—')} – ${ownerEscape(s.end||'…')}</span></div>`).join('');
+      else if(entry?.arrival||entry?.departure)detail=`${ownerEscape(entry.arrival||'—')} – ${ownerEscape(entry.departure||'—')}`;
+      else if(entry?.status==='off')detail='Journée déclarée non travaillée';
+
+      const pause=worked&&!leave&&entry?.status!=='off'?fmtDurationMinutes(Number(entry?.pause||0)):'—';
+      const validation=leave?'Validé':entry?.validationStatus==='validated'?'Validé':entry?.validationStatus==='pending'?'À valider':'—';
+      const comment=leave?'':ownerEscape(entry?.comment||'');
+
+      return `<tr class="${status==='À compléter'?'print-row-warning':''}">
+        <td class="print-date-cell">${shortDate(date)}</td>
+        <td>${status}</td>
+        <td class="print-detail-cell">${detail}</td>
+        <td class="print-number-cell">${pause}</td>
+        <td class="print-number-cell"><strong>${fmtMin(total)}</strong></td>
+        <td>${validation}</td>
+        <td class="print-comment-cell">${comment||'—'}</td>
+      </tr>`;
+    }).join('');
+
+    const total=totalFor(emp,start,end),settings=employeeSettings(emp.id);
+    return `<article class="print-employee">
+      <header class="print-employee-head">
+        <div>
+          <div class="print-kicker">Relevé mensuel des horaires</div>
+          <h1>${ownerEscape(emp.name)}</h1>
+          <div class="print-period">${ownerEscape(monthLabel(start))}</div>
+        </div>
+        <div class="print-generated">Édité le ${generatedAt}</div>
+      </header>
+      <section class="print-summary">
+        <div><span>Heures du mois</span><strong>${fmtMin(total)}</strong></div>
+        <div><span>Référence hebdomadaire</span><strong>${fmtMin(settings.weeklyObjectiveMinutes)}</strong></div>
+        <div><span>Jours travaillés</span><strong>${workedDays}</strong></div>
+        <div><span>Jours de congé</span><strong>${leaveDays}</strong></div>
+        <div class="${incompleteDays?'print-summary-alert':''}"><span>À compléter</span><strong>${incompleteDays}</strong></div>
+      </section>
+      <table class="print-hours-table">
+        <thead><tr><th>Date</th><th>Statut</th><th>Créneaux / employeur</th><th>Pause</th><th>Total</th><th>Validation</th><th>Commentaire</th></tr></thead>
+        <tbody>${rows||'<tr><td colspan="7" class="print-empty">Aucune donnée sur cette période.</td></tr>'}</tbody>
+      </table>
+      <footer class="print-employee-foot">Suivi des horaires · ${ownerEscape(monthLabel(start))} · ${ownerEscape(emp.name)}</footer>
+    </article>`;
+  }).join('');
+
+  printReport.innerHTML=`${employeeHtml}<div class="print-global-note">Document généré depuis Suivi des horaires. Les durées affichées correspondent aux saisies enregistrées dans l’application.</div>`;
+};
 window.addEventListener('focus',async()=>{if(appView&&!appView.classList.contains('hidden')&&!saving){try{await loadOwnerData();renderOwner();await refreshOwnerPushUI()}catch{}}});
 if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
