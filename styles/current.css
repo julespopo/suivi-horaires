@@ -537,3 +537,77 @@ th,td{border-color:var(--line)}
 .v2-active-segment.hidden{
   display:none!important;
 }
+
+
+/* RC1 — hiérarchie heures d'abord */
+.hours-first-head{
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap:16px;
+}
+.hours-first-head .h1{margin-bottom:6px}
+.primary-workspace{border-color:color-mix(in srgb,var(--accent) 22%,var(--line))}
+
+.secondary-panel{
+  overflow:visible;
+}
+.secondary-panel>summary{
+  list-style:none;
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+  min-height:42px;
+  user-select:none;
+}
+.secondary-panel>summary::-webkit-details-marker{display:none}
+.secondary-panel>summary>span{
+  display:grid;
+  gap:3px;
+}
+.secondary-panel>summary strong{
+  font-size:1.08rem;
+}
+.secondary-panel>summary small{
+  color:var(--muted);
+  font-size:.82rem;
+  font-weight:650;
+}
+.secondary-panel>summary::after{
+  content:'⌄';
+  color:var(--muted);
+  font-size:1.35rem;
+  line-height:1;
+  transform:rotate(0deg);
+  transition:transform .18s ease;
+}
+.secondary-panel[open]>summary::after{
+  transform:rotate(180deg);
+}
+.secondary-panel[open]>summary{
+  padding-bottom:4px;
+}
+.secondary-panel-body{padding-top:2px}
+.management-box{
+  min-width:0;
+  padding:18px;
+  border:1px solid var(--line);
+  border-radius:18px;
+  background:var(--card);
+}
+.management-box .h2{
+  font-size:1.05rem;
+  margin-bottom:5px;
+}
+.management-actions{flex-wrap:wrap}
+.management-actions .btn{flex:0 1 auto}
+
+@media (max-width:620px){
+  .hours-first-head{align-items:flex-start}
+  .secondary-panel>summary{align-items:flex-start}
+  .management-box{padding:15px}
+  .management-actions{display:grid;grid-template-columns:1fr}
+  .management-actions .btn{width:100%}
+}
