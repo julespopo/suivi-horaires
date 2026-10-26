@@ -974,10 +974,10 @@ th,td{border-color:var(--line)}
   border-color:#506a87!important;
 }
 :root[data-theme="dark"] .btn-primary{
-  background:#477fae!important;
+  background:#3f739f!important;
   color:#fff!important;
 }
-:root[data-theme="dark"] .btn-primary:hover{background:#558fbe!important}
+:root[data-theme="dark"] .btn-primary:hover{background:#4278a5!important}
 :root[data-theme="dark"] .btn-green,
 :root[data-theme="dark"] .employee-arrive{
   background:#183a32!important;
