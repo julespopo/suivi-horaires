@@ -1194,3 +1194,51 @@ th,td{border-color:var(--line)}
   background:#21364b!important;
   color:#a9cff0!important;
 }
+
+
+/* ============================================================
+   V2.0 RC1 — surfaces chaudes neutralisées en mode nuit
+   Les grands aplats restent bleu/ardoise ; l'ambre n'est qu'un signal.
+   ============================================================ */
+:root[data-theme="dark"] .employee-pause-panel{
+  background:#202d3b!important;
+  border-color:#40556b!important;
+}
+:root[data-theme="dark"] .employee-pause-panel .eyebrow,
+:root[data-theme="dark"] .employee-pause-panel .subtle{
+  color:#b6c3d1!important;
+}
+:root[data-theme="dark"] .employee-pause-panel .pause-quick-add button{
+  background:#182330!important;
+  border-color:#3b5068!important;
+  color:#f3f6fa!important;
+}
+:root[data-theme="dark"] .employee-pause-panel .pause-quick-add button:hover{
+  background:#223246!important;
+  border-color:#55708d!important;
+}
+:root[data-theme="dark"] .status.warn{
+  background:#293747!important;
+  color:#efc77b!important;
+  box-shadow:inset 0 0 0 1px #536276!important;
+}
+:root[data-theme="dark"] .network-chip.state-pending{
+  background:#293747!important;
+  border-color:#536276!important;
+  color:#efc77b!important;
+}
+:root[data-theme="dark"] .calendar-day.incomplete{
+  background:#263442!important;
+  border-color:#665a43!important;
+}
+:root[data-theme="dark"] .security-box{
+  background:#263442!important;
+  border-color:#665a43!important;
+  color:#e9c985!important;
+}
+:root[data-theme="dark"] .today-work-status.pending-sync{
+  border-color:#8e7548!important;
+}
+:root[data-theme="dark"] .bar.incomplete{
+  background:linear-gradient(180deg,#caa15f,#8b6d3d)!important;
+}
