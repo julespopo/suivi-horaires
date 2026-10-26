@@ -28,7 +28,7 @@ function applyTheme(theme,{animate=false}={}){
   if(animate){document.documentElement.classList.add('theme-transition');setTimeout(()=>document.documentElement.classList.remove('theme-transition'),650)}
   document.documentElement.dataset.theme=value;
   document.documentElement.style.colorScheme=value;
-  const meta=document.querySelector('meta[name="theme-color"]');if(meta)meta.setAttribute('content',value==='dark'?'#14171c':'#f6f7f9');
+  const meta=document.querySelector('meta[name="theme-color"]');if(meta)meta.setAttribute('content',value==='dark'?'#0e1621':'#f6f7f9');
   document.querySelectorAll('[data-theme-state]').forEach(el=>el.dataset.themeState=value);
   document.querySelectorAll('[data-theme-label]').forEach(el=>el.textContent=value==='dark'?'Mode nuit':'Mode jour');
 }
