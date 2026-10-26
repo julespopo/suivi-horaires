@@ -22,22 +22,22 @@
   --control-focus:#5b9d95;
 }
 :root[data-theme="dark"]{
-  --bg:#101614;
-  --card:#171f1d;
-  --text:#eef5f2;
-  --muted:#a8b4b0;
-  --line:#2a3733;
-  --accent:#79b9b0;
-  --accent-strong:#9bd0c8;
-  --accent-soft:#203632;
-  --ok:#76d1aa;
-  --warn:#e9bb6a;
-  --danger:#f09a90;
-  --shadow:0 12px 34px rgba(0,0,0,.18);
-  --soft:#1c2522;
-  --control-bg:#151d1b;
-  --control-border:#33423d;
-  --control-focus:#79b9b0;
+  --bg:#0e1621;
+  --card:#172331;
+  --text:#f4f7fb;
+  --muted:#aab8c8;
+  --line:#33465c;
+  --accent:#6fa7d6;
+  --accent-strong:#91bee5;
+  --accent-soft:#21364b;
+  --ok:#72d0a7;
+  --warn:#efbd6c;
+  --danger:#f19a96;
+  --shadow:0 14px 38px rgba(2,8,18,.32);
+  --soft:#1d2b3b;
+  --control-bg:#111c29;
+  --control-border:#3b526b;
+  --control-focus:#78afe0;
 }
 
 html{background:var(--bg)}
@@ -912,4 +912,212 @@ th,td{border-color:var(--line)}
     text-align:right;
   }
   .print-global-note{display:none!important}
+}
+
+
+/* ============================================================
+   V2.0 RC1 — thème nuit anthracite bleuté
+   Plus de séparation entre fond, cartes et surfaces secondaires.
+   Les couleurs d'état restent réservées à leur fonction.
+   ============================================================ */
+:root[data-theme="dark"] body{
+  background:
+    radial-gradient(circle at 50% -10%,rgba(74,113,151,.16),transparent 34rem),
+    linear-gradient(180deg,#101a27 0,var(--bg) 310px);
+}
+:root[data-theme="dark"] .card,
+:root[data-theme="dark"] .sheet{
+  background:var(--card)!important;
+  border-color:var(--line)!important;
+  box-shadow:var(--shadow);
+}
+:root[data-theme="dark"] .hero{
+  background:linear-gradient(180deg,#1a2838 0,var(--card) 100%)!important;
+}
+:root[data-theme="dark"] .owner-tool-panel,
+:root[data-theme="dark"] .segment-item,
+:root[data-theme="dark"] .employee-time-box,
+:root[data-theme="dark"] .mini-stat,
+:root[data-theme="dark"] .chart-card,
+:root[data-theme="dark"] .time-card,
+:root[data-theme="dark"] .planning-row,
+:root[data-theme="dark"] .settings-row,
+:root[data-theme="dark"] .employer-admin-card,
+:root[data-theme="dark"] .employee-inline-secondary,
+:root[data-theme="dark"] .range-nav{
+  background:var(--soft)!important;
+  border-color:var(--line)!important;
+}
+:root[data-theme="dark"] .employee-inline-secondary .manual-time-action,
+:root[data-theme="dark"] .employee-comment-details>.field{
+  background:var(--card)!important;
+}
+:root[data-theme="dark"] .field input,
+:root[data-theme="dark"] .field select,
+:root[data-theme="dark"] .field textarea,
+:root[data-theme="dark"] .manual-time-controls input[type="time"]{
+  background:var(--control-bg)!important;
+  color:var(--text)!important;
+  border-color:var(--control-border)!important;
+}
+:root[data-theme="dark"] .field input::placeholder,
+:root[data-theme="dark"] .field textarea::placeholder{
+  color:#75869a;
+}
+:root[data-theme="dark"] .btn-outline{
+  background:#1b2a3a!important;
+  color:var(--text)!important;
+  border-color:#3b5068!important;
+}
+:root[data-theme="dark"] .btn-outline:hover{
+  background:#223348!important;
+  border-color:#506a87!important;
+}
+:root[data-theme="dark"] .btn-primary{
+  background:#477fae!important;
+  color:#fff!important;
+}
+:root[data-theme="dark"] .btn-primary:hover{background:#558fbe!important}
+:root[data-theme="dark"] .btn-green,
+:root[data-theme="dark"] .employee-arrive{
+  background:#183a32!important;
+  color:#96e3c4!important;
+  border-color:#2c5c4d!important;
+}
+:root[data-theme="dark"] .employee-leave{
+  background:#1b3449!important;
+  color:#a8cfee!important;
+  border-color:#315775!important;
+}
+:root[data-theme="dark"] .btn-danger{
+  background:#3a2428!important;
+  color:#ffaaa5!important;
+  border-color:#654048!important;
+}
+:root[data-theme="dark"] .tab{
+  background:#1a2736!important;
+  color:#afbdcc!important;
+  border-color:#2f4053!important;
+}
+:root[data-theme="dark"] .tab.active{
+  background:#5f94c1!important;
+  color:#07111c!important;
+  border-color:#78acd6!important;
+  box-shadow:0 5px 16px rgba(39,91,134,.28)!important;
+}
+:root[data-theme="dark"] .status.neutral{
+  background:#26374a!important;
+  color:#c7d3df!important;
+}
+:root[data-theme="dark"] .status.ok{
+  background:#1a3b32!important;
+  color:#92dfbf!important;
+}
+:root[data-theme="dark"] .status.warn{
+  background:#44351e!important;
+  color:#f2ca82!important;
+}
+:root[data-theme="dark"] .status.off{
+  background:#302d4a!important;
+  color:#cbc4f1!important;
+}
+:root[data-theme="dark"] .network-chip.state-current{
+  background:#1a3b32!important;
+  border-color:#32604f!important;
+  color:#92dfbf!important;
+}
+:root[data-theme="dark"] .network-chip.state-pending{
+  background:#44351e!important;
+  border-color:#6a522c!important;
+  color:#f2ca82!important;
+}
+:root[data-theme="dark"] .calendar-day,
+:root[data-theme="dark"] .completion-day{
+  background:#182534!important;
+  border-color:#35495f!important;
+  color:var(--text)!important;
+}
+:root[data-theme="dark"] .calendar-day.complete{
+  background:#17332f!important;
+  border-color:#2e574e!important;
+}
+:root[data-theme="dark"] .calendar-day.incomplete{
+  background:#3a301f!important;
+  border-color:#65522f!important;
+}
+:root[data-theme="dark"] .calendar-day.off,
+:root[data-theme="dark"] .calendar-day.weekend,
+:root[data-theme="dark"] .calendar-day.scheduled-off{
+  background:#202c3a!important;
+  color:#9dacbc!important;
+}
+:root[data-theme="dark"] .calendar-day.today,
+:root[data-theme="dark"] .completion-day.today{
+  border-color:#82b7e3!important;
+  outline-color:rgba(111,167,214,.34)!important;
+}
+:root[data-theme="dark"] .employee-pause-panel{
+  background:#293024!important;
+  border-color:#4f5637!important;
+}
+:root[data-theme="dark"] .employee-total-panel{
+  background:#1b3044!important;
+  border-color:#32536f!important;
+}
+:root[data-theme="dark"] .employee-total-value{color:#9bc6ea!important}
+:root[data-theme="dark"] .employee-off-button.active{
+  background:#302d4a!important;
+  color:#d0c8f5!important;
+  border-color:#554f7b!important;
+}
+:root[data-theme="dark"] .leave-row.leave-validated{
+  background:#19352f!important;
+  border-color:#31594e!important;
+}
+:root[data-theme="dark"] .leave-row.leave-rejected{
+  background:#36262a!important;
+  border-color:#5b3d43!important;
+}
+:root[data-theme="dark"] .today-work-status{
+  background:#172433!important;
+  border-color:#35495f!important;
+}
+:root[data-theme="dark"] .today-work-status-btn.active:first-child{
+  background:#1a4036!important;
+  color:#99e4c6!important;
+}
+:root[data-theme="dark"] .today-work-status-btn.active:last-child{
+  background:#302d4b!important;
+  color:#d0c8f5!important;
+}
+:root[data-theme="dark"] table{background:var(--card)!important}
+:root[data-theme="dark"] th{
+  background:#1e2d3e!important;
+  color:#b7c4d2!important;
+  border-color:var(--line)!important;
+}
+:root[data-theme="dark"] td{border-color:var(--line)!important}
+:root[data-theme="dark"] .modal{
+  background:rgba(3,9,17,.66)!important;
+  backdrop-filter:blur(6px);
+}
+:root[data-theme="dark"] .floating-settings,
+:root[data-theme="dark"] .floating-action{
+  background:#1b2a3a!important;
+  border-color:#405771!important;
+  color:var(--text)!important;
+  box-shadow:0 10px 30px rgba(0,0,0,.35)!important;
+}
+:root[data-theme="dark"] .modal-floating-close{
+  background:rgba(27,42,58,.94)!important;
+  border-color:#49617b!important;
+}
+:root[data-theme="dark"] .v2-badge{
+  background:#21364b!important;
+  color:#a9cff0!important;
+  border-color:#3c5d78!important;
+}
+:root[data-theme="dark"] .theme-moon{
+  color:#8fc4ef;
+  filter:drop-shadow(0 0 8px rgba(111,167,214,.34));
 }
