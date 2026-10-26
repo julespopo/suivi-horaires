@@ -1121,3 +1121,76 @@ th,td{border-color:var(--line)}
   color:#8fc4ef;
   filter:drop-shadow(0 0 8px rgba(111,167,214,.34));
 }
+
+
+/* ============================================================
+   V2.0 RC1 — suppression des accents verts en mode nuit
+   Le bleu porte désormais les actions et états positifs.
+   ============================================================ */
+:root[data-theme="dark"] .employee-arrive{
+  background:#214a6a!important;
+  color:#b9ddf8!important;
+  border-color:#35698f!important;
+}
+:root[data-theme="dark"] .employee-arrive .employee-action-icon{
+  background:#315f7f!important;
+  color:#cbe7fa!important;
+}
+:root[data-theme="dark"] .today-work-status-btn.active:first-child{
+  background:#274e70!important;
+  color:#c2e2fa!important;
+  box-shadow:0 0 0 1px #3d6f94 inset!important;
+}
+:root[data-theme="dark"] .status.ok{
+  background:#203e58!important;
+  color:#b5d9f4!important;
+}
+:root[data-theme="dark"] .network-chip.state-current{
+  background:#203e58!important;
+  border-color:#355e80!important;
+  color:#b5d9f4!important;
+}
+:root[data-theme="dark"] .network-chip.state-current .net-dot{
+  background:#78b3df!important;
+}
+:root[data-theme="dark"] .btn-green{
+  background:#214a6a!important;
+  color:#c2e2fa!important;
+  border:1px solid #35698f!important;
+}
+:root[data-theme="dark"] .btn-green:hover{
+  background:#285779!important;
+}
+:root[data-theme="dark"] .leave-row.leave-validated{
+  background:#1d3448!important;
+  border-color:#35536d!important;
+}
+:root[data-theme="dark"] .calendar-day.complete{
+  background:#1c354a!important;
+  border-color:#365a77!important;
+}
+:root[data-theme="dark"] .bar.complete{
+  background:linear-gradient(180deg,#7bb5df,#477fae)!important;
+}
+:root[data-theme="dark"] .team-chart-fill{
+  background:linear-gradient(90deg,#6fa7d6,#3f739f)!important;
+}
+:root[data-theme="dark"] .employee-total-panel{
+  background:#1b3044!important;
+  border-color:#32536f!important;
+}
+:root[data-theme="dark"] .employee-total-value,
+:root[data-theme="dark"] .text-positive{
+  color:#9bc6ea!important;
+}
+:root[data-theme="dark"] .range-day.range-start,
+:root[data-theme="dark"] .range-day.range-end,
+:root[data-theme="dark"] .active-chip{
+  background:#4d84b2!important;
+  border-color:#6da2cf!important;
+  color:#fff!important;
+}
+:root[data-theme="dark"] .range-day.range-middle{
+  background:#21364b!important;
+  color:#a9cff0!important;
+}
