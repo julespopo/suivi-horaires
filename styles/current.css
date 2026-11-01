@@ -293,6 +293,7 @@ body{
 .kpi,.employer-admin-card,.settings-row,.planning-row,.validation-row{border-color:var(--line)}
 .employer-admin-card,.settings-row,.planning-row,.validation-row{background:var(--soft)}
 .completion-day{border-radius:15px}
+.completion-day.upcoming{background:var(--card);border-color:var(--line);color:var(--muted)}
 .bulk-planning-bar{border-radius:16px}
 .export-card{background:linear-gradient(135deg,var(--card),var(--accent-soft))}
 

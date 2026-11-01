@@ -60,6 +60,9 @@ try{
   APP_DATA.entries=[{employeeId:CURRENT_EMPLOYEE.id,date:'2026-11-06',status:'worked',arrival:'14:00',departure:'18:00',pause:0,comment:'Commentaire fictif',validationStatus:'pending'}];
   renderOwner();buildPrintReport('2026-11','all');
  `);
+ ok('Calendrier : futur et aujourd’hui neutres, jours passés non remplis signalés',await page.evaluate(()=>completionForDate('2026-11-17').kind==='upcoming'&&completionForDate('2026-11-16').kind==='upcoming'&&completionForDate('2026-11-13').kind==='none'));
+ await page.evaluate(()=>{completionCursor=new Date('2026-11-16T12:00:00');setPlanningView('month')});
+ ok('Vues mois et semaine : aucune case rouge aujourd’hui ou dans le futur',await page.evaluate(()=>{const check=()=>![...document.querySelectorAll('.completion-day.none,.completion-day.partial')].some(b=>{const date=b.getAttribute('onclick').match(/2026-\d{2}-\d{2}/)?.[0];return date>=iso()});const month=check();setPlanningView('week');return month&&check()}));
  ok('PDF : RTT, créneaux, total 4h, note et demi-journée',await page.locator('#printReport').textContent().then(s=>s.includes('RTT matin')&&s.includes('14:00')&&s.includes('18:00')&&s.includes('4h00')&&s.includes('1.5')&&s.includes('Récupération')&&s.includes('Commentaire fictif')));
  ok('Pilotage : demi-RTT reste modifiable et validable',await page.evaluate(()=>{const html=planningRow(CURRENT_EMPLOYEE,'2026-11-06');return html.includes('RTT matin')&&html.includes('14:00')&&html.includes('openOwnerEdit')&&html.includes('validateFromPlanning')}));
  // Desktop/night layouts and render the print view for inspection.
@@ -72,9 +75,9 @@ try{
  await pwa.goto(base+'/employee.html');
  await pwa.evaluate(()=>navigator.serviceWorker.ready);
  await pwa.waitForFunction(()=>!!navigator.serviceWorker.controller);
- ok('PWA : nouveau cache installé',await pwa.evaluate(async()=> (await caches.keys()).includes('suivi-horaires-launch-20261102')));
- const cached=await pwa.evaluate(async()=>{const cache=await caches.open('suivi-horaires-launch-20261102');return (await cache.keys()).map(r=>r.url)});
- ok('PWA : scripts et styles versionnés en cache',cached.some(u=>u.endsWith('app.js?v=launch-20261102'))&&cached.some(u=>u.endsWith('employee.js?v=history-compact-20261101'))&&cached.some(u=>u.endsWith('styles/current.css?v=history-compact-20261101')));
+ ok('PWA : nouveau cache installé',await pwa.evaluate(async()=> (await caches.keys()).includes('suivi-horaires-calendar-dates-20261101')));
+ const cached=await pwa.evaluate(async()=>{const cache=await caches.open('suivi-horaires-calendar-dates-20261101');return (await cache.keys()).map(r=>r.url)});
+ ok('PWA : scripts et styles versionnés en cache',cached.some(u=>u.endsWith('app.js?v=launch-20261102'))&&cached.some(u=>u.endsWith('employee.js?v=history-compact-20261101'))&&cached.some(u=>u.endsWith('styles/current.css?v=calendar-dates-20261101')));
  await pwaContext.setOffline(true);await pwa.reload();
  ok('PWA : écran et nouveaux contrôles disponibles hors ligne',await pwa.locator('#leaveType option[value="rtt_morning"]').count()===1&&await pwa.evaluate(()=>typeof startPreset==='function'));
  await pwaContext.close();

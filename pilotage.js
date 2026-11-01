@@ -106,6 +106,7 @@ function completionForDate(date){
     return info.status==='complete'||info.status==='off';
   }).length;
   if(count===planned.length)return {kind:'all',count,total:planned.length,label:'Complet',planned};
+  if(date>=iso())return {kind:'upcoming',count,total:planned.length,label:count?`${count}/${planned.length} remplis`:date===iso()?'En cours':'Prévu',planned};
   if(count===0)return {kind:'none',count,total:planned.length,label:'Non rempli',planned};
   return {kind:'partial',count,total:planned.length,label:`${count}/${planned.length} remplis`,planned};
 }
@@ -227,6 +228,7 @@ completionForDate=function(date){
   if(!planned.length)return {kind:'weekend',count:0,total:0,label:'Personne prévue',planned};
   const count=planned.filter(e=>dayInfoFor(e.id,date).status==='complete').length;
   if(count===planned.length)return {kind:'all',count,total:planned.length,label:'Complet',planned};
+  if(date>=iso())return {kind:'upcoming',count,total:planned.length,label:count?`${count}/${planned.length} remplis`:date===iso()?'En cours':'Prévu',planned};
   if(count===0)return {kind:'none',count,total:planned.length,label:'Non rempli',planned};
   return {kind:'partial',count,total:planned.length,label:`${count}/${planned.length} remplis`,planned};
 };
