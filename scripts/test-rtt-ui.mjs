@@ -75,8 +75,8 @@ try{
  await pwa.goto(base+'/employee.html');
  await pwa.evaluate(()=>navigator.serviceWorker.ready);
  await pwa.waitForFunction(()=>!!navigator.serviceWorker.controller);
- ok('PWA : nouveau cache installé',await pwa.evaluate(async()=> (await caches.keys()).includes('suivi-horaires-calendar-dates-20261101')));
- const cached=await pwa.evaluate(async()=>{const cache=await caches.open('suivi-horaires-calendar-dates-20261101');return (await cache.keys()).map(r=>r.url)});
+ ok('PWA : nouveau cache installé',await pwa.evaluate(async()=> (await caches.keys()).includes('suivi-horaires-login-clean-20261101')));
+ const cached=await pwa.evaluate(async()=>{const cache=await caches.open('suivi-horaires-login-clean-20261101');return (await cache.keys()).map(r=>r.url)});
  ok('PWA : scripts et styles versionnés en cache',cached.some(u=>u.endsWith('app.js?v=launch-20261102'))&&cached.some(u=>u.endsWith('employee.js?v=history-compact-20261101'))&&cached.some(u=>u.endsWith('styles/current.css?v=calendar-dates-20261101')));
  await pwaContext.setOffline(true);await pwa.reload();
  ok('PWA : écran et nouveaux contrôles disponibles hors ligne',await pwa.locator('#leaveType option[value="rtt_morning"]').count()===1&&await pwa.evaluate(()=>typeof startPreset==='function'));

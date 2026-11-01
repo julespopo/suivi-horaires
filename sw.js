@@ -1,4 +1,4 @@
-const CACHE='suivi-horaires-calendar-dates-20261101';
+const CACHE='suivi-horaires-login-clean-20261101';
 const ASSETS=['./','./index.html','./employee.html','./pilotage.html','./styles/base.css?v=rc1','./styles/v2.css?v=rc1','./styles/current.css?v=calendar-dates-20261101','./config.js?v=2.0-alpha2.9','./app.js?v=launch-20261102','./employee.js?v=history-compact-20261101','./pilotage.js?v=calendar-dates-20261101','./manifest-employee.json?v=2.0-alpha2.9','./manifest-pilotage.json?v=2.0-alpha2.9','./icons/icon.svg'];
 self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)))});
 self.addEventListener('activate',e=>{e.waitUntil(Promise.all([self.clients.claim(),caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k))))]))});
