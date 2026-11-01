@@ -22,6 +22,13 @@ let tests=0;function ok(name,result){assert.ok(result,name);tests++;console.log(
 try{
  await page.goto(base+'/employee.html');await page.evaluate(setup+`emp=CURRENT_EMPLOYEE;APP_DATA.settings.plannedDays[emp.id]={[iso()]:true};render();`);
  ok('Historique compact, jours repliés et vues détaillées repliées',await page.evaluate(()=>document.querySelectorAll('#compactHistory details').length>0&&!document.querySelector('#history details[open]')));
+ ok('Historique limité à 5 lignes et moins de 440px sur mobile',await page.evaluate(()=>document.querySelectorAll('#compactHistory details').length===5&&document.getElementById('history').getBoundingClientRect().height<440));
+ const recent=await page.locator('#compactHistory summary').first().innerText();
+ await page.locator('#historyOlder').click();
+ ok('Accès aux jours anciens sans agrandir la liste',await page.locator('#compactHistory details').count()===5&&(await page.locator('#compactHistory summary').first().innerText())!==recent);
+ await page.locator('#historyNewer').click();
+ ok('Retour aux plus récents',await page.locator('#compactHistory summary').first().innerText()===recent&&await page.locator('#historyNewer').isDisabled());
+ await page.locator('#history').screenshot({path:'/tmp/suivi-history-compact.png'});
  await page.locator('#compactHistory summary').first().click();ok('Une journée se développe au clic',await page.locator('#compactHistory details').first().getAttribute('open')!==null);
  ok('Détail semaine / mois conservé',await page.locator('#historyCalendar').count()===1);
  ok('Pas de débordement mobile',await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
@@ -64,9 +71,9 @@ try{
  await pwa.goto(base+'/employee.html');
  await pwa.evaluate(()=>navigator.serviceWorker.ready);
  await pwa.waitForFunction(()=>!!navigator.serviceWorker.controller);
- ok('PWA : nouveau cache installé',await pwa.evaluate(async()=> (await caches.keys()).includes('suivi-horaires-rtt-20261101')));
- const cached=await pwa.evaluate(async()=>{const cache=await caches.open('suivi-horaires-rtt-20261101');return (await cache.keys()).map(r=>r.url)});
- ok('PWA : scripts et styles versionnés en cache',cached.some(u=>u.endsWith('app.js?v=rtt-20261101'))&&cached.some(u=>u.endsWith('employee.js?v=rtt-20261101'))&&cached.some(u=>u.endsWith('styles/current.css?v=rtt-20261101')));
+ ok('PWA : nouveau cache installé',await pwa.evaluate(async()=> (await caches.keys()).includes('suivi-horaires-history-compact-20261101')));
+ const cached=await pwa.evaluate(async()=>{const cache=await caches.open('suivi-horaires-history-compact-20261101');return (await cache.keys()).map(r=>r.url)});
+ ok('PWA : scripts et styles versionnés en cache',cached.some(u=>u.endsWith('app.js?v=rtt-20261101'))&&cached.some(u=>u.endsWith('employee.js?v=history-compact-20261101'))&&cached.some(u=>u.endsWith('styles/current.css?v=history-compact-20261101')));
  await pwaContext.setOffline(true);await pwa.reload();
  ok('PWA : écran et nouveaux contrôles disponibles hors ligne',await pwa.locator('#leaveType option[value="rtt_morning"]').count()===1&&await pwa.evaluate(()=>typeof startPreset==='function'));
  await pwaContext.close();

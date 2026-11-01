@@ -210,12 +210,21 @@ if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catc
 
 function startPreset(time){if(todayArrivalManual.disabled)return;todayArrivalManual.value=time;return startEmployerManual()}
 function stopPreset(time){if(todayDepartureManual.disabled)return;todayDepartureManual.value=time;return stopEmployerManual()}
+let compactHistoryPage=0;
+const HISTORY_PAGE_SIZE=5;
+function shiftCompactHistory(step){compactHistoryPage+=step;renderCompactHistory()}
 function renderCompactHistory(){
  const target=document.getElementById('compactHistory');
- target.innerHTML=listDates(dateObjFromIso(DATA_RANGE.from||APP_START_DATE),new Date()).reverse().filter(date=>!isBeforeAppStart(date)).map(date=>{
+ const dates=listDates(dateObjFromIso(DATA_RANGE.from||APP_START_DATE),new Date()).reverse().filter(date=>!isBeforeAppStart(date));
+ compactHistoryPage=Math.max(0,Math.min(compactHistoryPage,Math.max(0,Math.ceil(dates.length/HISTORY_PAGE_SIZE)-1)));
+ const offset=compactHistoryPage*HISTORY_PAGE_SIZE;
+ target.innerHTML=dates.slice(offset,offset+HISTORY_PAGE_SIZE).map(date=>{
   const info=dayInfoFor(emp.id,date),leave=leaveForDate(emp.id,date),segs=segmentsFor(emp.id,date);
   const label=[leave?leaveLabel(leave):'',info.minutes?fmtMin(info.minutes):info.label].filter(Boolean).join(' · ');
   const detail=segs.length?segs.map(s=>`${escapeHtml(s.employerName)} · ${s.start} → ${s.end||'en cours'}`).join('<br>'):(info.entry?.arrival||info.entry?.departure?`${info.entry.arrival||'—'} → ${info.entry.departure||'—'}`:'');
-  return `<details class="history-day"><summary>${frDate(date)} · ${escapeHtml(label)}</summary><div class="section">${detail}${leave?.note?`<div>${escapeHtml(leave.note)}</div>`:''}<div class="subtle">${info.entry?.validationStatus==='validated'?'Validé':info.entry?.validationStatus==='pending'?'À valider':''} · Pause : ${fmtDurationMinutes(Number(info.entry?.pause||0))}${info.entry?.comment?' · '+escapeHtml(info.entry.comment):''}</div>${!isFullDayLeave(leave)?`<button class="btn btn-outline btn-small" onclick="openDay('${date}','edit')">Corriger la journée</button>`:''}</div></details>`;
+  return `<details class="history-day"><summary>${shortWeekday(date)} ${shortDate(date)}<span class="history-day-value">${escapeHtml(label)}</span></summary><div class="section">${detail}${leave?.note?`<div>${escapeHtml(leave.note)}</div>`:''}<div class="subtle">${info.entry?.validationStatus==='validated'?'Validé':info.entry?.validationStatus==='pending'?'À valider':''} · Pause : ${fmtDurationMinutes(Number(info.entry?.pause||0))}${info.entry?.comment?' · '+escapeHtml(info.entry.comment):''}</div>${!isFullDayLeave(leave)?`<button class="btn btn-outline btn-small" onclick="openDay('${date}','edit')">Corriger la journée</button>`:''}</div></details>`;
  }).join('')||'<div class="empty">Aucune journée.</div>';
+ document.getElementById('compactHistoryRange').textContent=dates.length?`${offset+1}–${Math.min(offset+HISTORY_PAGE_SIZE,dates.length)} / ${dates.length}`:'';
+ document.getElementById('historyNewer').disabled=compactHistoryPage===0;
+ document.getElementById('historyOlder').disabled=offset+HISTORY_PAGE_SIZE>=dates.length;
 }
