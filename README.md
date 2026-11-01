@@ -117,7 +117,7 @@ Pour une modification importante :
 
 ## Mise en service
 
-La période suivie par l'application commence au **1er septembre 2026**. Les périodes antérieures ont été gérées manuellement et ne sont pas proposées comme journées à compléter.
+La période suivie par l'application commence au **2 novembre 2026**. Les données de préparation sont remises à zéro avant la mise en service. Les dates antérieures ne sont pas proposées comme journées à compléter.
 
 
 ## Organisation CSS
@@ -146,8 +146,11 @@ Les anciens RPC de congés et les anciennes files hors ligne restent compatibles
 node scripts/check-static.mjs
 npm install --prefix /tmp/suivi-test-runtime @electric-sql/pglite@0.3.14 @playwright/test@1.56.1
 PGLITE_MODULE=/tmp/suivi-test-runtime/node_modules/@electric-sql/pglite/dist/index.js node scripts/test-rtt-db.mjs
+PGLITE_MODULE=/tmp/suivi-test-runtime/node_modules/@electric-sql/pglite/dist/index.js node scripts/test-launch-db.mjs
 PLAYWRIGHT_MODULE=/tmp/suivi-test-runtime/node_modules/playwright/index.mjs node scripts/test-rtt-ui.mjs
 ```
 
 Le test SQL utilise une base PostgreSQL temporaire en mémoire et une fixture fictive ; ne jamais exécuter `supabase/tests/rtt-fixture.sql` en production.
 Le test navigateur attend Chrome sur macOS (chemin modifiable via `CHROME_PATH`) et bloque tout accès externe. Il vérifie mobile, mode nuit, historique, raccourcis, saisie libre, file hors ligne et relevé imprimable.
+
+La migration de mise en service archive les saisies et journaux dans le schéma privé `launch_backup_20261102` avant remise à zéro, y compris les congés et plannings futurs de préparation. Elle conserve les comptes, PIN, liens, employeurs, affectations et abonnements de notification. Les sessions sont fermées pour empêcher une ancienne file hors ligne de republier les tests ; une nouvelle connexion avec le même lien et PIN suffit. Les caches de préparation sont isolés de ceux de mise en service. Les contraintes serveur refusent les nouvelles écritures antérieures au 2 novembre.

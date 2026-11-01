@@ -10,10 +10,10 @@ const LEGACY_SESSION_KEY = 'hours_supabase_session_v1';
 const OWNER_SESSION_KEY = 'hours_supabase_owner_session_v1';
 const EMPLOYEE_SESSION_PREFIX = 'hours_supabase_employee_session_v1_';
 const THEME_KEY = 'hours_theme_preference_v1';
-const APP_START_DATE = '2026-09-01';
-const EMPLOYEE_OFFLINE_CACHE_PREFIX = 'hours_employee_cache_v2_';
-const EMPLOYEE_OFFLINE_QUEUE_PREFIX = 'hours_employee_offline_queue_v2_';
-const EMPLOYEE_OFFLINE_MAP_PREFIX = 'hours_employee_offline_map_v2_';
+const APP_START_DATE = '2026-11-02';
+const EMPLOYEE_OFFLINE_CACHE_PREFIX = 'hours_employee_cache_launch20261102_';
+const EMPLOYEE_OFFLINE_QUEUE_PREFIX = 'hours_employee_offline_queue_launch20261102_';
+const EMPLOYEE_OFFLINE_MAP_PREFIX = 'hours_employee_offline_map_launch20261102_';
 let OFFLINE_SYNCING = false;
 let OFFLINE_LAST_ERROR = '';
 let THEME_MEDIA = null;
@@ -732,7 +732,7 @@ function friendlyError(err){
   if(m.includes('ios_install_required')) return 'Sur iPhone, ajoute d’abord ce site à l’écran d’accueil puis ouvre-le depuis son icône.';
   if(m.includes('notifications_denied')) return 'Les notifications sont bloquées dans les réglages du navigateur ou du téléphone.';
   if(m.includes('vapid_missing')) return 'Configuration des notifications incomplète.';
-  if(m.includes('date_before_app_start')) return 'Les journées antérieures au 1er septembre 2026 ne sont plus gérées dans l’application.';
+  if(m.includes('date_before_app_start')) return 'Les journées antérieures au 2 novembre 2026 ne sont plus gérées dans l’application.';
   if(m.includes('offline_start_not_synced')) return 'Le début du travail doit d’abord être synchronisé avant la fin.';
   if(m.includes('segment_already_closed')) return 'Ce créneau a déjà été terminé avec une autre heure.';
   if(m.includes('offline_edit_not_supported')) return 'Cette modification nécessite Internet.';
@@ -1102,6 +1102,7 @@ async function employeeSetDayOffV2(date,isOff){
 async function employeeRequestLeave(startDate,endDate,note='',leaveType='paid_leave'){
   const s=getSession();if(!s?.sessionToken)throw new Error('unauthorized');
   if(!startDate||!endDate||endDate<startDate)throw new Error('invalid_leave_dates');
+  if(isBeforeAppStart(startDate))throw new Error('date_before_app_start');
   if(!LEAVE_LABELS[leaveType]||(['rtt_morning','rtt_afternoon'].includes(leaveType)&&startDate!==endDate))throw new Error('invalid_leave_dates');
   const empId=CURRENT_EMPLOYEE?.id;
   const overlaps=V2_DATA.leaves.some(l=>l.employeeId===empId&&['pending','validated'].includes(l.status)&&l.startDate<=endDate&&l.endDate>=startDate);

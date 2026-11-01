@@ -10,7 +10,7 @@ const base=`http://127.0.0.1:${server.address().port}`;
 const browser=await chromium.launch({executablePath:process.env.CHROME_PATH||'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',headless:true});
 const context=await browser.newContext({viewport:{width:390,height:844},timezoneId:'Europe/Paris',serviceWorkers:'block'});
 await context.route('**/*',route=>route.request().url().startsWith(base)?route.continue():route.abort());
-const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
+const page=await context.newPage();await page.clock.install({time:new Date('2026-11-16T12:00:00+01:00')});const errors=[];page.on('pageerror',e=>errors.push(e.message));
 const setup=`
  CURRENT_EMPLOYEE={id:'test-employee',name:'Salarié fictif',weeklyObjectiveMinutes:2100,overtimeThresholdMinutes:2100};
  EMPLOYEES=[CURRENT_EMPLOYEE];
@@ -21,6 +21,7 @@ const setup=`
 let tests=0;function ok(name,result){assert.ok(result,name);tests++;console.log('✓ '+name)}
 try{
  await page.goto(base+'/employee.html');await page.evaluate(setup+`emp=CURRENT_EMPLOYEE;APP_DATA.settings.plannedDays[emp.id]={[iso()]:true};render();`);
+ ok('Aucune journée ni tâche avant le lancement',await page.evaluate(()=>APP_START_DATE==='2026-11-02'&&!tasksFor(emp.id).some(t=>t.date<APP_START_DATE)&&dayInfoFor(emp.id,'2026-11-01').status==='before-start'));
  ok('Historique compact, jours repliés et vues détaillées repliées',await page.evaluate(()=>document.querySelectorAll('#compactHistory details').length>0&&!document.querySelector('#history details[open]')));
  ok('Historique limité à 5 lignes et moins de 440px sur mobile',await page.evaluate(()=>document.querySelectorAll('#compactHistory details').length===5&&document.getElementById('history').getBoundingClientRect().height<440));
  const recent=await page.locator('#compactHistory summary').first().innerText();
@@ -54,13 +55,13 @@ try{
  ok('Type RTT préservé dans la file hors ligne',await page.evaluate(()=>getEmployeeOfflineQueue().some(a=>a.type==='leave_request'&&a.leaveType==='rtt_afternoon')));
  ok('Libellé RTT dans les demandes',await page.locator('#leaveList').innerText().then(s=>s.includes('RTT après-midi')));
  await context.setOffline(false);await page.goto(base+'/pilotage.html');await page.evaluate(setup+`
-  V2_DATA.leaves=[{id:'half',employeeId:CURRENT_EMPLOYEE.id,startDate:'2026-10-30',endDate:'2026-10-30',type:'rtt_morning',status:'validated',note:'Récupération'}, {id:'full',employeeId:CURRENT_EMPLOYEE.id,startDate:'2026-10-29',endDate:'2026-10-29',type:'rtt',status:'validated'}];
-  V2_DATA.segments=[{id:'s',employeeId:CURRENT_EMPLOYEE.id,date:'2026-10-30',employerId:'test-employer',employerName:'Employeur fictif',start:'14:00',end:'18:00'}];
-  APP_DATA.entries=[{employeeId:CURRENT_EMPLOYEE.id,date:'2026-10-30',status:'worked',arrival:'14:00',departure:'18:00',pause:0,comment:'Commentaire fictif',validationStatus:'pending'}];
-  renderOwner();buildPrintReport('2026-10','all');
+  V2_DATA.leaves=[{id:'half',employeeId:CURRENT_EMPLOYEE.id,startDate:'2026-11-06',endDate:'2026-11-06',type:'rtt_morning',status:'validated',note:'Récupération'}, {id:'full',employeeId:CURRENT_EMPLOYEE.id,startDate:'2026-11-05',endDate:'2026-11-05',type:'rtt',status:'validated'}];
+  V2_DATA.segments=[{id:'s',employeeId:CURRENT_EMPLOYEE.id,date:'2026-11-06',employerId:'test-employer',employerName:'Employeur fictif',start:'14:00',end:'18:00'}];
+  APP_DATA.entries=[{employeeId:CURRENT_EMPLOYEE.id,date:'2026-11-06',status:'worked',arrival:'14:00',departure:'18:00',pause:0,comment:'Commentaire fictif',validationStatus:'pending'}];
+  renderOwner();buildPrintReport('2026-11','all');
  `);
  ok('PDF : RTT, créneaux, total 4h, note et demi-journée',await page.locator('#printReport').textContent().then(s=>s.includes('RTT matin')&&s.includes('14:00')&&s.includes('18:00')&&s.includes('4h00')&&s.includes('1.5')&&s.includes('Récupération')&&s.includes('Commentaire fictif')));
- ok('Pilotage : demi-RTT reste modifiable et validable',await page.evaluate(()=>{const html=planningRow(CURRENT_EMPLOYEE,'2026-10-30');return html.includes('RTT matin')&&html.includes('14:00')&&html.includes('openOwnerEdit')&&html.includes('validateFromPlanning')}));
+ ok('Pilotage : demi-RTT reste modifiable et validable',await page.evaluate(()=>{const html=planningRow(CURRENT_EMPLOYEE,'2026-11-06');return html.includes('RTT matin')&&html.includes('14:00')&&html.includes('openOwnerEdit')&&html.includes('validateFromPlanning')}));
  // Desktop/night layouts and render the print view for inspection.
  await page.setViewportSize({width:1280,height:900});await page.evaluate(()=>applyTheme('dark'));
  ok('Pilotage sans débordement en mode nuit',await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
@@ -71,9 +72,9 @@ try{
  await pwa.goto(base+'/employee.html');
  await pwa.evaluate(()=>navigator.serviceWorker.ready);
  await pwa.waitForFunction(()=>!!navigator.serviceWorker.controller);
- ok('PWA : nouveau cache installé',await pwa.evaluate(async()=> (await caches.keys()).includes('suivi-horaires-history-compact-20261101')));
- const cached=await pwa.evaluate(async()=>{const cache=await caches.open('suivi-horaires-history-compact-20261101');return (await cache.keys()).map(r=>r.url)});
- ok('PWA : scripts et styles versionnés en cache',cached.some(u=>u.endsWith('app.js?v=rtt-20261101'))&&cached.some(u=>u.endsWith('employee.js?v=history-compact-20261101'))&&cached.some(u=>u.endsWith('styles/current.css?v=history-compact-20261101')));
+ ok('PWA : nouveau cache installé',await pwa.evaluate(async()=> (await caches.keys()).includes('suivi-horaires-launch-20261102')));
+ const cached=await pwa.evaluate(async()=>{const cache=await caches.open('suivi-horaires-launch-20261102');return (await cache.keys()).map(r=>r.url)});
+ ok('PWA : scripts et styles versionnés en cache',cached.some(u=>u.endsWith('app.js?v=launch-20261102'))&&cached.some(u=>u.endsWith('employee.js?v=history-compact-20261101'))&&cached.some(u=>u.endsWith('styles/current.css?v=history-compact-20261101')));
  await pwaContext.setOffline(true);await pwa.reload();
  ok('PWA : écran et nouveaux contrôles disponibles hors ligne',await pwa.locator('#leaveType option[value="rtt_morning"]').count()===1&&await pwa.evaluate(()=>typeof startPreset==='function'));
  await pwaContext.close();

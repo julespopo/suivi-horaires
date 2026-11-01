@@ -1,0 +1,35 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+const {PGlite}=await import(process.env.PGLITE_MODULE||'@electric-sql/pglite');
+const db=new PGlite();
+await db.exec(fs.readFileSync('supabase/tests/rtt-fixture.sql','utf8'));
+await db.exec(`CREATE TABLE public.owner_summary_log(work_date date);CREATE TABLE public.app_sessions(session_hash text);INSERT INTO public.app_sessions VALUES('fictitious-session-hash');`);
+await db.exec(fs.readFileSync('supabase/migrations/'+fs.readdirSync('supabase/migrations').find(f=>f.endsWith('_rtt_half_days.sql')),'utf8'));
+await db.exec(`
+ INSERT INTO public.work_entries(employee_id,work_date,status) SELECT id,'2026-10-30','worked' FROM public.employees;
+ INSERT INTO public.work_segments(employee_id,work_date,employer_id,start_time,end_time) SELECT id,'2026-10-30','00000000-0000-0000-0000-000000000004','14:00','18:00' FROM public.employees;
+ INSERT INTO public.work_schedule SELECT id,'2026-11-03',true FROM public.employees;
+ INSERT INTO public.leave_requests(employee_id,start_date,end_date,leave_type,status) SELECT id,'2026-11-20','2026-11-20','paid_leave','pending' FROM public.employees;
+ INSERT INTO public.audit_log(action) VALUES('fictitious');
+ INSERT INTO public.employee_offline_events(client_event_id) VALUES('fictitious');
+ INSERT INTO public.reminder_log(work_date) VALUES('2026-10-30');
+ INSERT INTO public.owner_summary_log(work_date) VALUES('2026-10-30');`);
+const tables=['work_entries','work_segments','work_schedule','leave_requests','audit_log','employee_offline_events','reminder_log','owner_summary_log'];
+const counts={};for(const t of tables)counts[t]=(await db.query(`select count(*)::int n from public.${t}`)).rows[0].n;
+const migration=fs.readdirSync('supabase/migrations').find(f=>f.endsWith('_launch_20261102_reset.sql'));
+await db.exec('BEGIN;'+fs.readFileSync('supabase/migrations/'+migration,'utf8')+'COMMIT;');
+for(const t of tables){assert.equal((await db.query(`select count(*)::int n from public.${t}`)).rows[0].n,0);assert.equal((await db.query(`select count(*)::int n from launch_backup_20261102.prelaunch_20261102_${t}`)).rows[0].n,counts[t]);}
+console.log('✓ Toutes les saisies et journaux archivés puis vidés, y compris futurs');
+assert.equal((await db.query('select count(*)::int n from public.employees')).rows[0].n,2);
+assert.equal((await db.query('select count(*)::int n from public.employers')).rows[0].n,1);
+assert.equal((await db.query('select count(*)::int n from public.employee_employers')).rows[0].n,2);
+assert.equal((await db.query('select count(*)::int n from public.app_sessions')).rows[0].n,0);
+console.log('✓ Comptes et affectations conservés ; anciennes sessions fermées');
+assert.equal((await db.query("select has_schema_privilege('anon','launch_backup_20261102','USAGE') allowed")).rows[0].allowed,false);
+assert.equal((await db.query("select has_table_privilege('anon','launch_backup_20261102.prelaunch_20261102_work_entries','SELECT') allowed")).rows[0].allowed,false);
+console.log('✓ Copie privée inaccessible aux clients');
+const emp='00000000-0000-0000-0000-000000000001';
+await assert.rejects(()=>db.query("insert into public.work_entries(employee_id,work_date,status) values($1,'2026-11-01','worked')",[emp]),/launch_date_ck/);
+await db.query("insert into public.work_entries(employee_id,work_date,status) values($1,'2026-11-02','worked')",[emp]);
+console.log('✓ Anciennes dates refusées ; journée du lancement autorisée');
+await db.close();
