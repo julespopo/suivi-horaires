@@ -1,5 +1,6 @@
+import {ownerSummaryState} from "./summary-state.mjs";
 import webpush from "npm:web-push@3.6.7";
-import { createClient } from "npm:@supabase/supabase-js@2";
+import { createClient } from "npm:@supabase/supabase-js@2.118.0";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -20,11 +21,6 @@ function parisNow(){
   return {date:`${v.year}-${v.month}-${v.day}`,hour:Number(v.hour),minute:Number(v.minute)};
 }
 
-function defaultWorkingDay(date:string){
-  const dow = new Date(`${date}T12:00:00Z`).getUTCDay();
-  return dow >= 1 && dow <= 5;
-}
-
 function ownerSummaryBody(completed:number, planned:number, incompleteNames:string[]){
   if(completed>=planned) return `${completed}/${planned} employés ont complété leur journée.`;
   if(incompleteNames.length){
@@ -41,36 +37,18 @@ async function sendOwnerSummaries(workDate:string,testMode:boolean){
     supabase.from("work_schedule").select("employee_id,is_working").eq("work_date",workDate),
     supabase.from("work_entries").select("employee_id,status,arrival,departure").eq("work_date",workDate),
     supabase.from("work_segments").select("employee_id").eq("work_date",workDate),
-    supabase.from("leave_requests").select("employee_id,start_date,end_date,status").eq("status","validated").lte("start_date",workDate).gte("end_date",workDate),
+    supabase.from("leave_requests").select("employee_id,start_date,end_date,status,leave_type").eq("status","validated").lte("start_date",workDate).gte("end_date",workDate),
     supabase.from("owner_accounts").select("id,label").eq("active",true),
     supabase.from("owner_push_subscriptions").select("owner_id,endpoint,p256dh,auth,launch_url").eq("active",true),
     supabase.from("owner_summary_log").select("owner_id").eq("work_date",workDate)
   ]);
   for(const r of [employeesRes,scheduleRes,entriesRes,segmentsRes,leavesRes,ownersRes,subscriptionsRes,logsRes]) if(r.error) throw new Error(r.error.message);
 
-  const employees=employeesRes.data||[];
-  const schedule=new Map((scheduleRes.data||[]).map((r:any)=>[r.employee_id,!!r.is_working]));
-  const entries=new Map((entriesRes.data||[]).map((r:any)=>[r.employee_id,r]));
-  const actualWorkers=new Set((segmentsRes.data||[]).map((r:any)=>r.employee_id));
-  const onLeave=new Set((leavesRes.data||[]).map((r:any)=>r.employee_id));
-
-  const planned=employees.filter((e:any)=>{
-    if(onLeave.has(e.id)) return false;
-    const entry:any=entries.get(e.id);
-    if(entry?.status==="off") return false;
-    const scheduled=schedule.has(e.id)?schedule.get(e.id):defaultWorkingDay(workDate);
-    const actuallyWorked=actualWorkers.has(e.id)||entry?.status==="worked";
-    return scheduled||actuallyWorked;
-  });
+  const {planned,completed,incompleteNames}=ownerSummaryState({
+    employees:employeesRes.data||[],schedule:scheduleRes.data||[],entries:entriesRes.data||[],
+    segments:segmentsRes.data||[],leaves:leavesRes.data||[]
+  },workDate);
   if(!planned.length) return {targeted:0,sent:0,failed:0,skipped:true,reason:"nobody_working"};
-
-  const incompleteNames:string[]=[];
-  let completed=0;
-  for(const e of planned){
-    const entry:any=entries.get(e.id);
-    const done=!!entry&&!!entry.arrival&&!!entry.departure;
-    if(done) completed++; else incompleteNames.push(e.name);
-  }
 
   const alreadySent=new Set((logsRes.data||[]).map((r:any)=>r.owner_id));
   const subscriptionsByOwner=new Map<string,any[]>();
@@ -121,6 +99,7 @@ Deno.serve(async (req)=>{
 
   let body:any={};try{body=await req.json()}catch{}
   const now=parisNow();
+  // Compatibilité avec l'ancien test {force:true}. Un test n'écrit jamais dans les logs métier.
   const testMode=body?.test_mode===true||body?.force===true;
   if(!testMode&&now.hour!==19){
     return Response.json({ok:true,skipped:true,reason:"not_19h_paris",paris_time:now});

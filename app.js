@@ -583,19 +583,26 @@ async function discardBlockedOfflineAction(){
 
 async function rpc(name,args={}){
   if(!SUPABASE_URL||!SUPABASE_KEY) throw new Error('Configuration Supabase manquante.');
-  const res=await fetch(`${SUPABASE_URL}/rest/v1/rpc/${name}`,{
-    method:'POST',
-    headers:{'apikey':SUPABASE_KEY,'Content-Type':'application/json','Accept':'application/json','Content-Profile':'public','Accept-Profile':'public'},
-    body:JSON.stringify(args)
-  });
-  const raw=await res.text();
-  let payload=null;
-  try{payload=raw?JSON.parse(raw):null}catch{payload=raw}
-  if(!res.ok){
-    const message=(payload&&typeof payload==='object'&&(payload.message||payload.error||payload.hint))||String(payload||`Erreur ${res.status}`);
-    const err=new Error(message);err.status=res.status;throw err;
-  }
-  return payload;
+  const controller=new AbortController();
+  const timeout=setTimeout(()=>controller.abort(),30000);
+  try{
+    const res=await fetch(`${SUPABASE_URL}/rest/v1/rpc/${name}`,{
+      method:'POST',signal:controller.signal,
+      headers:{'apikey':SUPABASE_KEY,'Content-Type':'application/json','Accept':'application/json','Content-Profile':'public','Accept-Profile':'public'},
+      body:JSON.stringify(args)
+    });
+    const raw=await res.text();
+    let payload=null;
+    try{payload=raw?JSON.parse(raw):null}catch{payload=raw}
+    if(!res.ok){
+      const message=(payload&&typeof payload==='object'&&(payload.message||payload.error||payload.hint))||String(payload||`Erreur ${res.status}`);
+      const err=new Error(message);err.status=res.status;throw err;
+    }
+    return payload;
+  }catch(error){
+    if(error.name==='AbortError'){const err=new Error('network_timeout');err.status=408;throw err}
+    throw error;
+  }finally{clearTimeout(timeout)}
 }
 function urlBase64ToUint8Array(base64String){
   const padding='='.repeat((4-base64String.length%4)%4);
@@ -707,6 +714,7 @@ function friendlyError(err){
     m.includes('pin incorrect')||
     m.includes('wrong pin')
   ) return 'PIN incorrect.';
+  if(m.includes('network_timeout')) return 'Le réseau met trop de temps à répondre. Réessaie dans quelques instants.';
   if(m.includes('unauthorized')) return 'Votre session n’est plus valide. Reconnectez-vous.';
   if(m.includes('entry_not_complete')) return 'La journée doit être complète avant validation.';
   if(m.includes('employer_not_allowed')) return 'Cet employeur n’est pas associé à ce salarié.';

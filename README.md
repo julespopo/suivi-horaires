@@ -154,3 +154,25 @@ Le test SQL utilise une base PostgreSQL temporaire en mémoire et une fixture fi
 Le test navigateur attend Chrome sur macOS (chemin modifiable via `CHROME_PATH`) et bloque tout accès externe. Il vérifie mobile, mode nuit, historique, raccourcis, saisie libre, file hors ligne et relevé imprimable.
 
 La migration de mise en service archive les saisies et journaux dans le schéma privé `launch_backup_20261102` avant remise à zéro, y compris les congés et plannings futurs de préparation. Elle conserve les comptes, PIN, liens, employeurs, affectations et abonnements de notification. Les sessions sont fermées pour empêcher une ancienne file hors ligne de republier les tests ; une nouvelle connexion avec le même lien et PIN suffit. Les caches de préparation sont isolés de ceux de mise en service. Les contraintes serveur refusent les nouvelles écritures antérieures au 2 novembre.
+
+## Contrôles avant mise en service
+
+Les outils de test sont maintenant verrouillés dans `package-lock.json` et exécutés sur chaque modification de `main` ou pull request :
+
+```sh
+npm ci --ignore-scripts
+npm run check
+npm run test:db
+npm run test:worker
+node scripts/test-summary.mjs
+npx playwright install chromium
+npm run test:ui
+```
+
+La suite vérifie les RTT, les pauses, les validations, le nettoyage de lancement, les droits des sessions, les dates (dont 2028 et les changements d’année), la reprise réseau et le cache PWA. Elle n’envoie aucune notification réelle et ne crée aucune donnée de test dans la base de production.
+
+Le cache conserve uniquement les fichiers connus de cette application. Les liens privés ne figurent pas dans ses clés, une panne HTTP ne remplace pas une copie valide et les caches d’autres applications sont conservés. Les requêtes bloquées s’interrompent après 30 secondes et les actions hors ligne restent réessayables.
+
+Les noms sont échappés avant leur insertion dans les vues HTML. Les sessions des comptes désactivés sont refusées immédiatement. La synthèse du soir distingue le RTT journée de la demi-journée RTT.
+
+La couverture navigateur automatisée utilise Chromium ; iPhone/Safari et les notifications push nécessitent également une vérification sur les appareils réels. Les sauvegardes de préparation sont privées ; elles ne remplacent pas une politique de sauvegarde régulière de production.

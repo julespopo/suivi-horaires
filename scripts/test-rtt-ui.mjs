@@ -7,7 +7,7 @@ const root=process.cwd();
 const server=http.createServer((req,res)=>{const file=path.join(root,(new URL(req.url,'http://localhost').pathname==='/'?'/index.html':new URL(req.url,'http://localhost').pathname));try{res.setHeader('Content-Type',file.endsWith('.js')?'text/javascript':file.endsWith('.css')?'text/css':file.endsWith('.svg')?'image/svg+xml':'text/html');res.end(fs.readFileSync(file))}catch{res.statusCode=404;res.end()}});
 await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
 const base=`http://127.0.0.1:${server.address().port}`;
-const browser=await chromium.launch({executablePath:process.env.CHROME_PATH||'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',headless:true});
+const browser=await chromium.launch({executablePath:process.env.CHROME_PATH||(process.platform==='darwin'?'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome':undefined),headless:true});
 const context=await browser.newContext({viewport:{width:390,height:844},timezoneId:'Europe/Paris',serviceWorkers:'block'});
 await context.route('**/*',route=>route.request().url().startsWith(base)?route.continue():route.abort());
 const page=await context.newPage();await page.clock.install({time:new Date('2026-11-16T12:00:00+01:00')});const errors=[];page.on('pageerror',e=>errors.push(e.message));
@@ -21,6 +21,14 @@ const setup=`
 let tests=0;function ok(name,result){assert.ok(result,name);tests++;console.log('✓ '+name)}
 try{
  await page.goto(base+'/employee.html');await page.evaluate(setup+`emp=CURRENT_EMPLOYEE;APP_DATA.settings.plannedDays[emp.id]={[iso()]:true};render();`);
+ ok('Dates : année bissextile et changement d’année',await page.evaluate(()=>iso(dateObjFromIso('2028-02-29'))==='2028-02-29'&&listDates(dateObjFromIso('2027-12-31'),dateObjFromIso('2028-01-02')).join(',')==='2027-12-31,2028-01-01,2028-01-02'));
+ await page.clock.setFixedTime(new Date('2030-12-31T12:00:00+01:00'));
+ ok('Période de données suit automatiquement les années futures',await page.evaluate(()=>defaultRange().to==='2031-12-31'));
+ await page.clock.setFixedTime(new Date('2026-11-16T12:00:00+01:00'));
+ await page.evaluate(()=>{window.fixtureFetch=window.fetch;window.fetch=(_,options)=>new Promise((resolve,reject)=>options.signal.addEventListener('abort',()=>reject(new DOMException('Timeout','AbortError'))));window.fixtureTimeout=rpc('fixture_timeout').then(()=>null,error=>({status:error.status,transient:offlineActionTransientError(error)}))});
+ await page.clock.runFor(30001);
+ const timeoutResult=await page.evaluate(async()=>{const result=await window.fixtureTimeout;window.fetch=window.fixtureFetch;return result});
+ ok('Réseau bloqué : délai limité et action réessayable',timeoutResult.status===408&&timeoutResult.transient);
  ok('Aucune journée ni tâche avant le lancement',await page.evaluate(()=>APP_START_DATE==='2026-11-02'&&!tasksFor(emp.id).some(t=>t.date<APP_START_DATE)&&dayInfoFor(emp.id,'2026-11-01').status==='before-start'));
  ok('Historique compact, jours repliés et vues détaillées repliées',await page.evaluate(()=>document.querySelectorAll('#compactHistory details').length>0&&!document.querySelector('#history details[open]')));
  ok('Historique limité à 5 lignes et moins de 440px sur mobile',await page.evaluate(()=>document.querySelectorAll('#compactHistory details').length===5&&document.getElementById('history').getBoundingClientRect().height<440));
@@ -64,7 +72,12 @@ try{
  await page.evaluate(()=>{completionCursor=new Date('2026-11-16T12:00:00');setPlanningView('month')});
  ok('Vues mois et semaine : aucune case rouge aujourd’hui ou dans le futur',await page.evaluate(()=>{const check=()=>![...document.querySelectorAll('.completion-day.none,.completion-day.partial')].some(b=>{const date=b.getAttribute('onclick').match(/2026-\d{2}-\d{2}/)?.[0];return date>=iso()});const month=check();setPlanningView('week');return month&&check()}));
  ok('PDF : RTT, créneaux, total 4h, note et demi-journée',await page.locator('#printReport').textContent().then(s=>s.includes('RTT matin')&&s.includes('14:00')&&s.includes('18:00')&&s.includes('4h00')&&s.includes('1.5')&&s.includes('Récupération')&&s.includes('Commentaire fictif')));
+ ok('Correction RTT : pause nulle conservée après retrait d’un créneau',await page.evaluate(()=>{openOwnerEdit(CURRENT_EMPLOYEE.id,'2026-11-06');addOwnerSegmentRow();removeOwnerSegmentRow(1);const value=ownerPause.value;closeOwnerEdit();return value==='0h00'}));
  ok('Pilotage : demi-RTT reste modifiable et validable',await page.evaluate(()=>{const html=planningRow(CURRENT_EMPLOYEE,'2026-11-06');return html.includes('RTT matin')&&html.includes('14:00')&&html.includes('openOwnerEdit')&&html.includes('validateFromPlanning')}));
+ const originalName=await page.evaluate(()=>EMPLOYEES[0].name);
+ await page.evaluate(()=>{EMPLOYEES[0].name='<img src=x onerror=window.nameInjected=true>';renderOwner()});
+ ok('Noms affichés comme texte sans injection HTML',await page.evaluate(()=>!document.querySelector('#cards img')&&!window.nameInjected&&cards.textContent.includes('<img')));
+ await page.evaluate(name=>{EMPLOYEES[0].name=name;renderOwner()},originalName);
  // Desktop/night layouts and render the print view for inspection.
  await page.setViewportSize({width:1280,height:900});await page.evaluate(()=>applyTheme('dark'));
  ok('Pilotage sans débordement en mode nuit',await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
@@ -75,9 +88,9 @@ try{
  await pwa.goto(base+'/employee.html');
  await pwa.evaluate(()=>navigator.serviceWorker.ready);
  await pwa.waitForFunction(()=>!!navigator.serviceWorker.controller);
- ok('PWA : nouveau cache installé',await pwa.evaluate(async()=> (await caches.keys()).includes('suivi-horaires-login-clean-20261101')));
- const cached=await pwa.evaluate(async()=>{const cache=await caches.open('suivi-horaires-login-clean-20261101');return (await cache.keys()).map(r=>r.url)});
- ok('PWA : scripts et styles versionnés en cache',cached.some(u=>u.endsWith('app.js?v=launch-20261102'))&&cached.some(u=>u.endsWith('employee.js?v=history-compact-20261101'))&&cached.some(u=>u.endsWith('styles/current.css?v=calendar-dates-20261101')));
+ ok('PWA : nouveau cache installé',await pwa.evaluate(async()=> (await caches.keys()).includes('suivi-horaires-hardening-20261101')));
+ const cached=await pwa.evaluate(async()=>{const cache=await caches.open('suivi-horaires-hardening-20261101');return (await cache.keys()).map(r=>r.url)});
+ ok('PWA : scripts et styles versionnés en cache',cached.some(u=>u.endsWith('app.js?v=hardening-20261101'))&&cached.some(u=>u.endsWith('employee.js?v=hardening-20261101'))&&cached.some(u=>u.endsWith('styles/current.css?v=calendar-dates-20261101')));
  await pwaContext.setOffline(true);await pwa.reload();
  ok('PWA : écran et nouveaux contrôles disponibles hors ligne',await pwa.locator('#leaveType option[value="rtt_morning"]').count()===1&&await pwa.evaluate(()=>typeof startPreset==='function'));
  await pwaContext.close();

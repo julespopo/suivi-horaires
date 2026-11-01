@@ -1,0 +1,30 @@
+import fs from 'node:fs';
+import vm from 'node:vm';
+import assert from 'node:assert/strict';
+const handlers={},stored=new Map(),deleted=[],state={skip:false,claimed:false};
+const origin='https://example.test',base=origin+'/suivi-horaires/';
+const cache={addAll:async()=>{},put:async(key,response)=>stored.set(typeof key==='string'?key:key.url,response),match:async key=>stored.get(typeof key==='string'?key:key.url)?.clone()};
+let network=async()=>new Response('fresh');
+const context=vm.createContext({URL,Response,Set,Promise,fetch:req=>network(req),caches:{open:async()=>cache,keys:async()=>['other-app-cache','suivi-horaires-old'],delete:async key=>deleted.push(key)},self:{location:{href:base+'sw.js',origin},skipWaiting:async()=>{state.skip=true},clients:{claim:async()=>{state.claimed=true}},addEventListener:(name,handler)=>handlers[name]=handler}});
+vm.runInContext(fs.readFileSync('sw.js','utf8'),context);
+async function lifecycle(name){let promise;handlers[name]({waitUntil:p=>{promise=p}});await promise}
+await lifecycle('install');assert.equal(state.skip,true);
+await lifecycle('activate');assert.deepEqual(deleted,['suivi-horaires-old']);assert.equal(state.claimed,true);
+console.log('✓ Mise à jour limitée aux caches de cette application');
+async function request(url,mode='navigate',method='GET'){let response;const pending=[];handlers.fetch({request:{url,mode,method},respondWith:p=>{response=p},waitUntil:p=>pending.push(p)});const result=response?await response:undefined;await Promise.all(pending);return result}
+await request(base+'employee.html?token=fixture-only-private-link');
+assert.equal(stored.has(base+'employee.html'),true);assert.equal([...stored.keys()].some(k=>k.includes('token=')),false);
+console.log('✓ Aucun lien privé dans les clés du cache');
+stored.set(base+'employee.html',new Response('working-offline-copy'));
+network=async()=>new Response('server-error',{status:503});
+assert.equal(await(await request(base+'employee.html')).text(),'working-offline-copy');
+console.log('✓ Erreur serveur ne remplace pas la version hors ligne');
+network=async()=>{throw new Error('offline')};
+assert.equal(await(await request(base+'employee.html?token=fixture-only-private-link')).text(),'working-offline-copy');
+console.log('✓ Navigation hors ligne avec lien personnel');
+assert.equal(await request('https://other.test/file.js','cors'),undefined);
+assert.equal(await request(base+'rest/v1/user-data','cors'),undefined);
+assert.equal(await request(base+'employee.html','navigate','POST'),undefined);
+console.log('✓ API, autres domaines et écritures exclus du cache');
+const missing=await request(base+'pilotage.html');assert.equal(missing.type,'error');
+console.log('✓ Absence de cache renvoie une erreur réseau explicite');
