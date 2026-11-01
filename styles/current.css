@@ -1242,3 +1242,5 @@ th,td{border-color:var(--line)}
 :root[data-theme="dark"] .bar.incomplete{
   background:linear-gradient(180deg,#caa15f,#8b6d3d)!important;
 }
+
+.preset-times{display:flex;gap:10px;margin:12px 0}.preset-times .btn{flex:1;min-height:44px}.history-day{padding:12px 0;border-bottom:1px solid var(--border,#526174)}.history-day summary{cursor:pointer;line-height:1.6}.history-day .btn{margin-top:10px}

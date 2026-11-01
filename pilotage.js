@@ -203,12 +203,12 @@ function renderOwnerLeavesV2(){
   const pending=leaves.filter(l=>l.status==='pending').length;
   ownerLeaveBadge.textContent=pending?`${pending} demande${pending>1?'s':''} en attente`:'Aucune demande en attente';
   ownerLeaveBadge.className='status '+(pending?'warn':'ok');
-  ownerLeaveList.innerHTML=leaves.length?leaves.map(l=>{const emp=EMPLOYEES.find(e=>e.id===l.employeeId);const statusChip=l.status==='pending'?'':`<span class="status ${l.status==='validated'?'ok':'off'}">${ownerLeaveStatus(l.status)}</span>`;return `<div class="leave-row leave-${l.status}"><div class="leave-main"><strong>${ownerEscape(emp?.name||'Salarié')} · ${shortDate(l.startDate)} → ${shortDate(l.endDate)}</strong><div class="subtle">${l.note?ownerEscape(l.note)+' · ':''}${l.requestedBy==='owner'?'Ajouté par le pilotage':'Demandé par le salarié'}</div></div><div class="leave-actions">${statusChip}${l.status==='pending'?`<button class="btn btn-green btn-small" onclick="reviewOwnerLeave('${l.id}','validated')">Valider</button><button class="btn btn-outline btn-small" onclick="reviewOwnerLeave('${l.id}','rejected')">Refuser</button>`:`<button class="btn btn-outline btn-small" onclick="deleteOwnerLeave('${l.id}')">Supprimer</button>`}</div></div>`}).join(''):'<div class="empty">Aucun congé déclaré.</div>';
+  ownerLeaveList.innerHTML=leaves.length?leaves.map(l=>{const emp=EMPLOYEES.find(e=>e.id===l.employeeId);const statusChip=l.status==='pending'?'':`<span class="status ${l.status==='validated'?'ok':'off'}">${ownerLeaveStatus(l.status)}</span>`;return `<div class="leave-row leave-${l.status}"><div class="leave-main"><strong>${ownerEscape(emp?.name||'Salarié')} · ${leaveLabel(l)} · ${shortDate(l.startDate)} → ${shortDate(l.endDate)}</strong><div class="subtle">${l.note?ownerEscape(l.note)+' · ':''}${l.requestedBy==='owner'?'Ajouté par le pilotage':'Demandé par le salarié'}</div></div><div class="leave-actions">${statusChip}${l.status==='pending'?`<button class="btn btn-green btn-small" onclick="reviewOwnerLeave('${l.id}','validated')">Valider</button><button class="btn btn-outline btn-small" onclick="reviewOwnerLeave('${l.id}','rejected')">Refuser</button>`:`<button class="btn btn-outline btn-small" onclick="deleteOwnerLeave('${l.id}')">Supprimer</button>`}</div></div>`}).join(''):'<div class="empty">Aucun congé déclaré.</div>';
 }
 let ownerLeaveRangeControl=null;try{if(typeof createDateRangePicker==='function')ownerLeaveRangeControl=createDateRangePicker(document.getElementById('ownerLeaveRangePicker'),ownerLeaveStart,ownerLeaveEnd)}catch(e){console.error('Owner range picker unavailable',e)}
 function openOwnerLeaveModal(){
   ownerLeaveEmployee.innerHTML=EMPLOYEES.map(e=>`<option value="${e.id}">${ownerEscape(e.name)}</option>`).join('');
-  ownerLeaveNote.value='';
+  ownerLeaveType.value='paid_leave';ownerLeaveNote.value='';
   if(ownerLeaveRangeControl){ownerLeaveRangeControl.reset('','')}else{ownerLeaveStart.type='date';ownerLeaveEnd.type='date';ownerLeaveStart.value=iso();ownerLeaveEnd.value=iso()}
   ownerLeaveModal.classList.add('open');
 }
@@ -217,7 +217,7 @@ async function createOwnerLeave(){
   if(!ownerLeaveEmployee.value){alert('Choisis un salarié.');return}
   if(!ownerLeaveStart.value){alert('Choisis le premier jour de congé.');return}
   if(!ownerLeaveEnd.value)ownerLeaveEnd.value=ownerLeaveStart.value;
-  await withOwnerSave(async()=>{await ownerCreateLeave(ownerLeaveEmployee.value,ownerLeaveStart.value,ownerLeaveEnd.value,ownerLeaveNote.value);closeOwnerLeaveModal();renderOwner()})
+  await withOwnerSave(async()=>{await ownerCreateLeave(ownerLeaveEmployee.value,ownerLeaveStart.value,ownerLeaveEnd.value,ownerLeaveNote.value,ownerLeaveType.value);closeOwnerLeaveModal();renderOwner()})
 }
 async function reviewOwnerLeave(id,status){await withOwnerSave(async()=>{await ownerReviewLeave(id,status);renderOwner()})}
 async function deleteOwnerLeave(id){if(!confirm('Supprimer cette période de congé ?'))return;await withOwnerSave(async()=>{await ownerDeleteLeave(id);renderOwner()})}
@@ -234,12 +234,13 @@ completionForDate=function(date){
 planningRow=function(emp,date){
   const working=isPlannedWorkingDay(emp.id,date),info=dayInfoFor(emp.id,date),entry=info.entry,leave=leaveForDate(emp.id,date,'validated'),segs=segmentsFor(emp.id,date),validation=entry?.validationStatus==='validated'?'Validé':entry?.validationStatus==='pending'?'À valider':'—';
   let detail='Aucune saisie';
-  if(leave)detail=`Congé validé · ${shortDate(leave.startDate)} → ${shortDate(leave.endDate)}`;
+  if(isFullDayLeave(leave))detail=`${leaveLabel(leave)} validé · ${shortDate(leave.startDate)} → ${shortDate(leave.endDate)}`;
   else if(entry?.status==='off')detail='Non travaillé déclaré';
   else if(segs.length)detail=segs.map(s=>`${s.employerName} ${s.start}–${s.end||'…'}`).join(' · ')+` · ${fmtMin(info.minutes)}`;
   else if(entry?.arrival&&entry?.departure)detail=`${entry.arrival} – ${entry.departure} · ${fmtMin(info.minutes)}`;
   else if(entry)detail='Saisie incomplète';
-  return `<div class="planning-row ${leave?'is-leave':''}"><div class="planning-person"><strong>${ownerEscape(emp.name)}</strong><span class="subtle">${ownerEscape(detail)} · ${validation}</span></div><label class="planning-check"><input type="checkbox" data-plan-emp="${emp.id}" ${working?'checked':''}> Travaillé</label><div class="planning-actions">${entry&&entry.arrival&&entry.departure&&entry.validationStatus!=='validated'&&!leave?`<button class="btn btn-green btn-small" onclick="validateFromPlanning('${emp.id}','${date}')">Valider</button>`:''}${!leave?`<button class="btn btn-outline btn-small" onclick="openOwnerEdit('${emp.id}','${date}')">Modifier</button>`:''}</div></div>`;
+  if(leave&&!isFullDayLeave(leave))detail=`${leaveLabel(leave)} validé · ${detail}`;
+  return `<div class="planning-row ${leave?'is-leave':''}"><div class="planning-person"><strong>${ownerEscape(emp.name)}</strong><span class="subtle">${ownerEscape(detail)} · ${validation}</span></div><label class="planning-check"><input type="checkbox" data-plan-emp="${emp.id}" ${working?'checked':''}> Travaillé</label><div class="planning-actions">${entry&&entry.arrival&&entry.departure&&entry.validationStatus!=='validated'&&!isFullDayLeave(leave)?`<button class="btn btn-green btn-small" onclick="validateFromPlanning('${emp.id}','${date}')">Valider</button>`:''}${!isFullDayLeave(leave)?`<button class="btn btn-outline btn-small" onclick="openOwnerEdit('${emp.id}','${date}')">Modifier</button>`:''}</div></div>`;
 };
 
 let ownerSegmentsDraft=[],ownerPauseTouched=false;
@@ -343,16 +344,16 @@ buildPrintReport=function(monthValue,employeeId='all'){
 
       const info=dayInfoFor(emp.id,date);
       const complete=['complete','off','leave'].includes(info.status);
-      const total=leave||entry?.status==='off'?0:workMinutesForDay(emp.id,date);
+      const total=isFullDayLeave(leave)||entry?.status==='off'?0:workMinutesForDay(emp.id,date);
       const worked=segs.length>0||entry?.status==='worked'||total>0;
       const incomplete=planned&&!complete;
       if(worked)workedDays++;
-      if(leave)leaveDays++;
+      if(leave)leaveDays+=isFullDayLeave(leave)?1:0.5;
       if(incomplete)incompleteDays++;
 
       let status='Prévu';
       let statusClass='';
-      if(leave){status='Congé';statusClass='print-status-leave'}
+      if(leave){status=leaveLabel(leave);statusClass='print-status-leave'}
       else if(entry?.status==='off'){status='Non travaillé';statusClass='print-status-off'}
       else if(incomplete){status='À compléter';statusClass='print-status-incomplete'}
       else if(worked&&!planned){status='Hors planning';statusClass='print-status-outside'}
@@ -362,9 +363,9 @@ buildPrintReport=function(monthValue,employeeId='all'){
       if(pending)statusClass+=(statusClass?' ':'')+'print-status-pending';
 
       let detail='—';
-      if(leave){
+      if(isFullDayLeave(leave)){
         const note=cleanPdfNote(leave.note);
-        detail=note?ownerEscape(note):'Congé validé';
+        detail=note?ownerEscape(note):leaveLabel(leave)+' validé';
       }else if(segs.length){
         detail=segs.map(s=>`<div class="print-slot"><strong>${ownerEscape(s.employerName||'Employeur')}</strong><span>${ownerEscape(s.start||'—')} → ${ownerEscape(s.end||'…')}</span></div>`).join('');
       }else if(entry?.arrival||entry?.departure){
@@ -373,12 +374,13 @@ buildPrintReport=function(monthValue,employeeId='all'){
         detail='Journée déclarée non travaillée';
       }
 
-      const cleanedComment=leave?'':cleanPdfNote(entry?.comment||'');
+      if(leave&&!isFullDayLeave(leave))detail=`<div>${leaveLabel(leave)} validé${leave.note?' · '+ownerEscape(cleanPdfNote(leave.note)):''}</div>`+detail;
+      const cleanedComment=isFullDayLeave(leave)?'':cleanPdfNote(entry?.comment||'');
       if(cleanedComment)detail+=`<div class="print-row-note"><span>Note</span> ${ownerEscape(cleanedComment)}</div>`;
 
-      const pause=worked&&!leave&&entry?.status!=='off'&&complete?fmtDurationMinutes(Number(entry?.pause||0)):'—';
+      const pause=worked&&!isFullDayLeave(leave)&&entry?.status!=='off'&&complete?fmtDurationMinutes(Number(entry?.pause||0)):'—';
       const displayTotal=incomplete?'—':fmtMin(total);
-      const validation=leave?'Validé':entry?.validationStatus==='validated'?'Validé':pending?'À valider':'—';
+      const validation=isFullDayLeave(leave)?'Validé':entry?.validationStatus==='validated'?'Validé':pending?'À valider':'—';
 
       const meta=weekMeta(date);
       const nextDate=visibleDates[index+1];
@@ -415,7 +417,7 @@ buildPrintReport=function(monthValue,employeeId='all'){
         <div><span>Heures du mois</span><strong>${fmtMin(total)}</strong></div>
         <div><span>Référence hebdomadaire</span><strong>${fmtMin(settings.weeklyObjectiveMinutes)}</strong></div>
         <div><span>Jours travaillés</span><strong>${workedDays}</strong></div>
-        <div><span>Jours de congé</span><strong>${leaveDays}</strong></div>
+        <div><span>Jours de congé / RTT</span><strong>${leaveDays}</strong></div>
         <div class="${incompleteDays?'print-summary-alert':''}"><span>À compléter</span><strong>${incompleteDays}</strong></div>
         <div class="${pendingDays?'print-summary-pending':''}"><span>À valider</span><strong>${pendingDays}</strong></div>
       </section>

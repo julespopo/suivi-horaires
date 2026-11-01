@@ -15,9 +15,10 @@ Le projet est hébergé sur GitHub Pages et utilise Supabase pour les données, 
 - heure de début / heure de fin en direct ou saisie manuelle ;
 - pause modifiable ;
 - suppression d'un créneau saisi par erreur ;
-- historique semaine / mois ;
+- historique compact, journées repliées et vues semaine / mois en détail ;
 - journées à compléter ;
-- demandes de congés ;
+- demandes de congés et RTT (journée, matin, après-midi) ;
+- raccourcis arrivée 7h30 / 14h et départ 18h, avec saisie libre ;
 - mode jour / nuit ;
 - installation sur l'écran d'accueil ;
 - fonctionnement hors ligne pour les actions quotidiennes, avec synchronisation automatique au retour du réseau.
@@ -128,3 +129,25 @@ Les styles sont chargés dans un ordre fixe afin de conserver exactement la casc
 3. `styles/current.css` — apparence actuelle et derniers correctifs responsives.
 
 Les nouveaux ajustements visuels doivent être faits dans la couche appropriée plutôt que par ajout systématique d'overrides en fin de fichier.
+
+## RTT et récupération
+
+Les RTT utilisent `leave_type` : `rtt`, `rtt_morning`, `rtt_afternoon` ; `paid_leave` reste inchangé.
+Une demi-journée porte sur une seule date : le matin se termine à 13h, l’après-midi commence à 13h (heures locales).
+La demande salarié reste en attente de validation ; un ajout du pilotage est directement validé.
+Le travail sur la moitié restante est autorisé, sans chevauchement. Les corrections et synchronisations hors ligne suivent les mêmes contrôles serveur.
+Le RTT ajoute zéro minute travaillée. Le relevé PDF compte une demi-journée pour 0,5 jour et conserve les créneaux, commentaires, pauses et validation du travail.
+La pause automatique est nulle sur une demi-journée RTT ; une pause manuelle reste déduite.
+Les anciens RPC de congés et les anciennes files hors ligne restent compatibles. Les nouvelles fonctions internes ne sont pas exposées, les tables restent protégées par RLS.
+
+### Non-régression RTT
+
+```sh
+node scripts/check-static.mjs
+npm install --prefix /tmp/suivi-test-runtime @electric-sql/pglite@0.3.14 @playwright/test@1.56.1
+PGLITE_MODULE=/tmp/suivi-test-runtime/node_modules/@electric-sql/pglite/dist/index.js node scripts/test-rtt-db.mjs
+PLAYWRIGHT_MODULE=/tmp/suivi-test-runtime/node_modules/playwright/index.mjs node scripts/test-rtt-ui.mjs
+```
+
+Le test SQL utilise une base PostgreSQL temporaire en mémoire et une fixture fictive ; ne jamais exécuter `supabase/tests/rtt-fixture.sql` en production.
+Le test navigateur attend Chrome sur macOS (chemin modifiable via `CHROME_PATH`) et bloque tout accès externe. Il vérifie mobile, mode nuit, historique, raccourcis, saisie libre, file hors ligne et relevé imprimable.

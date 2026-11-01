@@ -294,7 +294,7 @@ function ensureOptimisticEntry(date){
   let entry=entryFor(empId,date,false);
   if(!entry){
     entry={
-      employeeId:empId,date,status:'worked',arrival:'',departure:'',pause:90,pauseMode:'auto',
+      employeeId:empId,date,status:'worked',arrival:'',departure:'',pause:hasHalfDayRTT(empId,date)?0:90,pauseMode:'auto',
       comment:'',arrivalMode:'',departureMode:'',validationStatus:'',validatedAt:'',
       updatedAt:'',serverUpdatedAt:'',pendingSync:false
     };
@@ -356,7 +356,7 @@ function optimisticDayStatusAction(action){
   }else{
     const wasOff=entry.status==='off';
     entry.status='worked';
-    if(wasOff){entry.pause=90;entry.pauseMode='auto'}
+    if(wasOff){entry.pause=hasHalfDayRTT(action.employeeId,action.date)?0:90;entry.pauseMode='auto'}
     entry.validationStatus='';
   }
   entry.pendingSync=true;
@@ -377,7 +377,7 @@ function optimisticLeaveRequestAction(action){
     employeeId:action.employeeId,
     startDate:action.startDate,
     endDate:action.endDate,
-    type:'paid_leave',
+    type:action.leaveType||'paid_leave',
     status:'pending',
     note:action.note||'',
     requestedBy:'employee',
@@ -506,7 +506,8 @@ async function syncEmployeeOfflineQueue({reload=true}={}){
             p_expected_segment_updated_at:action.expectedSegmentUpdatedAt||null
           });
         }else if(action.type==='leave_request'){
-          const serverId=await rpc('api_employee_request_leave_offline',{
+          const serverId=await rpc('api_employee_request_leave_typed_offline',{
+            p_leave_type:action.leaveType||'paid_leave',
             p_session_token:sess.sessionToken,
             p_start_date:action.startDate,
             p_end_date:action.endDate,
@@ -721,8 +722,8 @@ function friendlyError(err){
   if(m.includes('employer_name_exists')) return 'Un employeur portant ce nom existe déjà.';
   if(m.includes('no_segments')) return 'Ajoute au moins un créneau de travail.';
   if(m.includes('day_has_segments')) return 'Cette journée contient déjà des heures de travail. Supprime les créneaux avant de la déclarer non travaillée.';
-  if(m.includes('validated_leave')) return 'Cette journée est couverte par un congé validé.';
-  if(m.includes('invalid_leave_dates')) return 'Vérifie les dates de début et de fin du congé.';
+  if(m.includes('validated_leave')) return 'Ce créneau chevauche un congé ou un RTT validé.';
+  if(m.includes('invalid_leave_dates')) return 'Vérifie les dates. Pour une demi-journée RTT, sélectionne une seule date.';
   if(m.includes('leave_overlap')) return 'Cette période chevauche déjà une autre demande de congé.';
   if(m.includes('leave_has_work')) return 'Des heures de travail existent déjà sur cette période. Corrige-les avant de valider le congé.';
   if(m.includes('leave_not_cancellable')) return 'Cette demande ne peut plus être annulée depuis le compte salarié.';
@@ -817,8 +818,22 @@ function segmentsFor(empId,date){return V2_DATA.segments.filter(s=>s.employeeId=
 function openSegmentFor(empId,date=iso()){return V2_DATA.segments.find(s=>s.employeeId===empId&&s.date===date&&!s.end)||null}
 function staleOpenSegmentFor(empId,date=iso()){return V2_DATA.segments.find(s=>s.employeeId===empId&&s.date!==date&&!s.end)||null}
 function grossSegmentsMinutes(segments=[]){return segments.reduce((sum,s)=>sum+timeSpanMinutes(s.start,s.end),0)}
+
+// A half-day RTT ends/starts at 13:00. Leave never creates worked minutes.
+function hasHalfDayRTT(empId,date){const l=leaveForDate(empId,date);return !!l&&!isFullDayLeave(l)}
+const LEAVE_LABELS={paid_leave:'Congé',rtt:'RTT',rtt_morning:'RTT matin',rtt_afternoon:'RTT après-midi'};
+function leaveLabel(l){return LEAVE_LABELS[l?.type]||'Congé'}
+function isFullDayLeave(l){return !!l&&!['rtt_morning','rtt_afternoon'].includes(l.type)}
+function leaveConflicts(l,start,end){
+  if(isFullDayLeave(l))return true;
+  const a=timeToMinutes(start),b=timeToMinutes(end);
+  if(l.type==='rtt_morning')return a===null||a<780;
+  return a===null||a>=780||(b!==null&&b>780);
+}
+function assertLeaveTime(empId,date,start,end){const l=leaveForDate(empId,date);if(l&&leaveConflicts(l,start,end))throw new Error('validated_leave')}
+
 function leaveForDate(empId,date,status='validated'){return V2_DATA.leaves.find(l=>l.employeeId===empId&&(!status||l.status===status)&&date>=l.startDate&&date<=l.endDate)||null}
-function isOnValidatedLeave(empId,date){return !!leaveForDate(empId,date,'validated')}
+function isOnValidatedLeave(empId,date){return isFullDayLeave(leaveForDate(empId,date,'validated'))}
 function timeSpanMinutes(start,end){
   if(!start||!end)return 0;
   const a=timeToMinutes(start),b=timeToMinutes(end);
@@ -896,7 +911,7 @@ function dayInfoFor(empId,date){
   const entry=APP_DATA.entries.find(x=>x.employeeId===empId&&x.date===date);
   const planned=isPlannedWorkingDay(empId,date);
   const leave=leaveForDate(empId,date,'validated');
-  if(leave)return {entry,status:'leave',minutes:0,label:'Congé',leave};
+  if(isFullDayLeave(leave))return {entry,status:'leave',minutes:0,label:leaveLabel(leave),leave};
   if(entry?.status==='off')return {entry,status:'off',minutes:0,label:'Non travaillé'};
   const segs=segmentsFor(empId,date);
   if(segs.length){
@@ -987,7 +1002,7 @@ async function employeeStartSegment(employerId,date=iso(),start=hm(),mode='now')
   const stale=staleOpenSegmentFor(employeeId,date),open=openSegmentFor(employeeId,date);
   if(stale)throw new Error('stale_open_segment');
   if(open)throw new Error('segment_already_open');
-  if(isOnValidatedLeave(employeeId,date))throw new Error('validated_leave');
+  assertLeaveTime(employeeId,date,start,'');
   const startMin=timeToMinutes(start);if(startMin===null)throw new Error('invalid_start_time');
   const overlap=segmentsFor(employeeId,date).some(seg=>seg.end&&startMin>=timeToMinutes(seg.start)&&startMin<timeToMinutes(seg.end));
   if(overlap)throw new Error('overlapping_segments');
@@ -1012,6 +1027,7 @@ async function employeeStopSegment(segmentId,end=hm(),mode='now'){
   if(endMin===null)throw new Error('invalid_end_time');
   if(endMin<startMin)throw new Error('end_before_start');
   if(endMin===startMin)throw new Error('zero_length_segment');
+  assertLeaveTime(employeeId,segment.date,segment.start,end);
   const overlap=segmentsFor(employeeId,segment.date).some(other=>other.id!==segment.id&&other.end&&startMin<timeToMinutes(other.end)&&timeToMinutes(other.start)<endMin);
   if(overlap)throw new Error('overlapping_segments');
   const action={
@@ -1083,21 +1099,23 @@ async function employeeSetDayOffV2(date,isOff){
   if(navigator.onLine)await syncEmployeeOfflineQueue();
   return true;
 }
-async function employeeRequestLeave(startDate,endDate,note=''){
+async function employeeRequestLeave(startDate,endDate,note='',leaveType='paid_leave'){
   const s=getSession();if(!s?.sessionToken)throw new Error('unauthorized');
   if(!startDate||!endDate||endDate<startDate)throw new Error('invalid_leave_dates');
+  if(!LEAVE_LABELS[leaveType]||(['rtt_morning','rtt_afternoon'].includes(leaveType)&&startDate!==endDate))throw new Error('invalid_leave_dates');
   const empId=CURRENT_EMPLOYEE?.id;
   const overlaps=V2_DATA.leaves.some(l=>l.employeeId===empId&&['pending','validated'].includes(l.status)&&l.startDate<=endDate&&l.endDate>=startDate);
   if(overlaps)throw new Error('leave_overlap');
   const hasWork=listDates(dateObjFromIso(startDate),dateObjFromIso(endDate)).some(date=>{
     const segs=segmentsFor(empId,date),entry=entryFor(empId,date,false);
-    return segs.length>0||(entry?.status==='worked'&&(entry.arrival||entry.departure));
+    const l={type:leaveType};
+    return segs.some(seg=>leaveConflicts(l,seg.start,seg.end))||(!segs.length&&entry?.status==='worked'&&(entry.arrival||entry.departure)&&leaveConflicts(l,entry.arrival,entry.departure));
   });
   if(hasWork)throw new Error('leave_has_work');
   const action={
     id:makeOfflineId('action'),type:'leave_request',clientEventId:makeOfflineId('event'),
     localLeaveId:makeOfflineId('local-leave'),employeeId:empId,
-    startDate,endDate,note:note||'',createdAt:new Date().toISOString()
+    startDate,endDate,leaveType,note:note||'',createdAt:new Date().toISOString()
   };
   saveEmployeeOfflineAction(action);
   if(navigator.onLine)await syncEmployeeOfflineQueue();
@@ -1149,9 +1167,9 @@ async function ownerSetDayOffV2(employeeId,date,isOff,validationStatus='pending'
   await rpc('api_owner_set_day_off_v2',{p_session_token:s.sessionToken,p_employee_id:employeeId,p_work_date:date,p_is_off:!!isOff,p_validation_status:validationStatus});
   await loadOwnerData();
 }
-async function ownerCreateLeave(employeeId,startDate,endDate,note=''){
+async function ownerCreateLeave(employeeId,startDate,endDate,note='',leaveType='paid_leave'){
   const s=getSession();if(!s?.sessionToken)throw new Error('unauthorized');
-  await rpc('api_owner_create_leave',{p_session_token:s.sessionToken,p_employee_id:employeeId,p_start_date:startDate,p_end_date:endDate,p_note:note||''});
+  await rpc('api_owner_create_leave_typed',{p_leave_type:leaveType,p_session_token:s.sessionToken,p_employee_id:employeeId,p_start_date:startDate,p_end_date:endDate,p_note:note||''});
   await loadOwnerData();
 }
 async function ownerReviewLeave(leaveId,status){
