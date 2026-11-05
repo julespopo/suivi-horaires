@@ -58,7 +58,8 @@ try{
  assert.equal(await page.locator('#planningModal').evaluate(el=>el.classList.contains('open')),true);
  await page.evaluate(()=>closePlanning());
  await page.evaluate(()=>{togglePlanningSelectionMode();document.querySelector('.completion-month-calendar').scrollLeft=120});
- await page.locator('.completion-day[onclick*="2026-11-04"]').click();
+ // Exercise the selection redraw without Playwright scrolling the button into view.
+ await page.locator('.completion-day[onclick*="2026-11-04"]').evaluate(button=>button.click());
  assert.equal(await page.evaluate(()=>selectedPlanningDates.has('2026-11-04')),true);
  assert.equal(await page.locator('.completion-month-calendar').evaluate(el=>el.scrollLeft),120);
  await page.evaluate(()=>{clearPlanningSelection();setPlanningView('week')});
