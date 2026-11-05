@@ -1,5 +1,5 @@
-const CACHE='suivi-horaires-validation-employer-20261103';
-const ASSETS=['./','./index.html','./employee.html','./pilotage.html','./styles/base.css?v=rc1','./styles/v2.css?v=rc1','./styles/current.css?v=calendar-dates-20261101','./config.js?v=2.0-alpha2.9','./app.js?v=hardening-20261101','./employee.js?v=hardening-20261101','./pilotage.js?v=validation-employer-20261103','./manifest-employee.json?v=2.0-alpha2.9','./manifest-pilotage.json?v=2.0-alpha2.9','./icons/icon.svg'];
+const CACHE='suivi-horaires-calendar-alignment-20261105';
+const ASSETS=['./','./index.html','./employee.html','./pilotage.html','./styles/base.css?v=rc1','./styles/v2.css?v=rc1','./styles/current.css?v=calendar-alignment-20261105','./config.js?v=2.0-alpha2.9','./app.js?v=hardening-20261101','./employee.js?v=hardening-20261101','./pilotage.js?v=calendar-alignment-20261105','./manifest-employee.json?v=2.0-alpha2.9','./manifest-pilotage.json?v=2.0-alpha2.9','./icons/icon.svg'];
 const OWNED_CACHE_PREFIX='suivi-horaires-';
 const ASSET_URLS=new Set(ASSETS.map(asset=>new URL(asset,self.location.href).href));
 const PAGE_PATHS=new Set(['./','./index.html','./employee.html','./pilotage.html'].map(page=>new URL(page,self.location.href).pathname));
@@ -43,3 +43,4 @@ self.addEventListener('notificationclick',event=>{
   event.notification.close();const url=new URL(event.notification.data?.url||'./',self.location.href);if(url.origin!==self.location.origin)return;const target=url.href;
   event.waitUntil(clients.matchAll({type:'window',includeUncontrolled:true}).then(list=>{for(const client of list){if(client.url===target&&'focus'in client)return client.focus()}return clients.openWindow?clients.openWindow(target):undefined}));
 });
+

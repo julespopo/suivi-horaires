@@ -294,6 +294,42 @@ body{
 .employer-admin-card,.settings-row,.planning-row,.validation-row{background:var(--soft)}
 .completion-day{border-radius:15px}
 .completion-day.upcoming{background:var(--card);border-color:var(--line);color:var(--muted)}
+/* One scroll surface keeps weekday headings aligned with the month cells. */
+.completion-month-calendar{
+  --month-columns:repeat(7,minmax(0,1fr));
+  --month-min-width:0px;
+  overflow-x:auto;
+  padding:3px 3px 6px;
+  overscroll-behavior-x:contain;
+}
+.completion-month-calendar .calendar-head,
+.completion-month-calendar .completion-grid{
+  display:grid;
+  grid-template-columns:var(--month-columns);
+  min-width:var(--month-min-width);
+  overflow:visible;
+  gap:8px;
+  padding:0;
+}
+.completion-month-calendar .calendar-empty{
+  display:block;
+  min-height:0;
+}
+@media(max-width:900px){
+  .completion-month-calendar{
+    --month-columns:repeat(7,minmax(64px,1fr));
+    --month-min-width:496px;
+  }
+  /* Week cards already include their own weekday and date. */
+  .completion-week-calendar .calendar-head{display:none}
+}
+@media(max-width:620px){
+  .completion-month-calendar{
+    --month-columns:repeat(7,minmax(68px,1fr));
+    --month-min-width:524px;
+  }
+}
+
 .bulk-planning-bar{border-radius:16px}
 .export-card{background:linear-gradient(135deg,var(--card),var(--accent-soft))}
 
@@ -1245,3 +1281,4 @@ th,td{border-color:var(--line)}
 }
 
 .preset-times{display:flex;gap:10px;margin:12px 0}.preset-times .btn{flex:1;min-height:44px}.compact-history{margin-top:10px}.history-day{border-bottom:1px solid var(--border,#526174)}.history-day summary{display:flex;align-items:center;gap:8px;min-height:42px;cursor:pointer;font-size:13px;list-style:none}.history-day summary::-webkit-details-marker{display:none}.history-day summary::after{content:"＋";color:var(--muted);font-size:15px}.history-day[open] summary::after{content:"−"}.history-day-value{margin-left:auto;font-weight:600;text-align:right}.history-day>div{padding-bottom:12px}.history-pagination{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px}.history-pagination .btn{min-height:36px;padding:6px 10px}.history-pagination span{font-size:12px;white-space:nowrap}.history-day .btn{margin-top:10px}
+

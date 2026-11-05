@@ -5,10 +5,11 @@
     "check": "node scripts/check-static.mjs",
     "test:db": "node scripts/test-rtt-db.mjs && node scripts/test-launch-db.mjs && node scripts/test-session-db.mjs",
     "test:worker": "node scripts/test-worker.mjs",
-    "test:ui": "node scripts/test-rtt-ui.mjs"
+    "test:ui": "node scripts/test-rtt-ui.mjs && node scripts/test-calendar-mobile.mjs"
   },
   "devDependencies": {
     "@electric-sql/pglite": "0.3.14",
     "@playwright/test": "1.56.1"
   }
 }
+
