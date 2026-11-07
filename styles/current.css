@@ -337,6 +337,14 @@ body{
 .employee-summary-card{cursor:pointer;transition:border-color .15s,box-shadow .15s}
 .employee-summary-card:hover{border-color:var(--accent);box-shadow:0 4px 18px color-mix(in srgb,var(--accent) 10%,transparent)}
 .employee-summary-card:focus-visible{outline:3px solid var(--control-focus);outline-offset:3px}
+.employee-summary-card>.row{min-height:34px;align-items:center}
+.employee-summary-card>.row .h3{margin-bottom:0;min-width:0;overflow-wrap:anywhere}
+.employee-summary-card .kpi-badges{flex-shrink:0;flex-wrap:nowrap}
+.employee-summary-card .stat-line>.subtle{margin-bottom:0}
+.employee-summary-card .kpi-week-line{align-items:center;min-height:62px}
+.kpi-week-value{display:grid;justify-items:end;align-content:start;gap:3px;min-height:44px}
+.kpi-threshold-note{font-size:11px;line-height:1.25;font-weight:650;color:var(--warn);white-space:nowrap}
+
 .employee-summary-link{display:flex;justify-content:space-between;gap:10px;margin-top:14px;font-size:12px;font-weight:700;color:var(--accent)}
 .employee-week-sheet{width:min(780px,calc(100vw - 28px))!important}
 .employee-week-heading{align-items:flex-start;gap:16px;padding-right:36px}

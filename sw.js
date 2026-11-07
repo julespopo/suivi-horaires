@@ -1,5 +1,5 @@
-const CACHE='suivi-horaires-employee-week-20261107b';
-const ASSETS=['./','./index.html','./employee.html','./pilotage.html','./styles/base.css?v=rc1','./styles/v2.css?v=rc1','./styles/current.css?v=employee-week-20261107b','./config.js?v=2.0-alpha2.9','./app.js?v=hardening-20261101','./employee.js?v=hardening-20261101','./pilotage.js?v=employee-week-20261107b','./employee-week.js?v=employee-week-20261107b','./manifest-employee.json?v=2.0-alpha2.9','./manifest-pilotage.json?v=2.0-alpha2.9','./icons/icon.svg'];
+const CACHE='suivi-horaires-employee-cards-20261107';
+const ASSETS=['./','./index.html','./employee.html','./pilotage.html','./styles/base.css?v=rc1','./styles/v2.css?v=rc1','./styles/current.css?v=employee-cards-20261107','./config.js?v=2.0-alpha2.9','./app.js?v=hardening-20261101','./employee.js?v=hardening-20261101','./pilotage.js?v=employee-cards-20261107','./employee-week.js?v=employee-cards-20261107','./manifest-employee.json?v=2.0-alpha2.9','./manifest-pilotage.json?v=2.0-alpha2.9','./icons/icon.svg'];
 const OWNED_CACHE_PREFIX='suivi-horaires-';
 const ASSET_URLS=new Set(ASSETS.map(asset=>new URL(asset,self.location.href).href));
 const PAGE_PATHS=new Set(['./','./index.html','./employee.html','./pilotage.html'].map(page=>new URL(page,self.location.href).pathname));
