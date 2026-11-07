@@ -21,6 +21,7 @@ function checkJs(name, source) {
 checkJs("app.js", read("app.js"));
 checkJs("employee.js", read("employee.js"));
 checkJs("pilotage.js", read("pilotage.js"));
+checkJs("employee-week.js", read("employee-week.js"));
 checkJs("sw.js", read("sw.js"));
 
 for (const page of ["employee.html", "pilotage.html"]) {
@@ -66,7 +67,7 @@ const forbiddenRoot = [
 ];
 for (const path of forbiddenRoot) ok(`Absent: ${path}`, !exists(path));
 
-const publicFiles = ["config.js", "app.js", "employee.js", "pilotage.js", "employee.html", "pilotage.html", "sw.js"];
+const publicFiles = ["config.js", "app.js", "employee.js", "pilotage.js", "employee-week.js", "employee.html", "pilotage.html", "sw.js"];
 const forbiddenSecrets = [
   /sb_secret_/i,
   /SUPABASE_SERVICE_ROLE_KEY\s*[:=]\s*["'][^"']+/i,
@@ -115,3 +116,4 @@ if (failures.length) {
   process.exit(1);
 }
 console.log("\nTous les contrôles statiques sont passés.");
+

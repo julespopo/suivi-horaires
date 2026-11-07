@@ -333,6 +333,54 @@ body{
 .bulk-planning-bar{border-radius:16px}
 .export-card{background:linear-gradient(135deg,var(--card),var(--accent-soft))}
 
+/* Synthèse hebdomadaire ouverte depuis une fiche salarié. */
+.employee-summary-card{cursor:pointer;transition:border-color .15s,box-shadow .15s}
+.employee-summary-card:hover{border-color:var(--accent);box-shadow:0 4px 18px color-mix(in srgb,var(--accent) 10%,transparent)}
+.employee-summary-card:focus-visible{outline:3px solid var(--control-focus);outline-offset:3px}
+.employee-summary-link{display:flex;justify-content:space-between;gap:10px;margin-top:14px;font-size:12px;font-weight:700;color:var(--accent)}
+.employee-week-sheet{width:min(780px,calc(100vw - 28px))!important}
+.employee-week-heading{align-items:flex-start;gap:16px;padding-right:36px}
+.employee-week-heading .h2{margin-bottom:5px}
+.employee-week-navigation{display:flex;align-items:center;justify-content:center;gap:10px}
+.employee-week-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.employee-week-summary>div{padding:14px;background:var(--soft);border:1px solid var(--line);border-radius:12px;min-width:0}
+.employee-week-summary span{display:block;font-size:12px;color:var(--muted);margin-bottom:7px}
+.employee-week-summary strong{display:block;font-size:25px;line-height:1.2;font-variant-numeric:tabular-nums}
+.employee-week-validation{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.employee-week-validation .btn{min-height:42px}
+.employee-week-message{margin-top:12px;color:var(--text)}
+.employee-week-message:empty{display:none}
+.employee-week-days{display:grid;gap:12px}
+.employee-week-day{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;min-width:0}
+.employee-week-day.before-start{opacity:.6}
+.employee-week-day-head,.employee-week-day-foot{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.employee-week-day-head{font-size:14px;margin-bottom:9px}
+.employee-week-day-head>strong:first-child{text-transform:capitalize}
+.employee-week-duration{white-space:nowrap;font-variant-numeric:tabular-nums}
+.employee-week-segment{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:5px 0;font-size:13px}
+.employee-week-segment span{overflow-wrap:anywhere;min-width:0}
+.employee-week-segment strong{white-space:nowrap;font-weight:650;font-variant-numeric:tabular-nums}
+.employee-week-day-meta{margin-top:5px;overflow-wrap:anywhere}
+.employee-week-day-foot{margin-top:11px}
+.employee-week-day-actions{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}
+.employee-week-backlog{border-top:1px solid var(--line);padding-top:16px}
+.employee-week-backlog>summary{cursor:pointer;color:var(--muted);font-size:13px;font-weight:700}
+@media(max-width:620px){
+ .employee-week-sheet{padding:20px 16px!important;max-height:92dvh}
+ .employee-week-heading{padding-right:27px;gap:8px}
+ .employee-week-heading>.btn{padding:9px 10px;min-height:40px}
+ .employee-week-summary{gap:7px}
+ .employee-week-summary>div{padding:11px 8px;border-radius:10px}
+ .employee-week-summary span{font-size:10px;line-height:1.4}
+ .employee-week-summary strong{font-size:22px}
+ .employee-week-validation{gap:10px}
+ .employee-week-validation>.btn{width:100%}
+ .employee-week-day{padding:12px}
+ .employee-week-day-actions .btn{min-height:38px;padding:8px 10px}
+ .employee-week-segment{font-size:12px;gap:8px}
+ .employee-week-day-meta{font-size:12px}
+}
+
 /* Modals */
 .modal{backdrop-filter:blur(4px);background:rgba(15,23,21,.42)}
 .sheet{background:var(--card)!important;border:1px solid var(--line);border-radius:24px!important;box-shadow:0 24px 70px rgba(0,0,0,.18)}

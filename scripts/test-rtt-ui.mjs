@@ -4,6 +4,7 @@ import path from 'node:path';
 import assert from 'node:assert/strict';
 const {chromium}=await import(process.env.PLAYWRIGHT_MODULE||'playwright');
 const root=process.cwd();
+const expectedStyle=fs.readFileSync('sw.js','utf8').match(/'\.\/(styles\/current\.css[^']+)'/)[1];
 const expectedCache=fs.readFileSync('sw.js','utf8').match(/const CACHE='([^']+)'/)[1];
 const server=http.createServer((req,res)=>{const file=path.join(root,(new URL(req.url,'http://localhost').pathname==='/'?'/index.html':new URL(req.url,'http://localhost').pathname));try{res.setHeader('Content-Type',file.endsWith('.js')?'text/javascript':file.endsWith('.css')?'text/css':file.endsWith('.svg')?'image/svg+xml':'text/html');res.end(fs.readFileSync(file))}catch{res.statusCode=404;res.end()}});
 await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
@@ -91,7 +92,7 @@ try{
  await pwa.waitForFunction(()=>!!navigator.serviceWorker.controller);
  ok('PWA : nouveau cache installé',await pwa.evaluate(async cacheName=> (await caches.keys()).includes(cacheName),expectedCache));
  const cached=await pwa.evaluate(async cacheName=>{const cache=await caches.open(cacheName);return (await cache.keys()).map(r=>r.url)},expectedCache);
- ok('PWA : scripts et styles versionnés en cache',cached.some(u=>u.endsWith('app.js?v=hardening-20261101'))&&cached.some(u=>u.endsWith('employee.js?v=hardening-20261101'))&&cached.some(u=>u.endsWith('styles/current.css?v=calendar-alignment-20261105')));
+ ok('PWA : scripts et styles versionnés en cache',cached.some(u=>u.endsWith('app.js?v=hardening-20261101'))&&cached.some(u=>u.endsWith('employee.js?v=hardening-20261101'))&&cached.some(u=>u.endsWith(expectedStyle)));
  await pwaContext.setOffline(true);await pwa.reload();
  ok('PWA : écran et nouveaux contrôles disponibles hors ligne',await pwa.locator('#leaveType option[value="rtt_morning"]').count()===1&&await pwa.evaluate(()=>typeof startPreset==='function'));
  await pwaContext.close();

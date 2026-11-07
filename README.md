@@ -104,6 +104,14 @@ Les corrections complexes de l'historique restent volontairement réservées au 
 
 La fonction serveur de référence se trouve dans `supabase/functions/send-reminders/`.
 
+## Synthèse et validation par salarié
+
+Dans le Pilotage, cliquer sur une fiche salarié (ou utiliser Entrée / Espace) ouvre sa semaine en cours : créneaux et employeurs par jour, pauses, congés / RTT, total des heures saisies, référence hebdomadaire et écart. Les semaines précédentes et les autres journées en attente restent accessibles depuis cette fenêtre.
+
+Chaque journée peut être corrigée avec l’éditeur existant ou validée individuellement. Le bouton de validation groupée prend uniquement les journées complètes en attente de la semaine affichée, y compris les journées déclarées non travaillées. Il exclut les créneaux ouverts, les journées futures et les congés journée. Une actualisation précède la validation : les journées modifiées depuis leur consultation restent à vérifier. En cas de panne, les validations déjà reçues par le serveur sont conservées ; l’interface indique le résultat et les journées restantes.
+
+Les validations réutilisent `api_owner_validate_entry` et ses contrôles de session. Aucun changement de schéma n’est nécessaire. Le test navigateur `scripts/test-employee-week.mjs` utilise exclusivement des données fictives et bloque les accès externes.
+
 ## Développement
 
 La branche `main` doit rester utilisable.
@@ -176,3 +184,4 @@ Le cache conserve uniquement les fichiers connus de cette application. Les liens
 Les noms sont échappés avant leur insertion dans les vues HTML. Les sessions des comptes désactivés sont refusées immédiatement. La synthèse du soir distingue le RTT journée de la demi-journée RTT.
 
 La couverture navigateur automatisée utilise Chromium ; iPhone/Safari et les notifications push nécessitent également une vérification sur les appareils réels. Les sauvegardes de préparation sont privées ; elles ne remplacent pas une politique de sauvegarde régulière de production.
+
