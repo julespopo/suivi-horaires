@@ -1132,6 +1132,32 @@ th,td{border-color:var(--line)}
   border-color:#35495f!important;
   color:var(--text)!important;
 }
+/* Le pilotage conserve ses couleurs métier en mode nuit. */
+:root[data-theme="dark"] .completion-day.all{
+  background:#173c32!important;
+  border-color:#315f4c!important;
+  color:#a6dfc0!important;
+}
+:root[data-theme="dark"] .completion-day.partial{
+  background:#40321e!important;
+  border-color:#74592d!important;
+  color:#edc77b!important;
+}
+:root[data-theme="dark"] .completion-day.none{
+  background:#3e292a!important;
+  border-color:#744446!important;
+  color:#f0b0a9!important;
+}
+:root[data-theme="dark"] .completion-day.weekend{
+  background:#202c3a!important;
+  border-color:#354353!important;
+  color:#aab7c6!important;
+}
+:root[data-theme="dark"] .completion-day.upcoming{
+  background:#182534!important;
+  border-color:#35495f!important;
+  color:#bcc8d5!important;
+}
 :root[data-theme="dark"] .calendar-day.complete{
   background:#17332f!important;
   border-color:#2e574e!important;
@@ -1150,6 +1176,13 @@ th,td{border-color:var(--line)}
 :root[data-theme="dark"] .completion-day.today{
   border-color:#82b7e3!important;
   outline-color:rgba(111,167,214,.34)!important;
+}
+/* La sélection reste visible, quel que soit l’état de la journée. */
+:root[data-theme="dark"] .completion-day.selected-for-bulk{
+  background:#302d4b!important;
+  border-color:#8b82ff!important;
+  outline-color:#8b82ff!important;
+  color:#e4dcff!important;
 }
 :root[data-theme="dark"] .employee-pause-panel{
   background:#293024!important;

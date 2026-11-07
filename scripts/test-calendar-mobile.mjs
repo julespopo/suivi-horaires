@@ -68,6 +68,39 @@ try{
  await page.evaluate(()=>renderOwner());
  assert.equal(await page.locator('.planning-week-grid').evaluate(el=>el.scrollLeft),weekScroll);
  console.log('✓ Navigation, ouverture d’une date, sélection multiple et vue semaine');
+ await page.clock.install({time:new Date('2026-11-07T12:00:00+01:00')});
+ await page.evaluate(()=>{
+  EMPLOYEES.push({...EMPLOYEES[0],id:'fixture-b',name:'Autre salarié fictif'});hydrateEmployeeSettings();
+  APP_DATA.entries=[
+   {employeeId:'fixture',date:'2026-11-02',status:'worked',arrival:'08:00',departure:'17:00',pause:60},
+   {employeeId:'fixture-b',date:'2026-11-02',status:'worked',arrival:'08:00',departure:'17:00',pause:60},
+   {employeeId:'fixture',date:'2026-11-03',status:'worked',arrival:'08:00',departure:'17:00',pause:60}
+  ];
+  completionCursor=dateObjFromIso('2026-11-05');setPlanningView('month');
+ });
+ const palette=()=>Object.fromEntries(['all','partial','none','weekend','upcoming'].flatMap(state=>{
+  const el=document.querySelector('.completion-day.'+state);if(!el)return [];
+  const style=getComputedStyle(el);return [[state,{background:style.backgroundColor,text:style.color}]];
+ }));
+ for(const theme of ['light','dark']){
+  await page.evaluate(theme=>{applyTheme(theme);setPlanningView('month')},theme);
+  const month=await page.evaluate(palette);
+  assert.equal(new Set(Object.values(month).map(value=>value.background)).size,5,`${theme}: all calendar states must remain visually distinct`);
+  if(theme==='dark'){
+   for(const value of Object.values(month)){
+    const luminance=color=>color.match(/[\d.]+/g).slice(0,3).map(Number).map(x=>x/255).map(x=>x<=.04045?x/12.92:((x+.055)/1.055)**2.4).reduce((s,x,i)=>s+x*[.2126,.7152,.0722][i],0);
+    const a=luminance(value.background),b=luminance(value.text);
+    assert.ok((Math.max(a,b)+.05)/(Math.min(a,b)+.05)>=4.5,'Readable dark calendar labels');
+   }
+  }
+  await page.evaluate(()=>setPlanningView('week'));const week=await page.evaluate(palette);
+  for(const state of ['all','partial','none','weekend'])assert.deepEqual(week[state],month[state],`${theme}: same status palette in week and month`);
+  await page.evaluate(()=>{togglePlanningSelectionMode();togglePlanningDateSelection('2026-11-02')});
+  const selection=await page.locator('.completion-day.selected-for-bulk').evaluate(el=>getComputedStyle(el).backgroundColor);
+  assert.notEqual(selection,month.all.background,`${theme}: selection must remain distinct from complete status`);
+  await page.evaluate(()=>clearPlanningSelection());
+ }
+ console.log('✓ Couleurs des états conservées en mode jour/nuit, contraste lisible et sélection distincte');
  await page.evaluate(()=>{setPlanningView('month');document.querySelector('.completion-month-calendar').scrollLeft=100});
  if(process.env.CALENDAR_SCREENSHOT)await page.locator('#completionCalendar').screenshot({path:process.env.CALENDAR_SCREENSHOT});
  assert.deepEqual(errors,[]);
