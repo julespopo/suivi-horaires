@@ -372,10 +372,12 @@ body{
  .employee-week-summary{gap:7px}
  .employee-week-summary>div{padding:11px 8px;border-radius:10px}
  .employee-week-summary span{font-size:10px;line-height:1.4}
- .employee-week-summary strong{font-size:22px}
+ .employee-week-summary strong{font-size:clamp(18px,5.4vw,22px)}
  .employee-week-validation{gap:10px}
  .employee-week-validation>.btn{width:100%}
  .employee-week-day{padding:12px}
+ .employee-week-day-foot{flex-wrap:wrap}
+ .employee-week-day-actions{margin-left:auto}
  .employee-week-day-actions .btn{min-height:38px;padding:8px 10px}
  .employee-week-segment{font-size:12px;gap:8px}
  .employee-week-day-meta{font-size:12px}
