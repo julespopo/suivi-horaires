@@ -24,6 +24,19 @@ try{
   V2_DATA={employers:[],assignments:[],segments:[],leaves:[]};
   invalidView.classList.add('hidden');appView.classList.remove('hidden');
  });
+ await page.evaluate(()=>{completionCursor=dateObjFromIso('2026-11-11');planningView='month';renderOwner()});
+ assert.equal(await page.locator('.completion-day[onclick*="2026-11-11"] .completion-label').innerText(),'Férié');
+ assert.equal(await page.locator('.completion-day[onclick*="2026-11-11"]').getAttribute('title'),'Armistice 1918');
+ await page.evaluate(()=>openPlanning('2026-11-11'));
+ assert.ok((await page.locator('#planningDateLabel').innerText()).includes('Armistice'));
+ assert.equal(await page.locator('[data-plan-emp="fixture"]').isChecked(),false);
+ await page.evaluate(()=>{closePlanning();APP_DATA.settings.plannedDays={fixture:{'2026-11-11':true}};renderOwner()});
+ assert.notEqual(await page.locator('.completion-day[onclick*="2026-11-11"] .completion-label').innerText(),'Férié');
+ await page.evaluate(()=>{APP_DATA.settings.plannedDays={};APP_DATA.entries=[{employeeId:'fixture',date:'2026-11-11',status:'worked',arrival:'08:00',departure:'12:00',pause:0,validationStatus:'pending'}];renderOwner()});
+ assert.equal(await page.locator('.completion-day[onclick*="2026-11-11"] .completion-label').innerText(),'Complet');
+ assert.ok((await page.evaluate(()=>employeeWeekDayHtml('fixture','2026-11-11'))).includes('À valider'));
+ await page.evaluate(()=>{APP_DATA.entries=[]});
+ console.log('✓ Calendrier pilotage : férié identifié, exception travaillée et heures réelles prioritaires');
  for(const width of [320,390,620,768,900,1280]){
   await page.setViewportSize({width,height:1000});
   for(const date of ['2026-11-01','2026-12-01','2027-02-01','2028-02-01']){

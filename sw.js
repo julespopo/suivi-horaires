@@ -1,5 +1,5 @@
-const CACHE='suivi-horaires-calendar-colors-20261107';
-const ASSETS=['./','./index.html','./employee.html','./pilotage.html','./styles/base.css?v=rc1','./styles/v2.css?v=rc1','./styles/current.css?v=calendar-colors-20261107','./config.js?v=2.0-alpha2.9','./app.js?v=hardening-20261101','./employee.js?v=hardening-20261101','./pilotage.js?v=calendar-colors-20261107','./employee-week.js?v=calendar-colors-20261107','./manifest-employee.json?v=2.0-alpha2.9','./manifest-pilotage.json?v=2.0-alpha2.9','./icons/icon.svg'];
+const CACHE='suivi-horaires-holidays-20261112';
+const ASSETS=['./','./index.html','./employee.html','./pilotage.html','./styles/base.css?v=rc1','./styles/v2.css?v=rc1','./styles/current.css?v=holidays-20261112','./config.js?v=2.0-alpha2.9','./supabase/functions/shared/french-holidays.js?v=holidays-20261112','./app.js?v=holidays-20261112','./employee.js?v=holidays-20261112','./pilotage.js?v=holidays-20261112','./employee-week.js?v=holidays-20261112','./manifest-employee.json?v=2.0-alpha2.9','./manifest-pilotage.json?v=2.0-alpha2.9','./icons/icon.svg'];
 const OWNED_CACHE_PREFIX='suivi-horaires-';
 const ASSET_URLS=new Set(ASSETS.map(asset=>new URL(asset,self.location.href).href));
 const PAGE_PATHS=new Set(['./','./index.html','./employee.html','./pilotage.html'].map(page=>new URL(page,self.location.href).pathname));

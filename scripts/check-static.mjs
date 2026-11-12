@@ -18,6 +18,7 @@ function checkJs(name, source) {
   }
 }
 
+checkJs("supabase/functions/shared/french-holidays.js", read("supabase/functions/shared/french-holidays.js"));
 checkJs("app.js", read("app.js"));
 checkJs("employee.js", read("employee.js"));
 checkJs("pilotage.js", read("pilotage.js"));
@@ -46,6 +47,10 @@ const sw = read("sw.js");
 const assetMatch = sw.match(/const ASSETS=\[(.*?)\];/s);
 if (assetMatch) {
   const assets = [...assetMatch[1].matchAll(/'([^']+)'/g)].map((m) => m[1]);
+  for(const page of ['index.html','employee.html','pilotage.html']){
+    const references=[...read(page).matchAll(/(?:src|href)="([^"]+\.(?:js|css)\?[^"]+)"/g)].map(m=>'./'+m[1]);
+    ok(`Scripts et styles de ${page} disponibles hors ligne`,references.every(url=>assets.includes(url)));
+  }
   for (const asset of assets) {
     const path = asset.replace(/^\.\//, "").split("?")[0] || "index.html";
     ok(`Asset SW présent: ${path}`, exists(path));

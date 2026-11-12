@@ -64,7 +64,7 @@ function employeeWeekDayHtml(employeeId,date){
   const info=dayInfoFor(employeeId,date),entry=entryFor(employeeId,date,false),segments=segmentsFor(employeeId,date);
   const leave=leaveForDate(employeeId,date),fullLeave=isFullDayLeave(leave),beforeStart=isBeforeAppStart(date);
   const open=segments.some(s=>!s.end),future=isFuture(date);
-  let label=beforeStart?'Hors période':fullLeave?leaveLabel(leave):entry?.status==='off'?'Non travaillé':entry?.validationStatus==='validated'?'Validé':employeeWeekCanValidate(employeeId,date)?'À valider':open?'En cours':info.status==='complete'?'Saisi':info.status==='scheduled-off'?'Repos prévu':future?'Prévu':'À compléter';
+  let label=beforeStart?'Hors période':fullLeave?leaveLabel(leave):entry?.status==='off'?'Non travaillé':entry?.validationStatus==='validated'?'Validé':employeeWeekCanValidate(employeeId,date)?'À valider':open?'En cours':info.status==='complete'?'Saisi':info.status==='scheduled-off'?(publicHolidayName(date)||'Repos prévu'):future?'Prévu':'À compléter';
   const tone=label==='Validé'?'ok':label==='À valider'||label==='À compléter'?'warn':'neutral';
   let details='';
   if(!beforeStart&&!fullLeave&&entry?.status!=='off'){

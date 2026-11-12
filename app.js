@@ -892,7 +892,8 @@ function entryFor(emp,date,create=false){
   return e;
 }
 function employeeSettings(empId){return APP_DATA.settings.employeeSettings[empId]||{weeklyObjectiveMinutes:2100,overtimeThresholdMinutes:2100}}
-function isPlannedWorkingDay(empId,date){if(isBeforeAppStart(date))return false;const over=APP_DATA.settings.plannedDays?.[empId]?.[date];if(typeof over==='boolean')return over;const day=dateObjFromIso(date).getDay();return day!==0&&day!==6}
+function publicHolidayName(date){return globalThis.FrenchHolidays.name(date)}
+function isPlannedWorkingDay(empId,date){if(isBeforeAppStart(date))return false;const over=APP_DATA.settings.plannedDays?.[empId]?.[date];if(typeof over==='boolean')return over;const day=dateObjFromIso(date).getDay();return day!==0&&day!==6&&!publicHolidayName(date)}
 function recentDates(days=21){let arr=[],d=new Date();for(let i=0;i<days;i++){let x=new Date(d);x.setDate(d.getDate()-i);const value=iso(x);if(isBeforeAppStart(value))break;arr.push(value)}return arr}
 function tasksFor(emp){
   return recentDates(62).filter(date=>{
@@ -927,7 +928,7 @@ function dayInfoFor(empId,date){
     const open=segs.some(s=>!s.end);
     return {entry,status:open?'incomplete':'complete',minutes:total,label:open?'En cours':fmtMin(total),segments:segs};
   }
-  if(!entry)return {entry:null,status:planned?'empty':'scheduled-off',minutes:0,label:planned?'À compléter':'Non travaillé prévu'};
+  if(!entry)return {entry:null,status:planned?'empty':'scheduled-off',minutes:0,label:planned?'À compléter':publicHolidayName(date)||'Non travaillé prévu'};
   const total=minutes(entry.arrival,entry.departure,entry.pause);
   if(entry.arrival&&entry.departure)return {entry,status:'complete',minutes:total,label:fmtMin(total)};
   return {entry,status:'incomplete',minutes:total,label:'À compléter'};

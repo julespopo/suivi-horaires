@@ -23,6 +23,25 @@ const setup=`
 let tests=0;function ok(name,result){assert.ok(result,name);tests++;console.log('✓ '+name)}
 try{
  await page.goto(base+'/employee.html');await page.evaluate(setup+`emp=CURRENT_EMPLOYEE;APP_DATA.settings.plannedDays[emp.id]={[iso()]:true};render();`);
+ // Holiday default must neither require a submission nor block exceptional/offline work.
+ await page.clock.setFixedTime(new Date('2026-11-11T12:00:00+01:00'));
+ await page.evaluate(()=>{APP_DATA.settings.plannedDays={};render()});
+ ok('Férié : statut visible et aucune arrivée exigée',await page.locator('#dayStatus').innerText().then(s=>s.includes('Férié')&&s.includes('Armistice'))&&await page.locator('#arrivalNowBtn').isDisabled());
+ await page.clock.setFixedTime(new Date('2026-11-12T12:00:00+01:00'));
+ ok('11 novembre : aucune tâche à compléter ni validation artificielle',await page.evaluate(()=>!tasksFor(emp.id).some(t=>t.date==='2026-11-11')&&dayInfoFor(emp.id,'2026-11-11').status==='scheduled-off'&&!entryFor(emp.id,'2026-11-11',false)));
+ ok('Calendrier salarié : nom du férié',await page.evaluate(()=>calendarCard({...dayInfoFor(emp.id,'2026-11-11'),date:'2026-11-11'},false).includes('Armistice 1918')));
+ await page.clock.setFixedTime(new Date('2026-11-11T12:00:00+01:00'));
+ await page.evaluate(()=>{APP_DATA.settings.plannedDays[emp.id]={[iso()]:true};render()});
+ ok('Férié explicitement travaillé : saisie disponible',!await page.locator('#arrivalNowBtn').isDisabled());
+ await page.evaluate(()=>{APP_DATA.settings.plannedDays={};window.fixtureGetSession=getSession;getSession=()=>({role:'employee',sessionToken:'fixture-only'});render()});
+ await context.setOffline(true);
+ await page.evaluate(async()=>{await employeeSetDayOffV2(iso(),false);emp=CURRENT_EMPLOYEE;render()});
+ await page.getByRole('button',{name:'07h30',exact:true}).click();
+ ok('Férié hors ligne : travail exceptionnel conservé en attente',await page.evaluate(()=>V2_DATA.segments.length===1&&V2_DATA.segments[0].start==='07:30'&&getEmployeeOfflineQueue().length===2));
+ await context.setOffline(false);
+ await page.evaluate(()=>{getSession=window.fixtureGetSession;localStorage.clear();V2_DATA.segments=[];APP_DATA.entries=[];APP_DATA.settings.plannedDays={};});
+ await page.clock.setFixedTime(new Date('2026-11-16T12:00:00+01:00'));
+ await page.evaluate(()=>{APP_DATA.settings.plannedDays[emp.id]={[iso()]:true};render()});
  ok('Dates : année bissextile et changement d’année',await page.evaluate(()=>iso(dateObjFromIso('2028-02-29'))==='2028-02-29'&&listDates(dateObjFromIso('2027-12-31'),dateObjFromIso('2028-01-02')).join(',')==='2027-12-31,2028-01-01,2028-01-02'));
  await page.clock.setFixedTime(new Date('2030-12-31T12:00:00+01:00'));
  ok('Période de données suit automatiquement les années futures',await page.evaluate(()=>defaultRange().to==='2031-12-31'));
@@ -92,7 +111,7 @@ try{
  await pwa.waitForFunction(()=>!!navigator.serviceWorker.controller);
  ok('PWA : nouveau cache installé',await pwa.evaluate(async cacheName=> (await caches.keys()).includes(cacheName),expectedCache));
  const cached=await pwa.evaluate(async cacheName=>{const cache=await caches.open(cacheName);return (await cache.keys()).map(r=>r.url)},expectedCache);
- ok('PWA : scripts et styles versionnés en cache',cached.some(u=>u.endsWith('app.js?v=hardening-20261101'))&&cached.some(u=>u.endsWith('employee.js?v=hardening-20261101'))&&cached.some(u=>u.endsWith(expectedStyle)));
+ ok('PWA : scripts et styles versionnés en cache',cached.some(u=>u.endsWith('app.js?v=holidays-20261112'))&&cached.some(u=>u.endsWith('employee.js?v=holidays-20261112'))&&cached.some(u=>u.endsWith(expectedStyle)));
  await pwaContext.setOffline(true);await pwa.reload();
  ok('PWA : écran et nouveaux contrôles disponibles hors ligne',await pwa.locator('#leaveType option[value="rtt_morning"]').count()===1&&await pwa.evaluate(()=>typeof startPreset==='function'));
  await pwaContext.close();
