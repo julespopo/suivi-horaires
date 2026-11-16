@@ -287,7 +287,78 @@ saveOwnerEdit=async function(){
   });
 };
 
-function renderV2Pilotage(){renderEmployersV2();renderOwnerLeavesV2()}
+// --- Heures supplémentaires, 13e mois et répartition par employeur ---
+// Heures supp : par semaine (lundi → dimanche), ce qui dépasse le seuil hebdomadaire du salarié
+// (Réglages du temps de travail). Une semaine est rattachée au mois et à l'année de son jeudi,
+// pour qu'une semaine à cheval sur deux mois ne soit comptée qu'une seule fois.
+// Cagnotte 13e mois : cumul des heures supp depuis le 1er janvier (année civile).
+function overtimeWeekThursday(weekStart){const d=new Date(weekStart);d.setDate(d.getDate()+3);return iso(d)}
+function weeklyOvertimeMinutes(empId,weekStart){
+  const threshold=Number(employeeSettings(empId).overtimeThresholdMinutes||0);
+  if(threshold<=0)return 0;
+  const ws=startOfWeek(weekStart),we=new Date(ws);we.setDate(ws.getDate()+6);
+  return Math.max(0,totalFor(empId,ws,we)-threshold);
+}
+function overtimeBetween(empId,fromIso,toIso){
+  let sum=0;const ws=startOfWeek(dateObjFromIso(fromIso)),last=dateObjFromIso(toIso);
+  while(ws<=last){
+    const thursday=overtimeWeekThursday(ws);
+    if(thursday>=fromIso&&thursday<=toIso&&thursday>=APP_START_DATE)sum+=weeklyOvertimeMinutes(empId,ws);
+    ws.setDate(ws.getDate()+7);
+  }
+  return sum;
+}
+function monthOvertimeMinutes(empId,year,monthIndex){return overtimeBetween(empId,iso(new Date(year,monthIndex,1,12)),iso(new Date(year,monthIndex+1,0,12)))}
+function thirteenthMonthMinutes(empId,year,untilIso=`${year}-12-31`){return overtimeBetween(empId,`${year}-01-01`,untilIso)}
+// Minutes par employeur sur une journée : la pause est répartie au prorata des créneaux.
+function employerMinutesForDay(empId,date){
+  const total=workMinutesForDay(empId,date);if(!total)return [];
+  const segs=segmentsFor(empId,date);
+  if(!segs.length)return [{id:'',name:'Non renseigné',minutes:total}];
+  const byEmployer=new Map();let gross=0;
+  segs.forEach(s=>{const m=timeSpanMinutes(s.start,s.end);if(!m)return;const key=s.employerId||'';const cur=byEmployer.get(key)||{id:key,name:s.employerName||employerFor(key)?.name||'Non renseigné',minutes:0};cur.minutes+=m;byEmployer.set(key,cur);gross+=m});
+  if(!gross)return [];
+  const list=[...byEmployer.values()];let assigned=0;
+  list.forEach((x,i)=>{const share=i===list.length-1?total-assigned:Math.round(total*x.minutes/gross);assigned+=share;x.minutes=share});
+  return list;
+}
+function employerTotalsFor(empId,start,end){
+  const totals=new Map();
+  listDates(start,end).forEach(date=>employerMinutesForDay(empId,date).forEach(x=>{const cur=totals.get(x.id)||{id:x.id,name:x.name,minutes:0};cur.minutes+=x.minutes;totals.set(x.id,cur)}));
+  return totals;
+}
+function buildTeamRecap(start,end,employees){
+  const year=start.getFullYear(),monthEndIso=iso(end);
+  const rowsData=employees.map(emp=>({emp,byEmployer:employerTotalsFor(emp.id,start,end),total:totalFor(emp.id,start,end),overtime:monthOvertimeMinutes(emp.id,year,start.getMonth()),bank:thirteenthMonthMinutes(emp.id,year,monthEndIso),threshold:Number(employeeSettings(emp.id).overtimeThresholdMinutes||0)}));
+  const columns=new Map();
+  rowsData.forEach(r=>r.byEmployer.forEach(x=>{if(x.minutes>0&&!columns.has(x.id))columns.set(x.id,x.name)}));
+  const cols=[...columns.entries()].sort((a,b)=>a[0]===''?1:b[0]===''?-1:a[1].localeCompare(b[1],'fr'));
+  const sum=fn=>rowsData.reduce((s,r)=>s+fn(r),0);
+  const cell=m=>m?fmtMin(m):'—';
+  const body=rowsData.map(r=>`<tr><td><strong>${ownerEscape(r.emp.name)}</strong><div class="print-team-sub">Seuil ${r.threshold?fmtMin(r.threshold):'non défini'} / sem.</div></td>${cols.map(([id])=>`<td class="print-number-cell">${cell(r.byEmployer.get(id)?.minutes||0)}</td>`).join('')}<td class="print-number-cell"><strong>${fmtMin(r.total)}</strong></td><td class="print-number-cell">${cell(r.overtime)}</td><td class="print-number-cell"><strong>${fmtMin(r.bank)}</strong></td></tr>`).join('');
+  const foot=`<tr class="print-team-total"><td>Total équipe</td>${cols.map(([id])=>`<td class="print-number-cell">${cell(sum(r=>r.byEmployer.get(id)?.minutes||0))}</td>`).join('')}<td class="print-number-cell">${fmtMin(sum(r=>r.total))}</td><td class="print-number-cell">${cell(sum(r=>r.overtime))}</td><td class="print-number-cell">${fmtMin(sum(r=>r.bank))}</td></tr>`;
+  const generatedAt=new Intl.DateTimeFormat('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric'}).format(new Date());
+  return `<article class="print-employee print-team-recap">
+    <header class="print-employee-head">
+      <div><div class="print-kicker">Synthèse globale</div><h1>Heures par employeur</h1><div class="print-period">${ownerEscape(monthLabel(start))}</div></div>
+      <div class="print-generated">Édité le ${generatedAt}</div>
+    </header>
+    <table class="print-team-table">
+      <thead><tr><th>Salarié</th>${cols.map(([,name])=>`<th>${ownerEscape(name)}</th>`).join('')}<th>Total du mois</th><th>Heures supp du mois</th><th>Cagnotte 13e mois ${year}</th></tr></thead>
+      <tbody>${body||`<tr><td colspan="${cols.length+4}" class="print-empty">Aucun salarié.</td></tr>`}</tbody>
+      <tfoot>${foot}</tfoot>
+    </table>
+    <div class="print-team-note">Heures supp : heures travaillées au-delà du seuil hebdomadaire de chaque salarié, semaine par semaine. Une semaine à cheval sur deux mois est rattachée au mois de son jeudi. La cagnotte 13e mois cumule les heures supp depuis le 1er janvier ${year}, jusqu’à la fin de ce mois.</div>
+  </article>`;
+}
+function decorateOwnerCardsWithOvertime(){
+  const now=new Date(),year=now.getFullYear(),month=now.getMonth();
+  cards.querySelectorAll('[data-week-employee]').forEach(card=>{
+    const empId=card.dataset.weekEmployee,list=card.querySelector('.stat-list');if(!list||list.querySelector('.kpi-overtime-line'))return;
+    list.insertAdjacentHTML('beforeend',`<div class="stat-line kpi-overtime-line"><span class="subtle">Heures supp (mois)</span><strong>${fmtMin(monthOvertimeMinutes(empId,year,month))}</strong></div><div class="stat-line kpi-overtime-line"><span class="subtle">Cagnotte 13e mois ${year}</span><strong>${fmtMin(thirteenthMonthMinutes(empId,year,iso(now)))}</strong></div>`);
+  });
+}
+function renderV2Pilotage(){renderEmployersV2();renderOwnerLeavesV2();decorateOwnerCardsWithOvertime()}
 const renderOwnerBaseV2=renderOwner;
 renderOwner=function(){renderOwnerBaseV2();renderV2Pilotage()};
 
@@ -392,7 +463,8 @@ buildPrintReport=function(monthValue,employeeId='all'){
       if(closesWeek){
         const label=weekLabel(meta);
         const totalWeek=weekTotals.get(meta.key)||0;
-        weekRow=`<tr class="print-week-total"><td colspan="6"><div><span>${label.text}</span><strong>${fmtMin(totalWeek)} travaillées</strong>${label.partial?'':`<span>Réf. ${fmtMin(settings.weeklyObjectiveMinutes)}</span>`}</div></td></tr>`;
+        const weekOvertime=label.partial?0:weeklyOvertimeMinutes(emp.id,meta.start);
+        weekRow=`<tr class="print-week-total"><td colspan="6"><div><span>${label.text}</span><strong>${fmtMin(totalWeek)} travaillées</strong>${label.partial?'':`<span>Réf. ${fmtMin(settings.weeklyObjectiveMinutes)}</span>`}${weekOvertime?`<span class="print-week-overtime">+${fmtMin(weekOvertime)} supp</span>`:''}</div></td></tr>`;
       }
 
       return `<tr class="print-day-row ${statusClass}">
@@ -406,6 +478,9 @@ buildPrintReport=function(monthValue,employeeId='all'){
     }).join('');
 
     const total=totalFor(emp.id,start,end);
+    const monthOvertime=monthOvertimeMinutes(emp.id,start.getFullYear(),start.getMonth());
+    const bank=thirteenthMonthMinutes(emp.id,start.getFullYear(),monthEndIso);
+    const employerLine=[...employerTotalsFor(emp.id,start,end).values()].filter(x=>x.minutes>0).sort((a,b)=>b.minutes-a.minutes).map(x=>`<span><strong>${ownerEscape(x.name)}</strong> ${fmtMin(x.minutes)}</span>`).join('');
     return `<article class="print-employee">
       <header class="print-employee-head">
         <div>
@@ -422,7 +497,10 @@ buildPrintReport=function(monthValue,employeeId='all'){
         <div><span>Jours de congé / RTT</span><strong>${leaveDays}</strong></div>
         <div class="${incompleteDays?'print-summary-alert':''}"><span>À compléter</span><strong>${incompleteDays}</strong></div>
         <div class="${pendingDays?'print-summary-pending':''}"><span>À valider</span><strong>${pendingDays}</strong></div>
+        <div><span>Heures supp du mois</span><strong>${fmtMin(monthOvertime)}</strong></div>
+        <div><span>Cagnotte 13e mois ${start.getFullYear()}</span><strong>${fmtMin(bank)}</strong></div>
       </section>
+      ${employerLine?`<div class="print-employer-line"><span class="print-employer-label">Par employeur</span>${employerLine}</div>`:''}
       <table class="print-hours-table">
         <thead><tr><th>Date</th><th>Statut</th><th>Créneaux / employeur</th><th>Pause</th><th>Total</th><th>Validation</th></tr></thead>
         <tbody>${rows||'<tr><td colspan="6" class="print-empty">Aucune donnée sur cette période.</td></tr>'}</tbody>
@@ -431,7 +509,8 @@ buildPrintReport=function(monthValue,employeeId='all'){
     </article>`;
   }).join('');
 
-  printReport.innerHTML=`${employeeHtml}<div class="print-global-note">Document généré depuis Suivi des horaires. Les durées affichées correspondent aux saisies enregistrées dans l’application.</div>`;
+  const teamRecap=employeeId==='all'?buildTeamRecap(start,end,employees):'';
+  printReport.innerHTML=`${teamRecap}${employeeHtml}<div class="print-global-note">Document généré depuis Suivi des horaires. Les durées affichées correspondent aux saisies enregistrées dans l’application.</div>`;
 };
 window.addEventListener('focus',async()=>{if(appView&&!appView.classList.contains('hidden')&&!saving){try{await loadOwnerData();renderOwner();await refreshOwnerPushUI()}catch{}}});
 if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});

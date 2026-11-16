@@ -111,7 +111,7 @@ try{
  await pwa.waitForFunction(()=>!!navigator.serviceWorker.controller);
  ok('PWA : nouveau cache installé',await pwa.evaluate(async cacheName=> (await caches.keys()).includes(cacheName),expectedCache));
  const cached=await pwa.evaluate(async cacheName=>{const cache=await caches.open(cacheName);return (await cache.keys()).map(r=>r.url)},expectedCache);
- ok('PWA : scripts et styles versionnés en cache',cached.some(u=>u.endsWith('app.js?v=holidays-20261112'))&&cached.some(u=>u.endsWith('employee.js?v=holidays-20261112'))&&cached.some(u=>u.endsWith(expectedStyle)));
+ ok('PWA : scripts et styles versionnés en cache',cached.some(u=>u.endsWith('app.js?v=heures-supp-20261116'))&&cached.some(u=>u.endsWith('employee.js?v=heures-supp-20261116'))&&cached.some(u=>u.endsWith(expectedStyle)));
  await pwaContext.setOffline(true);await pwa.reload();
  ok('PWA : écran et nouveaux contrôles disponibles hors ligne',await pwa.locator('#leaveType option[value="rtt_morning"]').count()===1&&await pwa.evaluate(()=>typeof startPreset==='function'));
  await pwaContext.close();

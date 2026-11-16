@@ -907,6 +907,49 @@ th,td{border-color:var(--line)}
     border-color:#d9c6e8!important;
     background:#faf6fd!important;
   }
+  .print-employee .print-summary{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .print-employer-line{
+    display:flex;
+    flex-wrap:wrap;
+    align-items:baseline;
+    gap:4px 14px;
+    margin:0 0 8px;
+    padding:5px 8px;
+    border:1px solid #dce5e1;
+    border-radius:6px;
+    color:#34413d;
+    font-size:7.8pt;
+  }
+  .print-employer-label{color:#68736f;font-size:6.7pt;text-transform:uppercase;letter-spacing:.04em}
+  .print-week-overtime{color:#2f6f68!important;font-weight:800}
+  .print-team-table{
+    width:100%;
+    border-collapse:collapse;
+    table-layout:auto;
+    margin-top:4px;
+  }
+  .print-team-table th{
+    padding:6px 5px;
+    border:1px solid #cbd8d3;
+    background:#eaf1ef;
+    color:#34413d;
+    font-size:7.4pt;
+    line-height:1.15;
+    text-align:right;
+  }
+  .print-team-table th:first-child,.print-team-table td:first-child{text-align:left}
+  .print-team-table td{
+    padding:6px 5px;
+    border:1px solid #dce5e1;
+    color:#17211f;
+    font-size:8.4pt;
+    text-align:right;
+    vertical-align:top;
+  }
+  .print-team-table tr{page-break-inside:avoid;break-inside:avoid}
+  .print-team-sub{margin-top:2px;color:#68736f;font-size:6.8pt;font-weight:400}
+  .print-team-total td{border-top:1.5px solid #9eb5ad;background:#f1f5f3;font-weight:800}
+  .print-team-note{margin-top:10px;color:#5e6965;font-size:7.2pt;line-height:1.4}
   .print-hours-table{
     width:100%!important;
     min-width:0!important;
