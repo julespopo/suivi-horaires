@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
-const {PGlite}=await import(process.env.PGLITE_MODULE||'@electric-sql/pglite');
-const db=new PGlite();
+const { PGlite } = await import(process.env.PGLITE_MODULE || '@electric-sql/pglite');
+const db = new PGlite();
 await db.exec(`CREATE ROLE anon;CREATE ROLE authenticated;
 CREATE TABLE public.employees(id uuid primary key,active boolean);
 CREATE TABLE public.owner_accounts(id uuid primary key,active boolean);
@@ -10,20 +10,58 @@ CREATE FUNCTION public._session_token_hash(token text) RETURNS text LANGUAGE sql
 INSERT INTO public.employees VALUES('00000000-0000-0000-0000-000000000001',true);
 INSERT INTO public.owner_accounts VALUES('00000000-0000-0000-0000-000000000002',true);
 INSERT INTO public.app_sessions VALUES(md5('fixture-employee'),'employee','00000000-0000-0000-0000-000000000001',null,now()+interval '1 day',null),(md5('fixture-owner'),'owner',null,'00000000-0000-0000-0000-000000000002',now()+interval '1 day',null);`);
-const file=fs.readdirSync('supabase/migrations').find(f=>f.endsWith('_active_account_session_checks.sql'));
-await db.exec(fs.readFileSync('supabase/migrations/'+file,'utf8'));
-await db.query("select public._session_employee_id('fixture-employee'),public._assert_owner('fixture-owner')");
+const file = fs
+  .readdirSync('supabase/migrations')
+  .find(f => f.endsWith('_active_account_session_checks.sql'));
+await db.exec(fs.readFileSync('supabase/migrations/' + file, 'utf8'));
+await db.query(
+  "select public._session_employee_id('fixture-employee'),public._assert_owner('fixture-owner')"
+);
 console.log('✓ Sessions actives autorisées');
-await assert.rejects(()=>db.query("select public._assert_owner('fixture-employee')"),/unauthorized/);
-await assert.rejects(()=>db.query("select public._session_employee_id('fixture-owner')"),/unauthorized/);
+await assert.rejects(
+  () => db.query("select public._assert_owner('fixture-employee')"),
+  /unauthorized/
+);
+await assert.rejects(
+  () => db.query("select public._session_employee_id('fixture-owner')"),
+  /unauthorized/
+);
 console.log('✓ Rôles séparés');
-await db.exec('update public.employees set active=false;update public.owner_accounts set active=false;');
-await assert.rejects(()=>db.query("select public._session_employee_id('fixture-employee')"),/unauthorized/);
-await assert.rejects(()=>db.query("select public._assert_owner('fixture-owner')"),/unauthorized/);
+await db.exec(
+  'update public.employees set active=false;update public.owner_accounts set active=false;'
+);
+await assert.rejects(
+  () => db.query("select public._session_employee_id('fixture-employee')"),
+  /unauthorized/
+);
+await assert.rejects(
+  () => db.query("select public._assert_owner('fixture-owner')"),
+  /unauthorized/
+);
 console.log('✓ Désactivation effective sur les sessions existantes');
-await db.exec("update public.employees set active=true;update public.app_sessions set expires_at=now()-interval '1 second';");
-await assert.rejects(()=>db.query("select public._session_employee_id('fixture-employee')"),/unauthorized/);
+await db.exec(
+  "update public.employees set active=true;update public.app_sessions set expires_at=now()-interval '1 second';"
+);
+await assert.rejects(
+  () => db.query("select public._session_employee_id('fixture-employee')"),
+  /unauthorized/
+);
 console.log('✓ Sessions expirées refusées');
-assert.equal((await db.query("select has_function_privilege('anon','public._assert_owner(text)','EXECUTE') allowed")).rows[0].allowed,false);
-assert.equal((await db.query("select has_function_privilege('authenticated','public._session_employee_id(text)','EXECUTE') allowed")).rows[0].allowed,false);
-console.log('✓ Helpers internes non exposés');await db.close();
+assert.equal(
+  (
+    await db.query(
+      "select has_function_privilege('anon','public._assert_owner(text)','EXECUTE') allowed"
+    )
+  ).rows[0].allowed,
+  false
+);
+assert.equal(
+  (
+    await db.query(
+      "select has_function_privilege('authenticated','public._session_employee_id(text)','EXECUTE') allowed"
+    )
+  ).rows[0].allowed,
+  false
+);
+console.log('✓ Helpers internes non exposés');
+await db.close();

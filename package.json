@@ -2,6 +2,8 @@
   "name": "suivi-horaires",
   "private": true,
   "scripts": {
+    "format": "prettier --write \"*.js\" \"scripts/**/*.mjs\"",
+    "format:check": "prettier --check \"*.js\" \"scripts/**/*.mjs\"",
     "check": "node scripts/check-static.mjs",
     "test:db": "node scripts/test-baseline-db.mjs && node scripts/test-rtt-db.mjs && node scripts/test-launch-db.mjs && node scripts/test-session-db.mjs && node scripts/test-holidays.mjs",
     "test:worker": "node scripts/test-worker.mjs",
@@ -9,6 +11,7 @@
   },
   "devDependencies": {
     "@electric-sql/pglite": "0.3.14",
-    "@playwright/test": "1.56.1"
+    "@playwright/test": "1.56.1",
+    "prettier": "3.3.3"
   }
 }

@@ -18,103 +18,239 @@ let OFFLINE_SYNCING = false;
 let OFFLINE_LAST_ERROR = '';
 let THEME_MEDIA = null;
 
-function preferredTheme(){
-  const saved=localStorage.getItem(THEME_KEY);
-  if(saved==='light'||saved==='dark')return saved;
-  return window.matchMedia?.('(prefers-color-scheme: dark)').matches?'dark':'light';
+function preferredTheme() {
+  const saved = localStorage.getItem(THEME_KEY);
+  if (saved === 'light' || saved === 'dark') return saved;
+  return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }
-function applyTheme(theme,{animate=false}={}){
-  const value=theme==='dark'?'dark':'light';
-  if(animate){document.documentElement.classList.add('theme-transition');setTimeout(()=>document.documentElement.classList.remove('theme-transition'),650)}
-  document.documentElement.dataset.theme=value;
-  document.documentElement.style.colorScheme=value;
-  const meta=document.querySelector('meta[name="theme-color"]');if(meta)meta.setAttribute('content',value==='dark'?'#0e1621':'#f6f7f9');
-  document.querySelectorAll('[data-theme-state]').forEach(el=>el.dataset.themeState=value);
-  document.querySelectorAll('[data-theme-label]').forEach(el=>el.textContent=value==='dark'?'Mode nuit':'Mode jour');
+function applyTheme(theme, { animate = false } = {}) {
+  const value = theme === 'dark' ? 'dark' : 'light';
+  if (animate) {
+    document.documentElement.classList.add('theme-transition');
+    setTimeout(() => document.documentElement.classList.remove('theme-transition'), 650);
+  }
+  document.documentElement.dataset.theme = value;
+  document.documentElement.style.colorScheme = value;
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', value === 'dark' ? '#0e1621' : '#f6f7f9');
+  document.querySelectorAll('[data-theme-state]').forEach(el => (el.dataset.themeState = value));
+  document
+    .querySelectorAll('[data-theme-label]')
+    .forEach(el => (el.textContent = value === 'dark' ? 'Mode nuit' : 'Mode jour'));
 }
-function initTheme(){
+function initTheme() {
   applyTheme(preferredTheme());
-  if(window.matchMedia){
-    THEME_MEDIA=window.matchMedia('(prefers-color-scheme: dark)');
-    THEME_MEDIA.addEventListener?.('change',()=>{if(!localStorage.getItem(THEME_KEY))applyTheme(preferredTheme(),{animate:true})});
+  if (window.matchMedia) {
+    THEME_MEDIA = window.matchMedia('(prefers-color-scheme: dark)');
+    THEME_MEDIA.addEventListener?.('change', () => {
+      if (!localStorage.getItem(THEME_KEY)) applyTheme(preferredTheme(), { animate: true });
+    });
   }
 }
-function toggleTheme(){const next=(document.documentElement.dataset.theme||preferredTheme())==='dark'?'light':'dark';localStorage.setItem(THEME_KEY,next);applyTheme(next,{animate:true});return next}
-function useSystemTheme(){localStorage.removeItem(THEME_KEY);applyTheme(preferredTheme(),{animate:true})}
+function toggleTheme() {
+  const next =
+    (document.documentElement.dataset.theme || preferredTheme()) === 'dark' ? 'light' : 'dark';
+  localStorage.setItem(THEME_KEY, next);
+  applyTheme(next, { animate: true });
+  return next;
+}
+function useSystemTheme() {
+  localStorage.removeItem(THEME_KEY);
+  applyTheme(preferredTheme(), { animate: true });
+}
 initTheme();
 
 let EMPLOYEES = [];
-let APP_DATA = {entries:[],settings:{plannedDays:{},employeeSettings:{}}};
-let V2_DATA = {employers:[],assignments:[],segments:[],leaves:[]};
+let APP_DATA = { entries: [], settings: { plannedDays: {}, employeeSettings: {} } };
+let V2_DATA = { employers: [], assignments: [], segments: [], leaves: [] };
 let CURRENT_EMPLOYEE = null;
-let DATA_RANGE = {from:null,to:null};
+let DATA_RANGE = { from: null, to: null };
 
-function iso(d=new Date()){const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');return `${y}-${m}-${day}`}
-function pad(n){return String(n).padStart(2,'0')}
-function hm(d=new Date()){return `${pad(d.getHours())}:${pad(d.getMinutes())}`}
-function frDate(s){return new Intl.DateTimeFormat('fr-FR',{weekday:'long',day:'numeric',month:'long'}).format(new Date(s+'T12:00:00'))}
-function longDate(s){return new Intl.DateTimeFormat('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'}).format(new Date(s+'T12:00:00'))}
-function shortDate(s){return new Intl.DateTimeFormat('fr-FR',{day:'2-digit',month:'2-digit'}).format(new Date(s+'T12:00:00'))}
-function shortWeekday(s){return new Intl.DateTimeFormat('fr-FR',{weekday:'short'}).format(new Date(s+'T12:00:00')).replace('.','')}
-function monthLabel(d){return new Intl.DateTimeFormat('fr-FR',{month:'long',year:'numeric'}).format(d)}
-function minutes(a,b,pause=0){if(!a||!b)return 0;const [ah,am]=a.split(':').map(Number),[bh,bm]=b.split(':').map(Number);let m=(bh*60+bm)-(ah*60+am)-Number(pause||0);return Math.max(0,m)}
-function fmtDurationMinutes(value){const total=Math.max(0,Math.round(Number(value)||0));const h=Math.floor(total/60),m=total%60;return `${h}h${String(m).padStart(2,'0')}`}
-function parseDurationMinutes(value){const raw=String(value??'').trim().toLowerCase().replace(/\s+/g,'');if(!raw)return 0;let m=raw.match(/^(\d+)h(?:(\d{1,2}))?(?:min)?$/);if(m)return Math.max(0,Math.min(720,Number(m[1])*60+Number(m[2]||0)));m=raw.match(/^(\d{1,2}):(\d{1,2})$/);if(m)return Math.max(0,Math.min(720,Number(m[1])*60+Number(m[2])));if(/^\d+$/.test(raw))return Math.max(0,Math.min(720,Number(raw)));return null}
-function fmtMin(m){m=Math.round(Number(m)||0);const h=Math.floor(Math.abs(m)/60),mm=Math.abs(m)%60;return `${m<0?'-':''}${h}h${pad(mm)}`}
-function fmtSignedMin(m){m=Math.round(Number(m)||0);if(m===0)return '0h00';return `${m>0?'+':'−'}${fmtMin(Math.abs(m))}`}
-function dateObjFromIso(s){return new Date(s+'T12:00:00')}
-function startOfWeek(ref){const d=new Date(ref);const day=(d.getDay()+6)%7;d.setDate(d.getDate()-day);d.setHours(12,0,0,0);return d}
-function endOfWeek(ref){const d=startOfWeek(ref);d.setDate(d.getDate()+6);return d}
-function listDates(start,end){let dates=[];const d=new Date(start);while(d<=end){dates.push(iso(d));d.setDate(d.getDate()+1)}return dates}
-function isFuture(date){return date>iso()}
-function weekBounds(ref=new Date()){const start=startOfWeek(ref),end=endOfWeek(ref);end.setHours(23,59,59,999);return [start,end]}
-function monthBounds(ref=new Date()){return [new Date(ref.getFullYear(),ref.getMonth(),1),new Date(ref.getFullYear(),ref.getMonth()+1,0,23,59,59)]}
-function isBeforeAppStart(date){return String(date||'')<APP_START_DATE}
-function clampDateToAppStart(date){return isBeforeAppStart(date)?APP_START_DATE:date}
-function defaultRange(){const now=new Date();const to=new Date(now.getFullYear()+1,11,31,12);return {from:APP_START_DATE,to:iso(to)}}
+function iso(d = new Date()) {
+  const y = d.getFullYear(),
+    m = String(d.getMonth() + 1).padStart(2, '0'),
+    day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+function pad(n) {
+  return String(n).padStart(2, '0');
+}
+function hm(d = new Date()) {
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+function frDate(s) {
+  return new Intl.DateTimeFormat('fr-FR', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long'
+  }).format(new Date(s + 'T12:00:00'));
+}
+function longDate(s) {
+  return new Intl.DateTimeFormat('fr-FR', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+  }).format(new Date(s + 'T12:00:00'));
+}
+function shortDate(s) {
+  return new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit' }).format(
+    new Date(s + 'T12:00:00')
+  );
+}
+function shortWeekday(s) {
+  return new Intl.DateTimeFormat('fr-FR', { weekday: 'short' })
+    .format(new Date(s + 'T12:00:00'))
+    .replace('.', '');
+}
+function monthLabel(d) {
+  return new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric' }).format(d);
+}
+function minutes(a, b, pause = 0) {
+  if (!a || !b) return 0;
+  const [ah, am] = a.split(':').map(Number),
+    [bh, bm] = b.split(':').map(Number);
+  let m = bh * 60 + bm - (ah * 60 + am) - Number(pause || 0);
+  return Math.max(0, m);
+}
+function fmtDurationMinutes(value) {
+  const total = Math.max(0, Math.round(Number(value) || 0));
+  const h = Math.floor(total / 60),
+    m = total % 60;
+  return `${h}h${String(m).padStart(2, '0')}`;
+}
+function parseDurationMinutes(value) {
+  const raw = String(value ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '');
+  if (!raw) return 0;
+  let m = raw.match(/^(\d+)h(?:(\d{1,2}))?(?:min)?$/);
+  if (m) return Math.max(0, Math.min(720, Number(m[1]) * 60 + Number(m[2] || 0)));
+  m = raw.match(/^(\d{1,2}):(\d{1,2})$/);
+  if (m) return Math.max(0, Math.min(720, Number(m[1]) * 60 + Number(m[2])));
+  if (/^\d+$/.test(raw)) return Math.max(0, Math.min(720, Number(raw)));
+  return null;
+}
+function fmtMin(m) {
+  m = Math.round(Number(m) || 0);
+  const h = Math.floor(Math.abs(m) / 60),
+    mm = Math.abs(m) % 60;
+  return `${m < 0 ? '-' : ''}${h}h${pad(mm)}`;
+}
+function fmtSignedMin(m) {
+  m = Math.round(Number(m) || 0);
+  if (m === 0) return '0h00';
+  return `${m > 0 ? '+' : '−'}${fmtMin(Math.abs(m))}`;
+}
+function dateObjFromIso(s) {
+  return new Date(s + 'T12:00:00');
+}
+function startOfWeek(ref) {
+  const d = new Date(ref);
+  const day = (d.getDay() + 6) % 7;
+  d.setDate(d.getDate() - day);
+  d.setHours(12, 0, 0, 0);
+  return d;
+}
+function endOfWeek(ref) {
+  const d = startOfWeek(ref);
+  d.setDate(d.getDate() + 6);
+  return d;
+}
+function listDates(start, end) {
+  let dates = [];
+  const d = new Date(start);
+  while (d <= end) {
+    dates.push(iso(d));
+    d.setDate(d.getDate() + 1);
+  }
+  return dates;
+}
+function isFuture(date) {
+  return date > iso();
+}
+function weekBounds(ref = new Date()) {
+  const start = startOfWeek(ref),
+    end = endOfWeek(ref);
+  end.setHours(23, 59, 59, 999);
+  return [start, end];
+}
+function monthBounds(ref = new Date()) {
+  return [
+    new Date(ref.getFullYear(), ref.getMonth(), 1),
+    new Date(ref.getFullYear(), ref.getMonth() + 1, 0, 23, 59, 59)
+  ];
+}
+function isBeforeAppStart(date) {
+  return String(date || '') < APP_START_DATE;
+}
+function clampDateToAppStart(date) {
+  return isBeforeAppStart(date) ? APP_START_DATE : date;
+}
+function defaultRange() {
+  const now = new Date();
+  const to = new Date(now.getFullYear() + 1, 11, 31, 12);
+  return { from: APP_START_DATE, to: iso(to) };
+}
 
-function createDateRangePicker(container,startInput,endInput){
-  if(!container||!startInput||!endInput)return null;
-  let cursor=new Date();
-  cursor=new Date(cursor.getFullYear(),cursor.getMonth(),1,12);
-  let touchStartX=null;
+function createDateRangePicker(container, startInput, endInput) {
+  if (!container || !startInput || !endInput) return null;
+  let cursor = new Date();
+  cursor = new Date(cursor.getFullYear(), cursor.getMonth(), 1, 12);
+  let touchStartX = null;
 
-  function parseDate(value){return value?new Date(value+'T12:00:00'):null}
-  function dayIso(y,m,d){return iso(new Date(y,m,d,12))}
-  function inRange(date,start,end){return !!(start&&end&&date>start&&date<end)}
-  function selectionLabel(){
-    const start=startInput.value,end=endInput.value;
-    if(!start)return 'Sélectionne le premier jour';
-    if(!end)return `Début : ${longDate(start)} · sélectionne le dernier jour`;
-    if(start===end)return `1 jour · ${longDate(start)}`;
-    const days=Math.round((parseDate(end)-parseDate(start))/86400000)+1;
+  function parseDate(value) {
+    return value ? new Date(value + 'T12:00:00') : null;
+  }
+  function dayIso(y, m, d) {
+    return iso(new Date(y, m, d, 12));
+  }
+  function inRange(date, start, end) {
+    return !!(start && end && date > start && date < end);
+  }
+  function selectionLabel() {
+    const start = startInput.value,
+      end = endInput.value;
+    if (!start) return 'Sélectionne le premier jour';
+    if (!end) return `Début : ${longDate(start)} · sélectionne le dernier jour`;
+    if (start === end) return `1 jour · ${longDate(start)}`;
+    const days = Math.round((parseDate(end) - parseDate(start)) / 86400000) + 1;
     return `${days} jours · ${shortDate(start)} → ${shortDate(end)}`;
   }
-  function render(){
-    const start=startInput.value,end=endInput.value;
-    const y=cursor.getFullYear(),m=cursor.getMonth();
-    const first=new Date(y,m,1,12);
-    const last=new Date(y,m+1,0,12);
-    const offset=(first.getDay()+6)%7;
-    const cells=[];
-    for(let i=0;i<offset;i++)cells.push('<span class="range-day range-empty" aria-hidden="true"></span>');
-    for(let d=1;d<=last.getDate();d++){
-      const value=dayIso(y,m,d);
-      const isStart=value===start,isEnd=value===end;
-      const middle=inRange(value,start,end);
-      const today=value===iso();
-      const disabled=isBeforeAppStart(value);
-      const cls=[
+  function render() {
+    const start = startInput.value,
+      end = endInput.value;
+    const y = cursor.getFullYear(),
+      m = cursor.getMonth();
+    const first = new Date(y, m, 1, 12);
+    const last = new Date(y, m + 1, 0, 12);
+    const offset = (first.getDay() + 6) % 7;
+    const cells = [];
+    for (let i = 0; i < offset; i++)
+      cells.push('<span class="range-day range-empty" aria-hidden="true"></span>');
+    for (let d = 1; d <= last.getDate(); d++) {
+      const value = dayIso(y, m, d);
+      const isStart = value === start,
+        isEnd = value === end;
+      const middle = inRange(value, start, end);
+      const today = value === iso();
+      const disabled = isBeforeAppStart(value);
+      const cls = [
         'range-day',
-        isStart?'range-start':'',
-        isEnd?'range-end':'',
-        middle?'range-middle':'',
-        today?'range-today':'',
-        disabled?'range-disabled':''
-      ].filter(Boolean).join(' ');
-      cells.push(`<button type="button" class="${cls}" data-range-date="${value}" aria-label="${longDate(value)}" ${disabled?'disabled':''}>${d}</button>`);
+        isStart ? 'range-start' : '',
+        isEnd ? 'range-end' : '',
+        middle ? 'range-middle' : '',
+        today ? 'range-today' : '',
+        disabled ? 'range-disabled' : ''
+      ]
+        .filter(Boolean)
+        .join(' ');
+      cells.push(
+        `<button type="button" class="${cls}" data-range-date="${value}" aria-label="${longDate(value)}" ${disabled ? 'disabled' : ''}>${d}</button>`
+      );
     }
-    container.innerHTML=`
+    container.innerHTML = `
       <div class="range-picker-head">
         <button type="button" class="range-nav" data-range-prev aria-label="Mois précédent">←</button>
         <strong>${monthLabel(cursor)}</strong>
@@ -125,1147 +261,1892 @@ function createDateRangePicker(container,startInput,endInput){
       <div class="range-days">${cells.join('')}</div>
       <div class="range-picker-help">1er clic : début · 2e clic : fin</div>
     `;
-    container.querySelector('[data-range-prev]')?.addEventListener('click',()=>shift(-1));
-    container.querySelector('[data-range-next]')?.addEventListener('click',()=>shift(1));
-    container.querySelectorAll('[data-range-date]').forEach(btn=>btn.addEventListener('click',()=>choose(btn.dataset.rangeDate)));
+    container.querySelector('[data-range-prev]')?.addEventListener('click', () => shift(-1));
+    container.querySelector('[data-range-next]')?.addEventListener('click', () => shift(1));
+    container
+      .querySelectorAll('[data-range-date]')
+      .forEach(btn => btn.addEventListener('click', () => choose(btn.dataset.rangeDate)));
   }
-  function shift(delta){
-    const next=new Date(cursor.getFullYear(),cursor.getMonth()+delta,1,12);
-    const min=dateObjFromIso(APP_START_DATE);
-    const minMonth=new Date(min.getFullYear(),min.getMonth(),1,12);
-    cursor=next<minMonth?minMonth:next;
+  function shift(delta) {
+    const next = new Date(cursor.getFullYear(), cursor.getMonth() + delta, 1, 12);
+    const min = dateObjFromIso(APP_START_DATE);
+    const minMonth = new Date(min.getFullYear(), min.getMonth(), 1, 12);
+    cursor = next < minMonth ? minMonth : next;
     render();
   }
-  function choose(value){
-    const start=startInput.value,end=endInput.value;
-    if(!start || (start&&end)){
-      startInput.value=value;
-      endInput.value='';
-    }else if(value<start){
-      endInput.value=start;
-      startInput.value=value;
-    }else{
-      endInput.value=value;
+  function choose(value) {
+    const start = startInput.value,
+      end = endInput.value;
+    if (!start || (start && end)) {
+      startInput.value = value;
+      endInput.value = '';
+    } else if (value < start) {
+      endInput.value = start;
+      startInput.value = value;
+    } else {
+      endInput.value = value;
     }
     render();
-    startInput.dispatchEvent(new Event('change',{bubbles:true}));
-    endInput.dispatchEvent(new Event('change',{bubbles:true}));
+    startInput.dispatchEvent(new Event('change', { bubbles: true }));
+    endInput.dispatchEvent(new Event('change', { bubbles: true }));
   }
-  function reset(start='',end=''){
-    startInput.value=start||'';
-    endInput.value=end||'';
-    const focus=parseDate(start||end)||new Date();
-    cursor=new Date(focus.getFullYear(),focus.getMonth(),1,12);
+  function reset(start = '', end = '') {
+    startInput.value = start || '';
+    endInput.value = end || '';
+    const focus = parseDate(start || end) || new Date();
+    cursor = new Date(focus.getFullYear(), focus.getMonth(), 1, 12);
     render();
   }
 
-  container.addEventListener('touchstart',e=>{
-    touchStartX=e.changedTouches?.[0]?.clientX??null;
-  },{passive:true});
-  container.addEventListener('touchend',e=>{
-    if(touchStartX===null)return;
-    const x=e.changedTouches?.[0]?.clientX??touchStartX;
-    const diff=x-touchStartX;
-    touchStartX=null;
-    if(Math.abs(diff)>=45)shift(diff<0?1:-1);
-  },{passive:true});
+  container.addEventListener(
+    'touchstart',
+    e => {
+      touchStartX = e.changedTouches?.[0]?.clientX ?? null;
+    },
+    { passive: true }
+  );
+  container.addEventListener(
+    'touchend',
+    e => {
+      if (touchStartX === null) return;
+      const x = e.changedTouches?.[0]?.clientX ?? touchStartX;
+      const diff = x - touchStartX;
+      touchStartX = null;
+      if (Math.abs(diff) >= 45) shift(diff < 0 ? 1 : -1);
+    },
+    { passive: true }
+  );
 
   render();
-  return {reset,render,shift};
+  return { reset, render, shift };
 }
 
-
-function currentEmployeeLinkToken(){
-  try{return new URLSearchParams(location.search).get('token')||''}catch{return ''}
+function currentEmployeeLinkToken() {
+  try {
+    return new URLSearchParams(location.search).get('token') || '';
+  } catch {
+    return '';
+  }
 }
-function sessionStorageKey(role=null,linkToken=null){
-  const isOwnerPage=/pilotage\.html$/i.test(location.pathname);
-  if(role==='owner'||(!role&&isOwnerPage))return OWNER_SESSION_KEY;
-  const token=linkToken||currentEmployeeLinkToken();
-  return token?EMPLOYEE_SESSION_PREFIX+token:null;
+function sessionStorageKey(role = null, linkToken = null) {
+  const isOwnerPage = /pilotage\.html$/i.test(location.pathname);
+  if (role === 'owner' || (!role && isOwnerPage)) return OWNER_SESSION_KEY;
+  const token = linkToken || currentEmployeeLinkToken();
+  return token ? EMPLOYEE_SESSION_PREFIX + token : null;
 }
-function getSession(){
-  try{
-    const key=sessionStorageKey();
-    if(key){
-      const current=JSON.parse(localStorage.getItem(key)||'null');
-      if(current)return current;
+function getSession() {
+  try {
+    const key = sessionStorageKey();
+    if (key) {
+      const current = JSON.parse(localStorage.getItem(key) || 'null');
+      if (current) return current;
     }
     // Migration douce depuis la V1.8/V1.8.1 : on récupère l'ancienne session
     // uniquement si elle correspond à la page actuellement ouverte.
-    const legacy=JSON.parse(localStorage.getItem(LEGACY_SESSION_KEY)||'null');
-    if(!legacy)return null;
-    const isOwnerPage=/pilotage\.html$/i.test(location.pathname);
-    const matches=isOwnerPage?legacy.role==='owner':legacy.role==='employee'&&legacy.linkToken===currentEmployeeLinkToken();
-    if(matches){
-      const newKey=sessionStorageKey(legacy.role,legacy.linkToken);
-      if(newKey)localStorage.setItem(newKey,JSON.stringify(legacy));
+    const legacy = JSON.parse(localStorage.getItem(LEGACY_SESSION_KEY) || 'null');
+    if (!legacy) return null;
+    const isOwnerPage = /pilotage\.html$/i.test(location.pathname);
+    const matches = isOwnerPage
+      ? legacy.role === 'owner'
+      : legacy.role === 'employee' && legacy.linkToken === currentEmployeeLinkToken();
+    if (matches) {
+      const newKey = sessionStorageKey(legacy.role, legacy.linkToken);
+      if (newKey) localStorage.setItem(newKey, JSON.stringify(legacy));
       return legacy;
     }
     return null;
-  }catch{return null}
+  } catch {
+    return null;
+  }
 }
-function setSession(s){
-  const key=sessionStorageKey(s.role,s.linkToken);
-  if(!key)throw new Error('Impossible de déterminer la clé de session');
-  localStorage.setItem(key,JSON.stringify(s));
+function setSession(s) {
+  const key = sessionStorageKey(s.role, s.linkToken);
+  if (!key) throw new Error('Impossible de déterminer la clé de session');
+  localStorage.setItem(key, JSON.stringify(s));
   localStorage.removeItem(LEGACY_SESSION_KEY);
 }
-function clearSession(){
-  const key=sessionStorageKey();
-  if(key)localStorage.removeItem(key);
+function clearSession() {
+  const key = sessionStorageKey();
+  if (key) localStorage.removeItem(key);
   localStorage.removeItem(LEGACY_SESSION_KEY);
 }
-function isEmployeeSession(linkToken){const s=getSession();return !!s&&s.role==='employee'&&s.sessionToken&&s.linkToken===linkToken}
-function isOwnerSession(linkToken){const s=getSession();return !!s&&s.role==='owner'&&s.sessionToken&&s.linkToken===linkToken}
+function isEmployeeSession(linkToken) {
+  const s = getSession();
+  return !!s && s.role === 'employee' && s.sessionToken && s.linkToken === linkToken;
+}
+function isOwnerSession(linkToken) {
+  const s = getSession();
+  return !!s && s.role === 'owner' && s.sessionToken && s.linkToken === linkToken;
+}
 
-function employeeOfflineScope(){
-  const token=currentEmployeeLinkToken();
-  return token||CURRENT_EMPLOYEE?.id||'unknown';
+function employeeOfflineScope() {
+  const token = currentEmployeeLinkToken();
+  return token || CURRENT_EMPLOYEE?.id || 'unknown';
 }
-function employeeOfflineKey(prefix){return prefix+employeeOfflineScope()}
-function safeParseLocal(key,fallback){
-  try{const raw=localStorage.getItem(key);return raw?JSON.parse(raw):fallback}catch{return fallback}
+function employeeOfflineKey(prefix) {
+  return prefix + employeeOfflineScope();
 }
-function getEmployeeOfflineQueue(){const q=safeParseLocal(employeeOfflineKey(EMPLOYEE_OFFLINE_QUEUE_PREFIX),[]);return Array.isArray(q)?q:[]}
-function setEmployeeOfflineQueue(queue){
-  localStorage.setItem(employeeOfflineKey(EMPLOYEE_OFFLINE_QUEUE_PREFIX),JSON.stringify(queue||[]));
+function safeParseLocal(key, fallback) {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+function getEmployeeOfflineQueue() {
+  const q = safeParseLocal(employeeOfflineKey(EMPLOYEE_OFFLINE_QUEUE_PREFIX), []);
+  return Array.isArray(q) ? q : [];
+}
+function setEmployeeOfflineQueue(queue) {
+  localStorage.setItem(
+    employeeOfflineKey(EMPLOYEE_OFFLINE_QUEUE_PREFIX),
+    JSON.stringify(queue || [])
+  );
   notifyOfflineState();
 }
-function getEmployeeOfflineMap(){const map=safeParseLocal(employeeOfflineKey(EMPLOYEE_OFFLINE_MAP_PREFIX),{});return map&&typeof map==='object'?map:{}}
-function setEmployeeOfflineMap(map){localStorage.setItem(employeeOfflineKey(EMPLOYEE_OFFLINE_MAP_PREFIX),JSON.stringify(map||{}))}
-function makeOfflineId(prefix='local'){
-  const id=globalThis.crypto?.randomUUID?.()||`${Date.now()}-${Math.random().toString(36).slice(2)}`;
+function getEmployeeOfflineMap() {
+  const map = safeParseLocal(employeeOfflineKey(EMPLOYEE_OFFLINE_MAP_PREFIX), {});
+  return map && typeof map === 'object' ? map : {};
+}
+function setEmployeeOfflineMap(map) {
+  localStorage.setItem(employeeOfflineKey(EMPLOYEE_OFFLINE_MAP_PREFIX), JSON.stringify(map || {}));
+}
+function makeOfflineId(prefix = 'local') {
+  const id =
+    globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   return `${prefix}-${id}`;
 }
-function notifyOfflineState(){
-  try{window.dispatchEvent(new CustomEvent('hours:offline-state'))}catch{}
+function notifyOfflineState() {
+  try {
+    window.dispatchEvent(new CustomEvent('hours:offline-state'));
+  } catch {}
 }
-function employeeOfflineState(){
-  const queue=getEmployeeOfflineQueue();
-  const blocked=queue.find(a=>a.status==='error'||a.status==='auth')||null;
-  return {count:queue.length,blocked,syncing:OFFLINE_SYNCING,lastError:OFFLINE_LAST_ERROR};
+function employeeOfflineState() {
+  const queue = getEmployeeOfflineQueue();
+  const blocked = queue.find(a => a.status === 'error' || a.status === 'auth') || null;
+  return { count: queue.length, blocked, syncing: OFFLINE_SYNCING, lastError: OFFLINE_LAST_ERROR };
 }
-function cacheEmployeeSnapshot(){
-  if(!CURRENT_EMPLOYEE)return false;
-  try{
-    const snapshot={
-      employee:CURRENT_EMPLOYEE,
-      employees:EMPLOYEES,
-      appData:APP_DATA,
-      v2Data:V2_DATA,
-      dataRange:DATA_RANGE,
-      savedAt:new Date().toISOString()
+function cacheEmployeeSnapshot() {
+  if (!CURRENT_EMPLOYEE) return false;
+  try {
+    const snapshot = {
+      employee: CURRENT_EMPLOYEE,
+      employees: EMPLOYEES,
+      appData: APP_DATA,
+      v2Data: V2_DATA,
+      dataRange: DATA_RANGE,
+      savedAt: new Date().toISOString()
     };
-    localStorage.setItem(employeeOfflineKey(EMPLOYEE_OFFLINE_CACHE_PREFIX),JSON.stringify(snapshot));
+    localStorage.setItem(
+      employeeOfflineKey(EMPLOYEE_OFFLINE_CACHE_PREFIX),
+      JSON.stringify(snapshot)
+    );
     return true;
-  }catch{return false}
+  } catch {
+    return false;
+  }
 }
-function restoreEmployeeSnapshot(){
-  const snap=safeParseLocal(employeeOfflineKey(EMPLOYEE_OFFLINE_CACHE_PREFIX),null);
-  if(!snap?.employee||!snap?.appData||!snap?.v2Data)return false;
-  CURRENT_EMPLOYEE=snap.employee;
-  EMPLOYEES=Array.isArray(snap.employees)&&snap.employees.length?snap.employees:[CURRENT_EMPLOYEE];
-  APP_DATA=snap.appData;
-  V2_DATA=snap.v2Data;
-  DATA_RANGE=snap.dataRange||defaultRange();
+function restoreEmployeeSnapshot() {
+  const snap = safeParseLocal(employeeOfflineKey(EMPLOYEE_OFFLINE_CACHE_PREFIX), null);
+  if (!snap?.employee || !snap?.appData || !snap?.v2Data) return false;
+  CURRENT_EMPLOYEE = snap.employee;
+  EMPLOYEES =
+    Array.isArray(snap.employees) && snap.employees.length ? snap.employees : [CURRENT_EMPLOYEE];
+  APP_DATA = snap.appData;
+  V2_DATA = snap.v2Data;
+  DATA_RANGE = snap.dataRange || defaultRange();
   reapplyEmployeeOfflineQueue();
   return true;
 }
-function serverEntryVersion(empId,date){
-  return entryFor(empId,date,false)?.serverUpdatedAt||'';
+function serverEntryVersion(empId, date) {
+  return entryFor(empId, date, false)?.serverUpdatedAt || '';
 }
-function serverSegmentVersion(empId,date){
-  return segmentsFor(empId,date).map(s=>s.serverUpdatedAt||'').filter(Boolean).sort().at(-1)||'';
+function serverSegmentVersion(empId, date) {
+  return (
+    segmentsFor(empId, date)
+      .map(s => s.serverUpdatedAt || '')
+      .filter(Boolean)
+      .sort()
+      .at(-1) || ''
+  );
 }
-function scheduleVersionFor(empId,date){
-  return APP_DATA.settings.plannedDayVersions?.[empId]?.[date]||'';
+function scheduleVersionFor(empId, date) {
+  return APP_DATA.settings.plannedDayVersions?.[empId]?.[date] || '';
 }
-function captureOfflineDayExpected(date){
-  const empId=CURRENT_EMPLOYEE?.id;
+function captureOfflineDayExpected(date) {
+  const empId = CURRENT_EMPLOYEE?.id;
   return {
-    expectedEntryUpdatedAt:serverEntryVersion(empId,date),
-    expectedSegmentUpdatedAt:serverSegmentVersion(empId,date),
-    expectedScheduleUpdatedAt:scheduleVersionFor(empId,date)
+    expectedEntryUpdatedAt: serverEntryVersion(empId, date),
+    expectedSegmentUpdatedAt: serverSegmentVersion(empId, date),
+    expectedScheduleUpdatedAt: scheduleVersionFor(empId, date)
   };
 }
-function ensureOptimisticEntry(date){
-  const empId=CURRENT_EMPLOYEE?.id;
-  let entry=entryFor(empId,date,false);
-  if(!entry){
-    entry={
-      employeeId:empId,date,status:'worked',arrival:'',departure:'',pause:hasHalfDayRTT(empId,date)?0:90,pauseMode:'auto',
-      comment:'',arrivalMode:'',departureMode:'',validationStatus:'',validatedAt:'',
-      updatedAt:'',serverUpdatedAt:'',pendingSync:false
+function ensureOptimisticEntry(date) {
+  const empId = CURRENT_EMPLOYEE?.id;
+  let entry = entryFor(empId, date, false);
+  if (!entry) {
+    entry = {
+      employeeId: empId,
+      date,
+      status: 'worked',
+      arrival: '',
+      departure: '',
+      pause: hasHalfDayRTT(empId, date) ? 0 : 90,
+      pauseMode: 'auto',
+      comment: '',
+      arrivalMode: '',
+      departureMode: '',
+      validationStatus: '',
+      validatedAt: '',
+      updatedAt: '',
+      serverUpdatedAt: '',
+      pendingSync: false
     };
     APP_DATA.entries.push(entry);
   }
   return entry;
 }
-function optimisticStartAction(action){
-  if(V2_DATA.segments.some(s=>s.id===action.localSegmentId))return;
-  const employer=employerFor(action.employerId);
+function optimisticStartAction(action) {
+  if (V2_DATA.segments.some(s => s.id === action.localSegmentId)) return;
+  const employer = employerFor(action.employerId);
   V2_DATA.segments.push({
-    id:action.localSegmentId,
-    employeeId:action.employeeId,
-    date:action.date,
-    employerId:action.employerId,
-    employerName:employer?.name||'Employeur',
-    start:action.start,
-    end:'',
-    source:action.mode||'now',
-    comment:'',
-    updatedAt:action.createdAt||new Date().toISOString(),
-    serverUpdatedAt:'',
-    pendingSync:true,
-    clientEventId:action.clientEventId||''
+    id: action.localSegmentId,
+    employeeId: action.employeeId,
+    date: action.date,
+    employerId: action.employerId,
+    employerName: employer?.name || 'Employeur',
+    start: action.start,
+    end: '',
+    source: action.mode || 'now',
+    comment: '',
+    updatedAt: action.createdAt || new Date().toISOString(),
+    serverUpdatedAt: '',
+    pendingSync: true,
+    clientEventId: action.clientEventId || ''
   });
 }
-function optimisticStopAction(action){
-  const map=getEmployeeOfflineMap();
-  const ref=map[action.segmentRef]||action.segmentRef;
-  const segment=V2_DATA.segments.find(s=>s.id===action.segmentRef||s.id===ref);
-  if(segment){
-    segment.end=action.end;
-    segment.pendingSync=true;
-    segment.updatedAt=action.createdAt||new Date().toISOString();
+function optimisticStopAction(action) {
+  const map = getEmployeeOfflineMap();
+  const ref = map[action.segmentRef] || action.segmentRef;
+  const segment = V2_DATA.segments.find(s => s.id === action.segmentRef || s.id === ref);
+  if (segment) {
+    segment.end = action.end;
+    segment.pendingSync = true;
+    segment.updatedAt = action.createdAt || new Date().toISOString();
   }
 }
-function optimisticDeleteSegmentAction(action){
-  const map=getEmployeeOfflineMap();
-  const ref=map[action.segmentRef]||action.segmentRef;
-  const segment=V2_DATA.segments.find(s=>s.id===action.segmentRef||s.id===ref);
-  if(!segment)return;
-  const date=segment.date;
-  V2_DATA.segments=V2_DATA.segments.filter(s=>s.id!==action.segmentRef&&s.id!==ref);
-  const remaining=segmentsFor(action.employeeId,date);
-  if(!remaining.length){
-    APP_DATA.entries=APP_DATA.entries.filter(e=>!(e.employeeId===action.employeeId&&e.date===date));
-  }else{
-    const entry=entryFor(action.employeeId,date,false);
-    if(entry){entry.pendingSync=true;entry.validationStatus=remaining.some(s=>!s.end)?'':'pending';entry.updatedAt=action.createdAt||new Date().toISOString()}
+function optimisticDeleteSegmentAction(action) {
+  const map = getEmployeeOfflineMap();
+  const ref = map[action.segmentRef] || action.segmentRef;
+  const segment = V2_DATA.segments.find(s => s.id === action.segmentRef || s.id === ref);
+  if (!segment) return;
+  const date = segment.date;
+  V2_DATA.segments = V2_DATA.segments.filter(s => s.id !== action.segmentRef && s.id !== ref);
+  const remaining = segmentsFor(action.employeeId, date);
+  if (!remaining.length) {
+    APP_DATA.entries = APP_DATA.entries.filter(
+      e => !(e.employeeId === action.employeeId && e.date === date)
+    );
+  } else {
+    const entry = entryFor(action.employeeId, date, false);
+    if (entry) {
+      entry.pendingSync = true;
+      entry.validationStatus = remaining.some(s => !s.end) ? '' : 'pending';
+      entry.updatedAt = action.createdAt || new Date().toISOString();
+    }
   }
 }
-function optimisticDayStatusAction(action){
-  const entry=ensureOptimisticEntry(action.date);
-  if(action.isOff){
-    V2_DATA.segments=V2_DATA.segments.filter(s=>!(s.employeeId===action.employeeId&&s.date===action.date));
-    entry.status='off';
-    entry.arrival='';entry.departure='';entry.pause=0;entry.pauseMode='manual';entry.comment='';
-    entry.arrivalMode='';entry.departureMode='';entry.validationStatus='pending';
-  }else{
-    const wasOff=entry.status==='off';
-    entry.status='worked';
-    if(wasOff){entry.pause=hasHalfDayRTT(action.employeeId,action.date)?0:90;entry.pauseMode='auto'}
-    entry.validationStatus='';
+function optimisticDayStatusAction(action) {
+  const entry = ensureOptimisticEntry(action.date);
+  if (action.isOff) {
+    V2_DATA.segments = V2_DATA.segments.filter(
+      s => !(s.employeeId === action.employeeId && s.date === action.date)
+    );
+    entry.status = 'off';
+    entry.arrival = '';
+    entry.departure = '';
+    entry.pause = 0;
+    entry.pauseMode = 'manual';
+    entry.comment = '';
+    entry.arrivalMode = '';
+    entry.departureMode = '';
+    entry.validationStatus = 'pending';
+  } else {
+    const wasOff = entry.status === 'off';
+    entry.status = 'worked';
+    if (wasOff) {
+      entry.pause = hasHalfDayRTT(action.employeeId, action.date) ? 0 : 90;
+      entry.pauseMode = 'auto';
+    }
+    entry.validationStatus = '';
   }
-  entry.pendingSync=true;
-  entry.updatedAt=action.createdAt||new Date().toISOString();
+  entry.pendingSync = true;
+  entry.updatedAt = action.createdAt || new Date().toISOString();
 }
-function optimisticMetaAction(action){
-  const entry=ensureOptimisticEntry(action.date);
-  entry.pause=Math.max(0,Number(action.pauseMinutes)||0);
-  entry.pauseMode='manual';
-  entry.comment=action.comment||'';
-  entry.pendingSync=true;
-  entry.updatedAt=action.createdAt||new Date().toISOString();
+function optimisticMetaAction(action) {
+  const entry = ensureOptimisticEntry(action.date);
+  entry.pause = Math.max(0, Number(action.pauseMinutes) || 0);
+  entry.pauseMode = 'manual';
+  entry.comment = action.comment || '';
+  entry.pendingSync = true;
+  entry.updatedAt = action.createdAt || new Date().toISOString();
 }
-function optimisticLeaveRequestAction(action){
-  if(V2_DATA.leaves.some(l=>l.id===action.localLeaveId))return;
+function optimisticLeaveRequestAction(action) {
+  if (V2_DATA.leaves.some(l => l.id === action.localLeaveId)) return;
   V2_DATA.leaves.push({
-    id:action.localLeaveId,
-    employeeId:action.employeeId,
-    startDate:action.startDate,
-    endDate:action.endDate,
-    type:action.leaveType||'paid_leave',
-    status:'pending',
-    note:action.note||'',
-    requestedBy:'employee',
-    reviewedAt:'',
-    reviewedBy:'',
-    createdAt:action.createdAt||new Date().toISOString(),
-    pendingSync:true,
-    clientEventId:action.clientEventId||''
+    id: action.localLeaveId,
+    employeeId: action.employeeId,
+    startDate: action.startDate,
+    endDate: action.endDate,
+    type: action.leaveType || 'paid_leave',
+    status: 'pending',
+    note: action.note || '',
+    requestedBy: 'employee',
+    reviewedAt: '',
+    reviewedBy: '',
+    createdAt: action.createdAt || new Date().toISOString(),
+    pendingSync: true,
+    clientEventId: action.clientEventId || ''
   });
 }
-function optimisticLeaveCancelAction(action){
-  const map=getEmployeeOfflineMap();
-  const ref=map[action.leaveRef]||action.leaveRef;
-  V2_DATA.leaves=V2_DATA.leaves.filter(l=>l.id!==action.leaveRef&&l.id!==ref);
+function optimisticLeaveCancelAction(action) {
+  const map = getEmployeeOfflineMap();
+  const ref = map[action.leaveRef] || action.leaveRef;
+  V2_DATA.leaves = V2_DATA.leaves.filter(l => l.id !== action.leaveRef && l.id !== ref);
 }
-function applyOptimisticOfflineAction(action){
-  if(action.type==='start')optimisticStartAction(action);
-  else if(action.type==='stop')optimisticStopAction(action);
-  else if(action.type==='segment_delete')optimisticDeleteSegmentAction(action);
-  else if(action.type==='day_status')optimisticDayStatusAction(action);
-  else if(action.type==='meta')optimisticMetaAction(action);
-  else if(action.type==='leave_request')optimisticLeaveRequestAction(action);
-  else if(action.type==='leave_cancel')optimisticLeaveCancelAction(action);
+function applyOptimisticOfflineAction(action) {
+  if (action.type === 'start') optimisticStartAction(action);
+  else if (action.type === 'stop') optimisticStopAction(action);
+  else if (action.type === 'segment_delete') optimisticDeleteSegmentAction(action);
+  else if (action.type === 'day_status') optimisticDayStatusAction(action);
+  else if (action.type === 'meta') optimisticMetaAction(action);
+  else if (action.type === 'leave_request') optimisticLeaveRequestAction(action);
+  else if (action.type === 'leave_cancel') optimisticLeaveCancelAction(action);
 }
-function reapplyEmployeeOfflineQueue(){
+function reapplyEmployeeOfflineQueue() {
   getEmployeeOfflineQueue().forEach(applyOptimisticOfflineAction);
 }
-function saveEmployeeOfflineAction(action){
-  const queue=getEmployeeOfflineQueue();
-  queue.push({...action,status:'pending',lastError:''});
+function saveEmployeeOfflineAction(action) {
+  const queue = getEmployeeOfflineQueue();
+  queue.push({ ...action, status: 'pending', lastError: '' });
   setEmployeeOfflineQueue(queue);
   applyOptimisticOfflineAction(action);
   cacheEmployeeSnapshot();
   notifyOfflineState();
   return action;
 }
-function offlineActionTransientError(err){
-  const m=String(err?.message||err||'').toLowerCase();
-  const status=Number(err?.status||0);
-  return !navigator.onLine||m.includes('failed to fetch')||m.includes('networkerror')||m.includes('load failed')||status===408||status===429||status>=500;
+function offlineActionTransientError(err) {
+  const m = String(err?.message || err || '').toLowerCase();
+  const status = Number(err?.status || 0);
+  return (
+    !navigator.onLine ||
+    m.includes('failed to fetch') ||
+    m.includes('networkerror') ||
+    m.includes('load failed') ||
+    status === 408 ||
+    status === 429 ||
+    status >= 500
+  );
 }
-function offlineQueueFriendlyError(){
-  const state=employeeOfflineState();
-  if(!state.blocked)return '';
-  return friendlyError(new Error(state.blocked.lastError||'offline_sync_error'));
+function offlineQueueFriendlyError() {
+  const state = employeeOfflineState();
+  if (!state.blocked) return '';
+  return friendlyError(new Error(state.blocked.lastError || 'offline_sync_error'));
 }
-async function refreshExpectedDayState(queue,date,startIndex=1){
-  if(!date||!queue.slice(startIndex).some(a=>a.date===date&&(a.type==='day_status'||a.type==='meta')))return;
-  const sess=getSession();if(!sess?.sessionToken)throw new Error('unauthorized');
-  const state=await rpc('api_employee_day_state_version',{p_session_token:sess.sessionToken,p_work_date:date});
-  for(let i=startIndex;i<queue.length;i++){
-    const a=queue[i];
-    if(a.date!==date)continue;
-    if(a.type==='day_status'||a.type==='meta'){
-      a.expectedEntryUpdatedAt=state?.entry_updated_at||'';
-      a.expectedSegmentUpdatedAt=state?.segment_updated_at||'';
-      if(a.type==='day_status')a.expectedScheduleUpdatedAt=state?.schedule_updated_at||'';
+async function refreshExpectedDayState(queue, date, startIndex = 1) {
+  if (
+    !date ||
+    !queue
+      .slice(startIndex)
+      .some(a => a.date === date && (a.type === 'day_status' || a.type === 'meta'))
+  )
+    return;
+  const sess = getSession();
+  if (!sess?.sessionToken) throw new Error('unauthorized');
+  const state = await rpc('api_employee_day_state_version', {
+    p_session_token: sess.sessionToken,
+    p_work_date: date
+  });
+  for (let i = startIndex; i < queue.length; i++) {
+    const a = queue[i];
+    if (a.date !== date) continue;
+    if (a.type === 'day_status' || a.type === 'meta') {
+      a.expectedEntryUpdatedAt = state?.entry_updated_at || '';
+      a.expectedSegmentUpdatedAt = state?.segment_updated_at || '';
+      if (a.type === 'day_status') a.expectedScheduleUpdatedAt = state?.schedule_updated_at || '';
     }
   }
 }
-async function syncEmployeeOfflineQueue({reload=true}={}){
-  if(OFFLINE_SYNCING||!navigator.onLine)return {ok:false,pending:getEmployeeOfflineQueue().length};
-  let queue=getEmployeeOfflineQueue();
-  if(!queue.length){OFFLINE_LAST_ERROR='';notifyOfflineState();return {ok:true,pending:0}}
-  const sess=getSession();if(!sess?.sessionToken)return {ok:false,pending:queue.length};
-  OFFLINE_SYNCING=true;OFFLINE_LAST_ERROR='';notifyOfflineState();
-  const idMap=getEmployeeOfflineMap();
-  let changed=false;
-  try{
-    while(queue.length&&navigator.onLine){
-      const action=queue[0];
-      action.status='syncing';action.lastError='';setEmployeeOfflineQueue(queue);
-      try{
-        if(action.type==='start'){
-          const serverId=await rpc('api_employee_start_segment_offline',{
-            p_session_token:sess.sessionToken,
-            p_work_date:action.date,
-            p_employer_id:action.employerId,
-            p_start_time:action.start,
-            p_mode:action.mode||'now',
-            p_client_event_id:action.clientEventId
+async function syncEmployeeOfflineQueue({ reload = true } = {}) {
+  if (OFFLINE_SYNCING || !navigator.onLine)
+    return { ok: false, pending: getEmployeeOfflineQueue().length };
+  let queue = getEmployeeOfflineQueue();
+  if (!queue.length) {
+    OFFLINE_LAST_ERROR = '';
+    notifyOfflineState();
+    return { ok: true, pending: 0 };
+  }
+  const sess = getSession();
+  if (!sess?.sessionToken) return { ok: false, pending: queue.length };
+  OFFLINE_SYNCING = true;
+  OFFLINE_LAST_ERROR = '';
+  notifyOfflineState();
+  const idMap = getEmployeeOfflineMap();
+  let changed = false;
+  try {
+    while (queue.length && navigator.onLine) {
+      const action = queue[0];
+      action.status = 'syncing';
+      action.lastError = '';
+      setEmployeeOfflineQueue(queue);
+      try {
+        if (action.type === 'start') {
+          const serverId = await rpc('api_employee_start_segment_offline', {
+            p_session_token: sess.sessionToken,
+            p_work_date: action.date,
+            p_employer_id: action.employerId,
+            p_start_time: action.start,
+            p_mode: action.mode || 'now',
+            p_client_event_id: action.clientEventId
           });
-          idMap[action.localSegmentId]=serverId;
+          idMap[action.localSegmentId] = serverId;
           setEmployeeOfflineMap(idMap);
-          const local=V2_DATA.segments.find(s=>s.id===action.localSegmentId);
-          if(local){local.id=serverId;local.pendingSync=false}
-          queue.slice(1).forEach(next=>{
-            if(next.type==='stop'&&next.segmentRef===action.localSegmentId)next.segmentRef=serverId;
+          const local = V2_DATA.segments.find(s => s.id === action.localSegmentId);
+          if (local) {
+            local.id = serverId;
+            local.pendingSync = false;
+          }
+          queue.slice(1).forEach(next => {
+            if (next.type === 'stop' && next.segmentRef === action.localSegmentId)
+              next.segmentRef = serverId;
           });
-        }else if(action.type==='stop'){
-          const serverId=idMap[action.segmentRef]||action.segmentRef;
-          if(!serverId||String(serverId).startsWith('local-'))throw new Error('offline_start_not_synced');
-          await rpc('api_employee_stop_segment_offline',{
-            p_session_token:sess.sessionToken,
-            p_segment_id:serverId,
-            p_end_time:action.end,
-            p_mode:action.mode||'now'
+        } else if (action.type === 'stop') {
+          const serverId = idMap[action.segmentRef] || action.segmentRef;
+          if (!serverId || String(serverId).startsWith('local-'))
+            throw new Error('offline_start_not_synced');
+          await rpc('api_employee_stop_segment_offline', {
+            p_session_token: sess.sessionToken,
+            p_segment_id: serverId,
+            p_end_time: action.end,
+            p_mode: action.mode || 'now'
           });
-        }else if(action.type==='segment_delete'){
-          const serverId=idMap[action.segmentRef]||action.segmentRef;
-          if(!serverId||String(serverId).startsWith('local-'))throw new Error('offline_start_not_synced');
-          await rpc('api_employee_delete_segment_offline',{
-            p_session_token:sess.sessionToken,
-            p_segment_id:serverId,
-            p_client_event_id:action.clientEventId,
-            p_expected_updated_at:action.expectedUpdatedAt||null
+        } else if (action.type === 'segment_delete') {
+          const serverId = idMap[action.segmentRef] || action.segmentRef;
+          if (!serverId || String(serverId).startsWith('local-'))
+            throw new Error('offline_start_not_synced');
+          await rpc('api_employee_delete_segment_offline', {
+            p_session_token: sess.sessionToken,
+            p_segment_id: serverId,
+            p_client_event_id: action.clientEventId,
+            p_expected_updated_at: action.expectedUpdatedAt || null
           });
-        }else if(action.type==='day_status'){
-          await rpc('api_employee_set_day_status_offline',{
-            p_session_token:sess.sessionToken,
-            p_work_date:action.date,
-            p_is_off:!!action.isOff,
-            p_client_event_id:action.clientEventId,
-            p_expected_entry_updated_at:action.expectedEntryUpdatedAt||null,
-            p_expected_segment_updated_at:action.expectedSegmentUpdatedAt||null,
-            p_expected_schedule_updated_at:action.expectedScheduleUpdatedAt||null
+        } else if (action.type === 'day_status') {
+          await rpc('api_employee_set_day_status_offline', {
+            p_session_token: sess.sessionToken,
+            p_work_date: action.date,
+            p_is_off: !!action.isOff,
+            p_client_event_id: action.clientEventId,
+            p_expected_entry_updated_at: action.expectedEntryUpdatedAt || null,
+            p_expected_segment_updated_at: action.expectedSegmentUpdatedAt || null,
+            p_expected_schedule_updated_at: action.expectedScheduleUpdatedAt || null
           });
-        }else if(action.type==='meta'){
-          await rpc('api_employee_update_day_meta_offline',{
-            p_session_token:sess.sessionToken,
-            p_work_date:action.date,
-            p_pause_minutes:Number(action.pauseMinutes||0),
-            p_comment:action.comment||'',
-            p_client_event_id:action.clientEventId,
-            p_expected_entry_updated_at:action.expectedEntryUpdatedAt||null,
-            p_expected_segment_updated_at:action.expectedSegmentUpdatedAt||null
+        } else if (action.type === 'meta') {
+          await rpc('api_employee_update_day_meta_offline', {
+            p_session_token: sess.sessionToken,
+            p_work_date: action.date,
+            p_pause_minutes: Number(action.pauseMinutes || 0),
+            p_comment: action.comment || '',
+            p_client_event_id: action.clientEventId,
+            p_expected_entry_updated_at: action.expectedEntryUpdatedAt || null,
+            p_expected_segment_updated_at: action.expectedSegmentUpdatedAt || null
           });
-        }else if(action.type==='leave_request'){
-          const serverId=await rpc('api_employee_request_leave_typed_offline',{
-            p_leave_type:action.leaveType||'paid_leave',
-            p_session_token:sess.sessionToken,
-            p_start_date:action.startDate,
-            p_end_date:action.endDate,
-            p_note:action.note||'',
-            p_client_event_id:action.clientEventId
+        } else if (action.type === 'leave_request') {
+          const serverId = await rpc('api_employee_request_leave_typed_offline', {
+            p_leave_type: action.leaveType || 'paid_leave',
+            p_session_token: sess.sessionToken,
+            p_start_date: action.startDate,
+            p_end_date: action.endDate,
+            p_note: action.note || '',
+            p_client_event_id: action.clientEventId
           });
-          idMap[action.localLeaveId]=serverId;
+          idMap[action.localLeaveId] = serverId;
           setEmployeeOfflineMap(idMap);
-          const local=V2_DATA.leaves.find(l=>l.id===action.localLeaveId);
-          if(local){local.id=serverId;local.pendingSync=false}
-          queue.slice(1).forEach(next=>{
-            if(next.type==='leave_cancel'&&next.leaveRef===action.localLeaveId)next.leaveRef=serverId;
+          const local = V2_DATA.leaves.find(l => l.id === action.localLeaveId);
+          if (local) {
+            local.id = serverId;
+            local.pendingSync = false;
+          }
+          queue.slice(1).forEach(next => {
+            if (next.type === 'leave_cancel' && next.leaveRef === action.localLeaveId)
+              next.leaveRef = serverId;
           });
-        }else if(action.type==='leave_cancel'){
-          const serverId=idMap[action.leaveRef]||action.leaveRef;
-          if(!serverId||String(serverId).startsWith('local-leave-'))throw new Error('offline_leave_not_synced');
-          await rpc('api_employee_cancel_leave_offline',{
-            p_session_token:sess.sessionToken,
-            p_leave_id:serverId,
-            p_client_event_id:action.clientEventId
+        } else if (action.type === 'leave_cancel') {
+          const serverId = idMap[action.leaveRef] || action.leaveRef;
+          if (!serverId || String(serverId).startsWith('local-leave-'))
+            throw new Error('offline_leave_not_synced');
+          await rpc('api_employee_cancel_leave_offline', {
+            p_session_token: sess.sessionToken,
+            p_leave_id: serverId,
+            p_client_event_id: action.clientEventId
           });
-        }else{
+        } else {
           throw new Error('offline_action_unknown');
         }
 
-        await refreshExpectedDayState(queue,action.date,1);
+        await refreshExpectedDayState(queue, action.date, 1);
         queue.shift();
-        changed=true;
+        changed = true;
         setEmployeeOfflineQueue(queue);
         cacheEmployeeSnapshot();
-      }catch(err){
-        action.status=isUnauthorizedError(err)?'auth':'error';
-        action.lastError=String(err?.message||err||'');
-        OFFLINE_LAST_ERROR=action.lastError;
-        if(offlineActionTransientError(err))action.status='pending';
-        queue[0]=action;
+      } catch (err) {
+        action.status = isUnauthorizedError(err) ? 'auth' : 'error';
+        action.lastError = String(err?.message || err || '');
+        OFFLINE_LAST_ERROR = action.lastError;
+        if (offlineActionTransientError(err)) action.status = 'pending';
+        queue[0] = action;
         setEmployeeOfflineQueue(queue);
         break;
       }
     }
-  }finally{
-    OFFLINE_SYNCING=false;notifyOfflineState();
-  }
-  if(changed&&reload&&navigator.onLine){
-    try{await loadEmployeeData()}catch{}
-  }
-  if(!getEmployeeOfflineQueue().length){
-    setEmployeeOfflineMap({});
-    OFFLINE_LAST_ERROR='';
+  } finally {
+    OFFLINE_SYNCING = false;
     notifyOfflineState();
   }
-  return {ok:!getEmployeeOfflineQueue().length,pending:getEmployeeOfflineQueue().length};
+  if (changed && reload && navigator.onLine) {
+    try {
+      await loadEmployeeData();
+    } catch {}
+  }
+  if (!getEmployeeOfflineQueue().length) {
+    setEmployeeOfflineMap({});
+    OFFLINE_LAST_ERROR = '';
+    notifyOfflineState();
+  }
+  return { ok: !getEmployeeOfflineQueue().length, pending: getEmployeeOfflineQueue().length };
 }
-async function discardBlockedOfflineAction(){
-  if(!navigator.onLine)return false;
-  let queue=getEmployeeOfflineQueue();
-  const idx=queue.findIndex(a=>a.status==='error'||a.status==='auth');
-  if(idx<0)return false;
-  const action=queue[idx];
-  if(action.type==='start'){
-    const localId=action.localSegmentId;
-    queue=queue.filter((a,i)=>i!==idx&&!(a.type==='stop'&&a.segmentRef===localId));
-  }else{
-    queue.splice(idx,1);
+async function discardBlockedOfflineAction() {
+  if (!navigator.onLine) return false;
+  let queue = getEmployeeOfflineQueue();
+  const idx = queue.findIndex(a => a.status === 'error' || a.status === 'auth');
+  if (idx < 0) return false;
+  const action = queue[idx];
+  if (action.type === 'start') {
+    const localId = action.localSegmentId;
+    queue = queue.filter((a, i) => i !== idx && !(a.type === 'stop' && a.segmentRef === localId));
+  } else {
+    queue.splice(idx, 1);
   }
   setEmployeeOfflineQueue(queue);
-  OFFLINE_LAST_ERROR='';
-  try{await loadEmployeeData()}catch{}
+  OFFLINE_LAST_ERROR = '';
+  try {
+    await loadEmployeeData();
+  } catch {}
   notifyOfflineState();
   return true;
 }
 
-
-async function rpc(name,args={}){
-  if(!SUPABASE_URL||!SUPABASE_KEY) throw new Error('Configuration Supabase manquante.');
-  const controller=new AbortController();
-  const timeout=setTimeout(()=>controller.abort(),30000);
-  try{
-    const res=await fetch(`${SUPABASE_URL}/rest/v1/rpc/${name}`,{
-      method:'POST',signal:controller.signal,
-      headers:{'apikey':SUPABASE_KEY,'Content-Type':'application/json','Accept':'application/json','Content-Profile':'public','Accept-Profile':'public'},
-      body:JSON.stringify(args)
+async function rpc(name, args = {}) {
+  if (!SUPABASE_URL || !SUPABASE_KEY) throw new Error('Configuration Supabase manquante.');
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30000);
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${name}`, {
+      method: 'POST',
+      signal: controller.signal,
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Content-Profile': 'public',
+        'Accept-Profile': 'public'
+      },
+      body: JSON.stringify(args)
     });
-    const raw=await res.text();
-    let payload=null;
-    try{payload=raw?JSON.parse(raw):null}catch{payload=raw}
-    if(!res.ok){
-      const message=(payload&&typeof payload==='object'&&(payload.message||payload.error||payload.hint))||String(payload||`Erreur ${res.status}`);
-      const err=new Error(message);err.status=res.status;throw err;
+    const raw = await res.text();
+    let payload = null;
+    try {
+      payload = raw ? JSON.parse(raw) : null;
+    } catch {
+      payload = raw;
+    }
+    if (!res.ok) {
+      const message =
+        (payload &&
+          typeof payload === 'object' &&
+          (payload.message || payload.error || payload.hint)) ||
+        String(payload || `Erreur ${res.status}`);
+      const err = new Error(message);
+      err.status = res.status;
+      throw err;
     }
     return payload;
-  }catch(error){
-    if(error.name==='AbortError'){const err=new Error('network_timeout');err.status=408;throw err}
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      const err = new Error('network_timeout');
+      err.status = 408;
+      throw err;
+    }
     throw error;
-  }finally{clearTimeout(timeout)}
+  } finally {
+    clearTimeout(timeout);
+  }
 }
-function urlBase64ToUint8Array(base64String){
-  const padding='='.repeat((4-base64String.length%4)%4);
-  const base64=(base64String+padding).replace(/-/g,'+').replace(/_/g,'/');
-  const raw=atob(base64);return Uint8Array.from([...raw].map(c=>c.charCodeAt(0)));
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = atob(base64);
+  return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
 }
-function pushSupported(){return 'serviceWorker' in navigator&&'PushManager' in window&&'Notification' in window}
-function isStandalonePWA(){return window.matchMedia?.('(display-mode: standalone)').matches||window.navigator.standalone===true}
-async function getPushSubscription(){if(!pushSupported())return null;const reg=await navigator.serviceWorker.ready;return reg.pushManager.getSubscription()}
-async function enablePushReminders(){
-  if(!pushSupported())throw new Error('push_not_supported');
-  const ua=navigator.userAgent||'';const isiOS=/iPad|iPhone|iPod/.test(ua)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
-  if(isiOS&&!isStandalonePWA())throw new Error('ios_install_required');
-  if(Notification.permission==='denied')throw new Error('notifications_denied');
-  const permission=Notification.permission==='granted'?'granted':await Notification.requestPermission();
-  if(permission!=='granted')throw new Error('notifications_denied');
-  const publicKey=window.APP_CONFIG?.vapidPublicKey;if(!publicKey)throw new Error('vapid_missing');
-  const reg=await navigator.serviceWorker.ready;
-  let sub=await reg.pushManager.getSubscription();
-  if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlBase64ToUint8Array(publicKey)});
-  const json=sub.toJSON();const sess=getSession();if(!sess?.sessionToken)throw new Error('unauthorized');
-  await rpc('api_employee_save_push_subscription',{p_session_token:sess.sessionToken,p_endpoint:sub.endpoint,p_p256dh:json.keys?.p256dh||'',p_auth:json.keys?.auth||'',p_user_agent:navigator.userAgent||'',p_launch_url:'./employee.html'});
-  return sub;
+function pushSupported() {
+  return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
 }
-async function disablePushReminders(){
-  const sub=await getPushSubscription();if(!sub)return false;const sess=getSession();
-  if(sess?.sessionToken){try{await rpc('api_employee_remove_push_subscription',{p_session_token:sess.sessionToken,p_endpoint:sub.endpoint})}catch{}}
-  await sub.unsubscribe();return true;
+function isStandalonePWA() {
+  return (
+    window.matchMedia?.('(display-mode: standalone)').matches ||
+    window.navigator.standalone === true
+  );
 }
-
-async function ownerPushEnabled(){
-  if(!pushSupported())return false;
-  const sub=await getPushSubscription();if(!sub)return false;
-  const sess=getSession();if(!sess?.sessionToken)return false;
-  try{
-    return !!(await rpc('api_owner_push_subscription_status',{
-      p_session_token:sess.sessionToken,
-      p_endpoint:sub.endpoint
-    }));
-  }catch{return false}
+async function getPushSubscription() {
+  if (!pushSupported()) return null;
+  const reg = await navigator.serviceWorker.ready;
+  return reg.pushManager.getSubscription();
 }
-async function enableOwnerPushSummary(){
-  if(!pushSupported())throw new Error('push_not_supported');
-  const ua=navigator.userAgent||'';
-  const isiOS=/iPad|iPhone|iPod/.test(ua)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
-  if(isiOS&&!isStandalonePWA())throw new Error('ios_install_required');
-  if(Notification.permission==='denied')throw new Error('notifications_denied');
-  const permission=Notification.permission==='granted'?'granted':await Notification.requestPermission();
-  if(permission!=='granted')throw new Error('notifications_denied');
-  const publicKey=window.APP_CONFIG?.vapidPublicKey;if(!publicKey)throw new Error('vapid_missing');
-  const reg=await navigator.serviceWorker.ready;
-  let sub=await reg.pushManager.getSubscription();
-  if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlBase64ToUint8Array(publicKey)});
-  const json=sub.toJSON();const sess=getSession();if(!sess?.sessionToken)throw new Error('unauthorized');
-  const launchUrl=location.pathname+location.search;
-  await rpc('api_owner_save_push_subscription',{
-    p_session_token:sess.sessionToken,
-    p_endpoint:sub.endpoint,
-    p_p256dh:json.keys?.p256dh||'',
-    p_auth:json.keys?.auth||'',
-    p_user_agent:navigator.userAgent||'',
-    p_launch_url:launchUrl
+async function enablePushReminders() {
+  if (!pushSupported()) throw new Error('push_not_supported');
+  const ua = navigator.userAgent || '';
+  const isiOS =
+    /iPad|iPhone|iPod/.test(ua) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  if (isiOS && !isStandalonePWA()) throw new Error('ios_install_required');
+  if (Notification.permission === 'denied') throw new Error('notifications_denied');
+  const permission =
+    Notification.permission === 'granted' ? 'granted' : await Notification.requestPermission();
+  if (permission !== 'granted') throw new Error('notifications_denied');
+  const publicKey = window.APP_CONFIG?.vapidPublicKey;
+  if (!publicKey) throw new Error('vapid_missing');
+  const reg = await navigator.serviceWorker.ready;
+  let sub = await reg.pushManager.getSubscription();
+  if (!sub)
+    sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(publicKey)
+    });
+  const json = sub.toJSON();
+  const sess = getSession();
+  if (!sess?.sessionToken) throw new Error('unauthorized');
+  await rpc('api_employee_save_push_subscription', {
+    p_session_token: sess.sessionToken,
+    p_endpoint: sub.endpoint,
+    p_p256dh: json.keys?.p256dh || '',
+    p_auth: json.keys?.auth || '',
+    p_user_agent: navigator.userAgent || '',
+    p_launch_url: './employee.html'
   });
   return sub;
 }
-async function disableOwnerPushSummary(){
-  const sub=await getPushSubscription();if(!sub)return false;
-  const sess=getSession();
-  if(sess?.sessionToken){
-    await rpc('api_owner_remove_push_subscription',{
-      p_session_token:sess.sessionToken,
-      p_endpoint:sub.endpoint
+async function disablePushReminders() {
+  const sub = await getPushSubscription();
+  if (!sub) return false;
+  const sess = getSession();
+  if (sess?.sessionToken) {
+    try {
+      await rpc('api_employee_remove_push_subscription', {
+        p_session_token: sess.sessionToken,
+        p_endpoint: sub.endpoint
+      });
+    } catch {}
+  }
+  await sub.unsubscribe();
+  return true;
+}
+
+async function ownerPushEnabled() {
+  if (!pushSupported()) return false;
+  const sub = await getPushSubscription();
+  if (!sub) return false;
+  const sess = getSession();
+  if (!sess?.sessionToken) return false;
+  try {
+    return !!(await rpc('api_owner_push_subscription_status', {
+      p_session_token: sess.sessionToken,
+      p_endpoint: sub.endpoint
+    }));
+  } catch {
+    return false;
+  }
+}
+async function enableOwnerPushSummary() {
+  if (!pushSupported()) throw new Error('push_not_supported');
+  const ua = navigator.userAgent || '';
+  const isiOS =
+    /iPad|iPhone|iPod/.test(ua) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  if (isiOS && !isStandalonePWA()) throw new Error('ios_install_required');
+  if (Notification.permission === 'denied') throw new Error('notifications_denied');
+  const permission =
+    Notification.permission === 'granted' ? 'granted' : await Notification.requestPermission();
+  if (permission !== 'granted') throw new Error('notifications_denied');
+  const publicKey = window.APP_CONFIG?.vapidPublicKey;
+  if (!publicKey) throw new Error('vapid_missing');
+  const reg = await navigator.serviceWorker.ready;
+  let sub = await reg.pushManager.getSubscription();
+  if (!sub)
+    sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(publicKey)
+    });
+  const json = sub.toJSON();
+  const sess = getSession();
+  if (!sess?.sessionToken) throw new Error('unauthorized');
+  const launchUrl = location.pathname + location.search;
+  await rpc('api_owner_save_push_subscription', {
+    p_session_token: sess.sessionToken,
+    p_endpoint: sub.endpoint,
+    p_p256dh: json.keys?.p256dh || '',
+    p_auth: json.keys?.auth || '',
+    p_user_agent: navigator.userAgent || '',
+    p_launch_url: launchUrl
+  });
+  return sub;
+}
+async function disableOwnerPushSummary() {
+  const sub = await getPushSubscription();
+  if (!sub) return false;
+  const sess = getSession();
+  if (sess?.sessionToken) {
+    await rpc('api_owner_remove_push_subscription', {
+      p_session_token: sess.sessionToken,
+      p_endpoint: sub.endpoint
     });
   }
   // On ne désabonne pas le PushManager du navigateur : le même abonnement
   // peut aussi être utilisé par un espace employé sur ce domaine.
   return true;
 }
-async function showOwnerLocalTestNotification(){
-  if(!pushSupported())throw new Error('push_not_supported');
-  const reg=await navigator.serviceWorker.ready;
-  await reg.showNotification('Synthèse des horaires',{
-    body:'Exemple : 2 employés sur 3 ont complété leur journée.',
-    tag:'suivi-horaires-owner-test',
-    data:{url:location.pathname+location.search}
+async function showOwnerLocalTestNotification() {
+  if (!pushSupported()) throw new Error('push_not_supported');
+  const reg = await navigator.serviceWorker.ready;
+  await reg.showNotification('Synthèse des horaires', {
+    body: 'Exemple : 2 employés sur 3 ont complété leur journée.',
+    tag: 'suivi-horaires-owner-test',
+    data: { url: location.pathname + location.search }
   });
 }
-async function showLocalTestNotification(){
-  if(!pushSupported())throw new Error('push_not_supported');
-  const reg=await navigator.serviceWorker.ready;
-  await reg.showNotification('Mes horaires',{body:'Les rappels sont bien activés sur ce téléphone.',tag:'suivi-horaires-test'});
+async function showLocalTestNotification() {
+  if (!pushSupported()) throw new Error('push_not_supported');
+  const reg = await navigator.serviceWorker.ready;
+  await reg.showNotification('Mes horaires', {
+    body: 'Les rappels sont bien activés sur ce téléphone.',
+    tag: 'suivi-horaires-test'
+  });
 }
 
-function friendlyError(err){
-  const raw=String(err?.message||err||'');
-  const m=raw.toLowerCase();
-  if(m.includes('too_many_login_attempts')||m.includes('too_many_attempts')){
-    const secondsMatch=raw.match(/(?:too_many_login_attempts|too_many_attempts)[:=](\d+)/i);
-    const seconds=secondsMatch?Number(secondsMatch[1]):900;
-    const minutes=Math.max(1,Math.ceil(seconds/60));
+function friendlyError(err) {
+  const raw = String(err?.message || err || '');
+  const m = raw.toLowerCase();
+  if (m.includes('too_many_login_attempts') || m.includes('too_many_attempts')) {
+    const secondsMatch = raw.match(/(?:too_many_login_attempts|too_many_attempts)[:=](\d+)/i);
+    const seconds = secondsMatch ? Number(secondsMatch[1]) : 900;
+    const minutes = Math.max(1, Math.ceil(seconds / 60));
     return `Trop de tentatives de connexion. Réessaie dans ${minutes} min.`;
   }
-  if(
-    m.includes('invalid_credentials')||
-    m.includes('invalid credentials')||
-    m.includes('invalid_pin')||
-    m.includes('invalid pin')||
-    m.includes('incorrect_pin')||
-    m.includes('pin incorrect')||
+  if (
+    m.includes('invalid_credentials') ||
+    m.includes('invalid credentials') ||
+    m.includes('invalid_pin') ||
+    m.includes('invalid pin') ||
+    m.includes('incorrect_pin') ||
+    m.includes('pin incorrect') ||
     m.includes('wrong pin')
-  ) return 'PIN incorrect.';
-  if(m.includes('network_timeout')) return 'Le réseau met trop de temps à répondre. Réessaie dans quelques instants.';
-  if(m.includes('unauthorized')) return 'Votre session n’est plus valide. Reconnectez-vous.';
-  if(m.includes('entry_not_complete')) return 'La journée doit être complète avant validation.';
-  if(m.includes('employer_not_allowed')) return 'Cet employeur n’est pas associé à ce salarié.';
-  if(m.includes('employer_not_found')) return 'Cet employeur n’existe plus.';
-  if(m.includes('invalid_employer_name')) return 'Le nom de l’employeur doit contenir au moins 2 caractères.';
-  if(m.includes('segment_already_open')) return 'Un créneau de travail est déjà en cours. Termine-le avant d’en commencer un autre.';
-  if(m.includes('open_segment_not_found')) return 'Aucun créneau en cours n’a été trouvé.';
-  if(m.includes('end_before_start')) return 'L’heure de départ ne peut pas être antérieure à l’heure d’arrivée.';
-  if(m.includes('overlapping_segments')) return 'Deux créneaux se chevauchent. Corrige les horaires avant d’enregistrer.';
-  if(m.includes('zero_length_segment')) return 'L’heure de fin doit être strictement après l’heure de début.';
-  if(m.includes('pause_exceeds_work')) return 'La pause ne peut pas être plus longue que le temps de travail de la journée.';
-  if(m.includes('stale_open_segment')) return 'Un ancien créneau est encore ouvert. Corrige cette journée avant d’en commencer une nouvelle.';
-  if(m.includes('employer_name_exists')) return 'Un employeur portant ce nom existe déjà.';
-  if(m.includes('no_segments')) return 'Ajoute au moins un créneau de travail.';
-  if(m.includes('day_has_segments')) return 'Cette journée contient déjà des heures de travail. Supprime les créneaux avant de la déclarer non travaillée.';
-  if(m.includes('validated_leave')) return 'Ce créneau chevauche un congé ou un RTT validé.';
-  if(m.includes('invalid_leave_dates')) return 'Vérifie les dates. Pour une demi-journée RTT, sélectionne une seule date.';
-  if(m.includes('leave_overlap')) return 'Cette période chevauche déjà une autre demande de congé.';
-  if(m.includes('leave_has_work')) return 'Des heures de travail existent déjà sur cette période. Corrige-les avant de valider le congé.';
-  if(m.includes('leave_not_cancellable')) return 'Cette demande ne peut plus être annulée depuis le compte salarié.';
-  if(m.includes('failed to fetch')) return 'Connexion impossible. Vérifiez votre accès Internet.';
-  if(m.includes('push_not_supported')) return 'Les notifications push ne sont pas prises en charge sur ce navigateur.';
-  if(m.includes('ios_install_required')) return 'Sur iPhone, ajoute d’abord ce site à l’écran d’accueil puis ouvre-le depuis son icône.';
-  if(m.includes('notifications_denied')) return 'Les notifications sont bloquées dans les réglages du navigateur ou du téléphone.';
-  if(m.includes('vapid_missing')) return 'Configuration des notifications incomplète.';
-  if(m.includes('date_before_app_start')) return 'Les journées antérieures au 2 novembre 2026 ne sont plus gérées dans l’application.';
-  if(m.includes('offline_start_not_synced')) return 'Le début du travail doit d’abord être synchronisé avant la fin.';
-  if(m.includes('segment_already_closed')) return 'Ce créneau a déjà été terminé avec une autre heure.';
-  if(m.includes('offline_edit_not_supported')) return 'Cette modification nécessite Internet.';
-  if(m.includes('offline_leave_not_synced')) return 'La demande de congé doit d’abord être synchronisée.';
-  if(m.includes('day_changed_on_server')) return 'Cette journée a été modifiée depuis ton dernier accès. Vérifie-la avant de poursuivre.';
-  if(m.includes('offline_action_unknown')) return 'Une action hors ligne n’est pas reconnue. Recharge l’application.';
-  if(m.includes('segment_changed_on_server')) return 'Ce créneau a été modifié depuis ton dernier accès. Recharge la journée avant de le supprimer.';
-  if(m.includes('segment_still_open')) return 'Termine d’abord ce créneau avant de le supprimer.';
-  if(m.includes('segment_not_found')) return 'Ce créneau n’existe plus. Recharge l’application.';
-  if(m.includes('invalid_current_pin')) return 'Le PIN actuel est incorrect.';
-  if(m.includes('invalid_new_pin')) return 'Le nouveau PIN doit contenir exactement 4 chiffres.';
+  )
+    return 'PIN incorrect.';
+  if (m.includes('network_timeout'))
+    return 'Le réseau met trop de temps à répondre. Réessaie dans quelques instants.';
+  if (m.includes('unauthorized')) return 'Votre session n’est plus valide. Reconnectez-vous.';
+  if (m.includes('entry_not_complete')) return 'La journée doit être complète avant validation.';
+  if (m.includes('employer_not_allowed')) return 'Cet employeur n’est pas associé à ce salarié.';
+  if (m.includes('employer_not_found')) return 'Cet employeur n’existe plus.';
+  if (m.includes('invalid_employer_name'))
+    return 'Le nom de l’employeur doit contenir au moins 2 caractères.';
+  if (m.includes('segment_already_open'))
+    return 'Un créneau de travail est déjà en cours. Termine-le avant d’en commencer un autre.';
+  if (m.includes('open_segment_not_found')) return 'Aucun créneau en cours n’a été trouvé.';
+  if (m.includes('end_before_start'))
+    return 'L’heure de départ ne peut pas être antérieure à l’heure d’arrivée.';
+  if (m.includes('overlapping_segments'))
+    return 'Deux créneaux se chevauchent. Corrige les horaires avant d’enregistrer.';
+  if (m.includes('zero_length_segment'))
+    return 'L’heure de fin doit être strictement après l’heure de début.';
+  if (m.includes('pause_exceeds_work'))
+    return 'La pause ne peut pas être plus longue que le temps de travail de la journée.';
+  if (m.includes('stale_open_segment'))
+    return 'Un ancien créneau est encore ouvert. Corrige cette journée avant d’en commencer une nouvelle.';
+  if (m.includes('employer_name_exists')) return 'Un employeur portant ce nom existe déjà.';
+  if (m.includes('no_segments')) return 'Ajoute au moins un créneau de travail.';
+  if (m.includes('day_has_segments'))
+    return 'Cette journée contient déjà des heures de travail. Supprime les créneaux avant de la déclarer non travaillée.';
+  if (m.includes('validated_leave')) return 'Ce créneau chevauche un congé ou un RTT validé.';
+  if (m.includes('invalid_leave_dates'))
+    return 'Vérifie les dates. Pour une demi-journée RTT, sélectionne une seule date.';
+  if (m.includes('leave_overlap'))
+    return 'Cette période chevauche déjà une autre demande de congé.';
+  if (m.includes('leave_has_work'))
+    return 'Des heures de travail existent déjà sur cette période. Corrige-les avant de valider le congé.';
+  if (m.includes('leave_not_cancellable'))
+    return 'Cette demande ne peut plus être annulée depuis le compte salarié.';
+  if (m.includes('failed to fetch')) return 'Connexion impossible. Vérifiez votre accès Internet.';
+  if (m.includes('push_not_supported'))
+    return 'Les notifications push ne sont pas prises en charge sur ce navigateur.';
+  if (m.includes('ios_install_required'))
+    return 'Sur iPhone, ajoute d’abord ce site à l’écran d’accueil puis ouvre-le depuis son icône.';
+  if (m.includes('notifications_denied'))
+    return 'Les notifications sont bloquées dans les réglages du navigateur ou du téléphone.';
+  if (m.includes('vapid_missing')) return 'Configuration des notifications incomplète.';
+  if (m.includes('date_before_app_start'))
+    return 'Les journées antérieures au 2 novembre 2026 ne sont plus gérées dans l’application.';
+  if (m.includes('offline_start_not_synced'))
+    return 'Le début du travail doit d’abord être synchronisé avant la fin.';
+  if (m.includes('segment_already_closed'))
+    return 'Ce créneau a déjà été terminé avec une autre heure.';
+  if (m.includes('offline_edit_not_supported')) return 'Cette modification nécessite Internet.';
+  if (m.includes('offline_leave_not_synced'))
+    return 'La demande de congé doit d’abord être synchronisée.';
+  if (m.includes('day_changed_on_server'))
+    return 'Cette journée a été modifiée depuis ton dernier accès. Vérifie-la avant de poursuivre.';
+  if (m.includes('offline_action_unknown'))
+    return 'Une action hors ligne n’est pas reconnue. Recharge l’application.';
+  if (m.includes('segment_changed_on_server'))
+    return 'Ce créneau a été modifié depuis ton dernier accès. Recharge la journée avant de le supprimer.';
+  if (m.includes('segment_still_open')) return 'Termine d’abord ce créneau avant de le supprimer.';
+  if (m.includes('segment_not_found')) return 'Ce créneau n’existe plus. Recharge l’application.';
+  if (m.includes('invalid_current_pin')) return 'Le PIN actuel est incorrect.';
+  if (m.includes('invalid_new_pin')) return 'Le nouveau PIN doit contenir exactement 4 chiffres.';
   return 'Une erreur est survenue. Réessayez.';
 }
-function cleanTime(v){return v?String(v).slice(0,5):''}
-function normalizeEntry(r){return {
-  employeeId:r.employee_id,
-  date:r.work_date,
-  status:r.status||'worked',
-  arrival:cleanTime(r.arrival),
-  departure:cleanTime(r.departure),
-  pause:Number(r.pause_minutes??45),
-  pauseMode:r.pause_mode||'manual',
-  comment:r.comment||'',
-  arrivalMode:r.arrival_mode||'',
-  departureMode:r.departure_mode||'',
-  validationStatus:r.validation_status||'',
-  validatedAt:r.validated_at||'',
-  updatedAt:r.updated_at||'',
-  serverUpdatedAt:r.updated_at||'',
-  pendingSync:false
-}}
-function normalizeEmployee(e){return {
-  id:e.id,
-  name:e.name,
-  weeklyObjectiveMinutes:Number(e.weekly_objective_minutes??2100),
-  overtimeThresholdMinutes:Number(e.overtime_threshold_minutes??2100)
-}}
-function normalizeEmployer(r){return {id:r.id,name:r.name||'Employeur',active:r.active!==false,sortOrder:Number(r.sort_order||0)}}
-function normalizeSegment(r){return {
-  id:r.id,
-  employeeId:r.employee_id,
-  date:r.work_date,
-  employerId:r.employer_id,
-  employerName:r.employer_name||'Employeur',
-  start:cleanTime(r.start_time),
-  end:cleanTime(r.end_time),
-  source:r.source||'',
-  comment:r.comment||'',
-  updatedAt:r.updated_at||'',
-  serverUpdatedAt:r.updated_at||'',
-  pendingSync:false,
-  clientEventId:r.client_event_id||''
-}}
-function normalizeLeave(r){return {
-  id:r.id,
-  employeeId:r.employee_id,
-  startDate:r.start_date,
-  endDate:r.end_date,
-  type:r.leave_type||'paid_leave',
-  status:r.status||'pending',
-  note:r.note||'',
-  requestedBy:r.requested_by||'employee',
-  reviewedAt:r.reviewed_at||'',
-  reviewedBy:r.reviewed_by||'',
-  createdAt:r.created_at||'',
-  pendingSync:false,
-  clientEventId:r.client_event_id||''
-}}
-function setV2Data(raw={},role='employee'){
-  V2_DATA={
-    employers:(raw.employers||[]).map(normalizeEmployer),
-    assignments:(raw.assignments||[]).map(x=>({employeeId:x.employee_id,employerId:x.employer_id,active:x.active!==false})),
-    segments:(raw.segments||[]).map(normalizeSegment),
-    leaves:(raw.leaves||[]).map(normalizeLeave)
+function cleanTime(v) {
+  return v ? String(v).slice(0, 5) : '';
+}
+function normalizeEntry(r) {
+  return {
+    employeeId: r.employee_id,
+    date: r.work_date,
+    status: r.status || 'worked',
+    arrival: cleanTime(r.arrival),
+    departure: cleanTime(r.departure),
+    pause: Number(r.pause_minutes ?? 45),
+    pauseMode: r.pause_mode || 'manual',
+    comment: r.comment || '',
+    arrivalMode: r.arrival_mode || '',
+    departureMode: r.departure_mode || '',
+    validationStatus: r.validation_status || '',
+    validatedAt: r.validated_at || '',
+    updatedAt: r.updated_at || '',
+    serverUpdatedAt: r.updated_at || '',
+    pendingSync: false
   };
 }
-function employerFor(id){return V2_DATA.employers.find(e=>e.id===id)||null}
-function assignedEmployers(empId){
-  const ids=new Set(V2_DATA.assignments.filter(a=>a.employeeId===empId&&a.active).map(a=>a.employerId));
-  return V2_DATA.employers.filter(e=>e.active&&ids.has(e.id));
+function normalizeEmployee(e) {
+  return {
+    id: e.id,
+    name: e.name,
+    weeklyObjectiveMinutes: Number(e.weekly_objective_minutes ?? 2100),
+    overtimeThresholdMinutes: Number(e.overtime_threshold_minutes ?? 2100)
+  };
 }
-function segmentsFor(empId,date){return V2_DATA.segments.filter(s=>s.employeeId===empId&&s.date===date).sort((a,b)=>a.start.localeCompare(b.start))}
-function openSegmentFor(empId,date=iso()){return V2_DATA.segments.find(s=>s.employeeId===empId&&s.date===date&&!s.end)||null}
-function staleOpenSegmentFor(empId,date=iso()){return V2_DATA.segments.find(s=>s.employeeId===empId&&s.date!==date&&!s.end)||null}
-function grossSegmentsMinutes(segments=[]){return segments.reduce((sum,s)=>sum+timeSpanMinutes(s.start,s.end),0)}
+function normalizeEmployer(r) {
+  return {
+    id: r.id,
+    name: r.name || 'Employeur',
+    active: r.active !== false,
+    sortOrder: Number(r.sort_order || 0)
+  };
+}
+function normalizeSegment(r) {
+  return {
+    id: r.id,
+    employeeId: r.employee_id,
+    date: r.work_date,
+    employerId: r.employer_id,
+    employerName: r.employer_name || 'Employeur',
+    start: cleanTime(r.start_time),
+    end: cleanTime(r.end_time),
+    source: r.source || '',
+    comment: r.comment || '',
+    updatedAt: r.updated_at || '',
+    serverUpdatedAt: r.updated_at || '',
+    pendingSync: false,
+    clientEventId: r.client_event_id || ''
+  };
+}
+function normalizeLeave(r) {
+  return {
+    id: r.id,
+    employeeId: r.employee_id,
+    startDate: r.start_date,
+    endDate: r.end_date,
+    type: r.leave_type || 'paid_leave',
+    status: r.status || 'pending',
+    note: r.note || '',
+    requestedBy: r.requested_by || 'employee',
+    reviewedAt: r.reviewed_at || '',
+    reviewedBy: r.reviewed_by || '',
+    createdAt: r.created_at || '',
+    pendingSync: false,
+    clientEventId: r.client_event_id || ''
+  };
+}
+function setV2Data(raw = {}, role = 'employee') {
+  V2_DATA = {
+    employers: (raw.employers || []).map(normalizeEmployer),
+    assignments: (raw.assignments || []).map(x => ({
+      employeeId: x.employee_id,
+      employerId: x.employer_id,
+      active: x.active !== false
+    })),
+    segments: (raw.segments || []).map(normalizeSegment),
+    leaves: (raw.leaves || []).map(normalizeLeave)
+  };
+}
+function employerFor(id) {
+  return V2_DATA.employers.find(e => e.id === id) || null;
+}
+function assignedEmployers(empId) {
+  const ids = new Set(
+    V2_DATA.assignments.filter(a => a.employeeId === empId && a.active).map(a => a.employerId)
+  );
+  return V2_DATA.employers.filter(e => e.active && ids.has(e.id));
+}
+function segmentsFor(empId, date) {
+  return V2_DATA.segments
+    .filter(s => s.employeeId === empId && s.date === date)
+    .sort((a, b) => a.start.localeCompare(b.start));
+}
+function openSegmentFor(empId, date = iso()) {
+  return V2_DATA.segments.find(s => s.employeeId === empId && s.date === date && !s.end) || null;
+}
+function staleOpenSegmentFor(empId, date = iso()) {
+  return V2_DATA.segments.find(s => s.employeeId === empId && s.date !== date && !s.end) || null;
+}
+function grossSegmentsMinutes(segments = []) {
+  return segments.reduce((sum, s) => sum + timeSpanMinutes(s.start, s.end), 0);
+}
 
 // A half-day RTT ends/starts at 13:00. Leave never creates worked minutes.
-function hasHalfDayRTT(empId,date){const l=leaveForDate(empId,date);return !!l&&!isFullDayLeave(l)}
-const LEAVE_LABELS={paid_leave:'Congé',rtt:'RTT',rtt_morning:'RTT matin',rtt_afternoon:'RTT après-midi'};
-function leaveLabel(l){return LEAVE_LABELS[l?.type]||'Congé'}
-function isFullDayLeave(l){return !!l&&!['rtt_morning','rtt_afternoon'].includes(l.type)}
-function leaveConflicts(l,start,end){
-  if(isFullDayLeave(l))return true;
-  const a=timeToMinutes(start),b=timeToMinutes(end);
-  if(l.type==='rtt_morning')return a===null||a<780;
-  return a===null||a>=780||(b!==null&&b>780);
+function hasHalfDayRTT(empId, date) {
+  const l = leaveForDate(empId, date);
+  return !!l && !isFullDayLeave(l);
 }
-function assertLeaveTime(empId,date,start,end){const l=leaveForDate(empId,date);if(l&&leaveConflicts(l,start,end))throw new Error('validated_leave')}
+const LEAVE_LABELS = {
+  paid_leave: 'Congé',
+  rtt: 'RTT',
+  rtt_morning: 'RTT matin',
+  rtt_afternoon: 'RTT après-midi'
+};
+function leaveLabel(l) {
+  return LEAVE_LABELS[l?.type] || 'Congé';
+}
+function isFullDayLeave(l) {
+  return !!l && !['rtt_morning', 'rtt_afternoon'].includes(l.type);
+}
+function leaveConflicts(l, start, end) {
+  if (isFullDayLeave(l)) return true;
+  const a = timeToMinutes(start),
+    b = timeToMinutes(end);
+  if (l.type === 'rtt_morning') return a === null || a < 780;
+  return a === null || a >= 780 || (b !== null && b > 780);
+}
+function assertLeaveTime(empId, date, start, end) {
+  const l = leaveForDate(empId, date);
+  if (l && leaveConflicts(l, start, end)) throw new Error('validated_leave');
+}
 
-function leaveForDate(empId,date,status='validated'){return V2_DATA.leaves.find(l=>l.employeeId===empId&&(!status||l.status===status)&&date>=l.startDate&&date<=l.endDate)||null}
-function isOnValidatedLeave(empId,date){return isFullDayLeave(leaveForDate(empId,date,'validated'))}
-function timeSpanMinutes(start,end){
-  if(!start||!end)return 0;
-  const a=timeToMinutes(start),b=timeToMinutes(end);
-  if(a===null||b===null||b<a)return 0;
-  return b-a;
+function leaveForDate(empId, date, status = 'validated') {
+  return (
+    V2_DATA.leaves.find(
+      l =>
+        l.employeeId === empId &&
+        (!status || l.status === status) &&
+        date >= l.startDate &&
+        date <= l.endDate
+    ) || null
+  );
 }
-function segmentMinutesForDay(empId,date,{includeOpen=false}={}){
-  const segs=segmentsFor(empId,date);
-  if(!segs.length)return null;
-  let gross=0;
-  for(const s of segs){
-    let end=s.end;
-    if(!end&&includeOpen&&date===iso())end=hm();
-    gross+=timeSpanMinutes(s.start,end);
+function isOnValidatedLeave(empId, date) {
+  return isFullDayLeave(leaveForDate(empId, date, 'validated'));
+}
+function timeSpanMinutes(start, end) {
+  if (!start || !end) return 0;
+  const a = timeToMinutes(start),
+    b = timeToMinutes(end);
+  if (a === null || b === null || b < a) return 0;
+  return b - a;
+}
+function segmentMinutesForDay(empId, date, { includeOpen = false } = {}) {
+  const segs = segmentsFor(empId, date);
+  if (!segs.length) return null;
+  let gross = 0;
+  for (const s of segs) {
+    let end = s.end;
+    if (!end && includeOpen && date === iso()) end = hm();
+    gross += timeSpanMinutes(s.start, end);
   }
-  const entry=entryFor(empId,date,false);
-  const pause=Number(entry?.pause||0);
-  return Math.max(0,gross-pause);
+  const entry = entryFor(empId, date, false);
+  const pause = Number(entry?.pause || 0);
+  return Math.max(0, gross - pause);
 }
-function workMinutesForDay(empId,date,{includeOpen=false}={}){
-  if(isOnValidatedLeave(empId,date))return 0;
-  const entry=entryFor(empId,date,false);
-  if(entry?.status==='off')return 0;
-  const v2=segmentMinutesForDay(empId,date,{includeOpen});
-  if(v2!==null)return v2;
-  return entry?minutes(entry.arrival,entry.departure,entry.pause):0;
+function workMinutesForDay(empId, date, { includeOpen = false } = {}) {
+  if (isOnValidatedLeave(empId, date)) return 0;
+  const entry = entryFor(empId, date, false);
+  if (entry?.status === 'off') return 0;
+  const v2 = segmentMinutesForDay(empId, date, { includeOpen });
+  if (v2 !== null) return v2;
+  return entry ? minutes(entry.arrival, entry.departure, entry.pause) : 0;
 }
 
-function hydrateEmployeeSettings(){
-  APP_DATA.settings.employeeSettings={};
-  EMPLOYEES.forEach(e=>APP_DATA.settings.employeeSettings[e.id]={weeklyObjectiveMinutes:e.weeklyObjectiveMinutes,overtimeThresholdMinutes:e.overtimeThresholdMinutes});
+function hydrateEmployeeSettings() {
+  APP_DATA.settings.employeeSettings = {};
+  EMPLOYEES.forEach(
+    e =>
+      (APP_DATA.settings.employeeSettings[e.id] = {
+        weeklyObjectiveMinutes: e.weeklyObjectiveMinutes,
+        overtimeThresholdMinutes: e.overtimeThresholdMinutes
+      })
+  );
 }
-function hydrateSchedule(rows=[]){
-  APP_DATA.settings.plannedDays={};
-  APP_DATA.settings.plannedDayVersions={};
-  EMPLOYEES.forEach(e=>{APP_DATA.settings.plannedDays[e.id]={};APP_DATA.settings.plannedDayVersions[e.id]={}});
-  rows.forEach(r=>{
-    if(!APP_DATA.settings.plannedDays[r.employee_id])APP_DATA.settings.plannedDays[r.employee_id]={};
-    if(!APP_DATA.settings.plannedDayVersions[r.employee_id])APP_DATA.settings.plannedDayVersions[r.employee_id]={};
-    APP_DATA.settings.plannedDays[r.employee_id][r.work_date]=!!r.is_working;
-    APP_DATA.settings.plannedDayVersions[r.employee_id][r.work_date]=r.updated_at||'';
+function hydrateSchedule(rows = []) {
+  APP_DATA.settings.plannedDays = {};
+  APP_DATA.settings.plannedDayVersions = {};
+  EMPLOYEES.forEach(e => {
+    APP_DATA.settings.plannedDays[e.id] = {};
+    APP_DATA.settings.plannedDayVersions[e.id] = {};
+  });
+  rows.forEach(r => {
+    if (!APP_DATA.settings.plannedDays[r.employee_id])
+      APP_DATA.settings.plannedDays[r.employee_id] = {};
+    if (!APP_DATA.settings.plannedDayVersions[r.employee_id])
+      APP_DATA.settings.plannedDayVersions[r.employee_id] = {};
+    APP_DATA.settings.plannedDays[r.employee_id][r.work_date] = !!r.is_working;
+    APP_DATA.settings.plannedDayVersions[r.employee_id][r.work_date] = r.updated_at || '';
   });
 }
-function getData(){return APP_DATA}
-function entryFor(emp,date,create=false){
-  let e=APP_DATA.entries.find(x=>x.employeeId===emp&&x.date===date);
-  if(!e&&create)e={employeeId:emp,date,status:'worked',arrival:'',departure:'',pause:45,comment:'',arrivalMode:'',departureMode:'',validationStatus:'',updatedAt:'',serverUpdatedAt:'',pendingSync:false};
+function getData() {
+  return APP_DATA;
+}
+function entryFor(emp, date, create = false) {
+  let e = APP_DATA.entries.find(x => x.employeeId === emp && x.date === date);
+  if (!e && create)
+    e = {
+      employeeId: emp,
+      date,
+      status: 'worked',
+      arrival: '',
+      departure: '',
+      pause: 45,
+      comment: '',
+      arrivalMode: '',
+      departureMode: '',
+      validationStatus: '',
+      updatedAt: '',
+      serverUpdatedAt: '',
+      pendingSync: false
+    };
   return e;
 }
-function employeeSettings(empId){return APP_DATA.settings.employeeSettings[empId]||{weeklyObjectiveMinutes:2100,overtimeThresholdMinutes:2100}}
-function publicHolidayName(date){return globalThis.FrenchHolidays.name(date)}
-function isPlannedWorkingDay(empId,date){if(isBeforeAppStart(date))return false;const over=APP_DATA.settings.plannedDays?.[empId]?.[date];if(typeof over==='boolean')return over;const day=dateObjFromIso(date).getDay();return day!==0&&day!==6&&!publicHolidayName(date)}
-function recentDates(days=21){let arr=[],d=new Date();for(let i=0;i<days;i++){let x=new Date(d);x.setDate(d.getDate()-i);const value=iso(x);if(isBeforeAppStart(value))break;arr.push(value)}return arr}
-function tasksFor(emp){
-  return recentDates(62).filter(date=>{
-    if(date===iso()||isOnValidatedLeave(emp,date))return false;
-    const segs=segmentsFor(emp,date),entry=entryFor(emp,date,false);
-    const hasActualActivity=segs.length>0||entry?.status==='worked';
-    if(!isPlannedWorkingDay(emp,date)&&!hasActualActivity)return false;
-    const info=dayInfoFor(emp,date);
-    return !['complete','off','leave'].includes(info.status);
-  }).map(date=>{
-    const segs=segmentsFor(emp,date),entry=entryFor(emp,date,false);
-    let missing='Journée à renseigner';
-    if(segs.some(s=>!s.end))missing='Départ manquant';
-    else if(entry&&(!entry.arrival||!entry.departure))missing='Journée à compléter';
-    return {date,missing};
-  })
+function employeeSettings(empId) {
+  return (
+    APP_DATA.settings.employeeSettings[empId] || {
+      weeklyObjectiveMinutes: 2100,
+      overtimeThresholdMinutes: 2100
+    }
+  );
 }
-function totalFor(emp,start,end){
-  return listDates(start,end).reduce((sum,date)=>sum+workMinutesForDay(emp,date),0)
+function publicHolidayName(date) {
+  return globalThis.FrenchHolidays.name(date);
 }
-function pendingValidationCount(emp,start=null,end=null){return APP_DATA.entries.filter(e=>e.employeeId===emp&&e.validationStatus==='pending'&&(e.status==='off'||(e.arrival&&e.departure))&&(!start||new Date(e.date+'T12:00:00')>=start)&&(!end||new Date(e.date+'T12:00:00')<=end)).length}
-function dayInfoFor(empId,date){
-  if(isBeforeAppStart(date))return {entry:null,status:'before-start',minutes:0,label:'Hors période'};
-  const entry=APP_DATA.entries.find(x=>x.employeeId===empId&&x.date===date);
-  const planned=isPlannedWorkingDay(empId,date);
-  const leave=leaveForDate(empId,date,'validated');
-  if(isFullDayLeave(leave))return {entry,status:'leave',minutes:0,label:leaveLabel(leave),leave};
-  if(entry?.status==='off')return {entry,status:'off',minutes:0,label:'Non travaillé'};
-  const segs=segmentsFor(empId,date);
-  if(segs.length){
-    const total=workMinutesForDay(empId,date,{includeOpen:date===iso()});
-    const open=segs.some(s=>!s.end);
-    return {entry,status:open?'incomplete':'complete',minutes:total,label:open?'En cours':fmtMin(total),segments:segs};
+function isPlannedWorkingDay(empId, date) {
+  if (isBeforeAppStart(date)) return false;
+  const over = APP_DATA.settings.plannedDays?.[empId]?.[date];
+  if (typeof over === 'boolean') return over;
+  const day = dateObjFromIso(date).getDay();
+  return day !== 0 && day !== 6 && !publicHolidayName(date);
+}
+function recentDates(days = 21) {
+  let arr = [],
+    d = new Date();
+  for (let i = 0; i < days; i++) {
+    let x = new Date(d);
+    x.setDate(d.getDate() - i);
+    const value = iso(x);
+    if (isBeforeAppStart(value)) break;
+    arr.push(value);
   }
-  if(!entry)return {entry:null,status:planned?'empty':'scheduled-off',minutes:0,label:planned?'À compléter':publicHolidayName(date)||'Non travaillé prévu'};
-  const total=minutes(entry.arrival,entry.departure,entry.pause);
-  if(entry.arrival&&entry.departure)return {entry,status:'complete',minutes:total,label:fmtMin(total)};
-  return {entry,status:'incomplete',minutes:total,label:'À compléter'};
+  return arr;
+}
+function tasksFor(emp) {
+  return recentDates(62)
+    .filter(date => {
+      if (date === iso() || isOnValidatedLeave(emp, date)) return false;
+      const segs = segmentsFor(emp, date),
+        entry = entryFor(emp, date, false);
+      const hasActualActivity = segs.length > 0 || entry?.status === 'worked';
+      if (!isPlannedWorkingDay(emp, date) && !hasActualActivity) return false;
+      const info = dayInfoFor(emp, date);
+      return !['complete', 'off', 'leave'].includes(info.status);
+    })
+    .map(date => {
+      const segs = segmentsFor(emp, date),
+        entry = entryFor(emp, date, false);
+      let missing = 'Journée à renseigner';
+      if (segs.some(s => !s.end)) missing = 'Départ manquant';
+      else if (entry && (!entry.arrival || !entry.departure)) missing = 'Journée à compléter';
+      return { date, missing };
+    });
+}
+function totalFor(emp, start, end) {
+  return listDates(start, end).reduce((sum, date) => sum + workMinutesForDay(emp, date), 0);
+}
+function pendingValidationCount(emp, start = null, end = null) {
+  return APP_DATA.entries.filter(
+    e =>
+      e.employeeId === emp &&
+      e.validationStatus === 'pending' &&
+      (e.status === 'off' || (e.arrival && e.departure)) &&
+      (!start || new Date(e.date + 'T12:00:00') >= start) &&
+      (!end || new Date(e.date + 'T12:00:00') <= end)
+  ).length;
+}
+function dayInfoFor(empId, date) {
+  if (isBeforeAppStart(date))
+    return { entry: null, status: 'before-start', minutes: 0, label: 'Hors période' };
+  const entry = APP_DATA.entries.find(x => x.employeeId === empId && x.date === date);
+  const planned = isPlannedWorkingDay(empId, date);
+  const leave = leaveForDate(empId, date, 'validated');
+  if (isFullDayLeave(leave))
+    return { entry, status: 'leave', minutes: 0, label: leaveLabel(leave), leave };
+  if (entry?.status === 'off') return { entry, status: 'off', minutes: 0, label: 'Non travaillé' };
+  const segs = segmentsFor(empId, date);
+  if (segs.length) {
+    const total = workMinutesForDay(empId, date, { includeOpen: date === iso() });
+    const open = segs.some(s => !s.end);
+    return {
+      entry,
+      status: open ? 'incomplete' : 'complete',
+      minutes: total,
+      label: open ? 'En cours' : fmtMin(total),
+      segments: segs
+    };
+  }
+  if (!entry)
+    return {
+      entry: null,
+      status: planned ? 'empty' : 'scheduled-off',
+      minutes: 0,
+      label: planned ? 'À compléter' : publicHolidayName(date) || 'Non travaillé prévu'
+    };
+  const total = minutes(entry.arrival, entry.departure, entry.pause);
+  if (entry.arrival && entry.departure)
+    return { entry, status: 'complete', minutes: total, label: fmtMin(total) };
+  return { entry, status: 'incomplete', minutes: total, label: 'À compléter' };
 }
 
-function assertLoginResult(out){
-  if(out?.error==='too_many_attempts'){
-    const seconds=Math.max(1,Number(out.retry_after_seconds)||900);
-    const err=new Error(`too_many_login_attempts:${seconds}`);err.status=429;throw err;
+function assertLoginResult(out) {
+  if (out?.error === 'too_many_attempts') {
+    const seconds = Math.max(1, Number(out.retry_after_seconds) || 900);
+    const err = new Error(`too_many_login_attempts:${seconds}`);
+    err.status = 429;
+    throw err;
   }
-  if(out?.error==='invalid_credentials'||!out?.session_token){
-    const err=new Error('invalid_credentials');err.status=401;throw err;
+  if (out?.error === 'invalid_credentials' || !out?.session_token) {
+    const err = new Error('invalid_credentials');
+    err.status = 401;
+    throw err;
   }
   return out;
 }
-async function employeeLogin(linkToken,pin){
-  const out=assertLoginResult(await rpc('api_employee_login',{p_link_token:linkToken,p_pin:pin}));
-  setSession({role:'employee',sessionToken:out.session_token,linkToken,at:new Date().toISOString()});
-  CURRENT_EMPLOYEE=normalizeEmployee(out.employee);
+async function employeeLogin(linkToken, pin) {
+  const out = assertLoginResult(
+    await rpc('api_employee_login', { p_link_token: linkToken, p_pin: pin })
+  );
+  setSession({
+    role: 'employee',
+    sessionToken: out.session_token,
+    linkToken,
+    at: new Date().toISOString()
+  });
+  CURRENT_EMPLOYEE = normalizeEmployee(out.employee);
   return CURRENT_EMPLOYEE;
 }
-async function ownerLogin(linkToken,pin){
-  const out=assertLoginResult(await rpc('api_owner_login',{p_link_token:linkToken,p_pin:pin}));
-  setSession({role:'owner',sessionToken:out.session_token,linkToken,at:new Date().toISOString()});
+async function ownerLogin(linkToken, pin) {
+  const out = assertLoginResult(
+    await rpc('api_owner_login', { p_link_token: linkToken, p_pin: pin })
+  );
+  setSession({
+    role: 'owner',
+    sessionToken: out.session_token,
+    linkToken,
+    at: new Date().toISOString()
+  });
   return out;
 }
-async function loadEmployeeData(){
-  const s=getSession();if(!s?.sessionToken)throw new Error('unauthorized');
-  const range=defaultRange();DATA_RANGE=range;
-  const [out,v2]=await Promise.all([
-    rpc('api_employee_data',{p_session_token:s.sessionToken,p_from:range.from,p_to:range.to}),
-    rpc('api_employee_v2_data',{p_session_token:s.sessionToken,p_from:range.from,p_to:range.to})
+async function loadEmployeeData() {
+  const s = getSession();
+  if (!s?.sessionToken) throw new Error('unauthorized');
+  const range = defaultRange();
+  DATA_RANGE = range;
+  const [out, v2] = await Promise.all([
+    rpc('api_employee_data', {
+      p_session_token: s.sessionToken,
+      p_from: range.from,
+      p_to: range.to
+    }),
+    rpc('api_employee_v2_data', {
+      p_session_token: s.sessionToken,
+      p_from: range.from,
+      p_to: range.to
+    })
   ]);
-  CURRENT_EMPLOYEE=normalizeEmployee(out.employee);
-  EMPLOYEES=[CURRENT_EMPLOYEE];
-  APP_DATA={entries:(out.entries||[]).map(r=>normalizeEntry({...r,employee_id:CURRENT_EMPLOYEE.id})),settings:{plannedDays:{},plannedDayVersions:{},employeeSettings:{}}};
+  CURRENT_EMPLOYEE = normalizeEmployee(out.employee);
+  EMPLOYEES = [CURRENT_EMPLOYEE];
+  APP_DATA = {
+    entries: (out.entries || []).map(r =>
+      normalizeEntry({ ...r, employee_id: CURRENT_EMPLOYEE.id })
+    ),
+    settings: { plannedDays: {}, plannedDayVersions: {}, employeeSettings: {} }
+  };
   hydrateEmployeeSettings();
-  hydrateSchedule((out.schedule||[]).map(r=>({...r,employee_id:CURRENT_EMPLOYEE.id})));
-  setV2Data(v2,'employee');
+  hydrateSchedule((out.schedule || []).map(r => ({ ...r, employee_id: CURRENT_EMPLOYEE.id })));
+  setV2Data(v2, 'employee');
   reapplyEmployeeOfflineQueue();
   cacheEmployeeSnapshot();
   return CURRENT_EMPLOYEE;
 }
-async function loadOwnerData(){
-  const s=getSession();if(!s?.sessionToken)throw new Error('unauthorized');
-  const range=defaultRange();DATA_RANGE=range;
-  const [out,v2]=await Promise.all([
-    rpc('api_owner_data',{p_session_token:s.sessionToken,p_from:range.from,p_to:range.to}),
-    rpc('api_owner_v2_data',{p_session_token:s.sessionToken,p_from:range.from,p_to:range.to})
+async function loadOwnerData() {
+  const s = getSession();
+  if (!s?.sessionToken) throw new Error('unauthorized');
+  const range = defaultRange();
+  DATA_RANGE = range;
+  const [out, v2] = await Promise.all([
+    rpc('api_owner_data', { p_session_token: s.sessionToken, p_from: range.from, p_to: range.to }),
+    rpc('api_owner_v2_data', {
+      p_session_token: s.sessionToken,
+      p_from: range.from,
+      p_to: range.to
+    })
   ]);
-  EMPLOYEES=(out.employees||[]).map(normalizeEmployee);
-  APP_DATA={entries:(out.entries||[]).map(normalizeEntry),settings:{plannedDays:{},plannedDayVersions:{},employeeSettings:{}}};
-  hydrateEmployeeSettings();hydrateSchedule(out.schedule||[]);
-  setV2Data(v2,'owner');
-  return {...out,v2};
+  EMPLOYEES = (out.employees || []).map(normalizeEmployee);
+  APP_DATA = {
+    entries: (out.entries || []).map(normalizeEntry),
+    settings: { plannedDays: {}, plannedDayVersions: {}, employeeSettings: {} }
+  };
+  hydrateEmployeeSettings();
+  hydrateSchedule(out.schedule || []);
+  setV2Data(v2, 'owner');
+  return { ...out, v2 };
 }
-async function saveEmployeeEntry(date,patch={}){
-  const s=getSession();if(!s?.sessionToken)throw new Error('unauthorized');
-  const empId=CURRENT_EMPLOYEE?.id;const prev=entryFor(empId,date,false)||{status:'worked',arrival:'',departure:'',pause:45,comment:'',arrivalMode:'',departureMode:''};
-  const next={...prev,...patch};
-  await rpc('api_employee_save_entry',{
-    p_session_token:s.sessionToken,p_work_date:date,p_status:next.status||'worked',p_arrival:next.arrival||'',p_departure:next.departure||'',p_pause_minutes:Number(next.pause??45),p_comment:next.comment||'',p_arrival_mode:next.arrivalMode||'',p_departure_mode:next.departureMode||''
+async function saveEmployeeEntry(date, patch = {}) {
+  const s = getSession();
+  if (!s?.sessionToken) throw new Error('unauthorized');
+  const empId = CURRENT_EMPLOYEE?.id;
+  const prev = entryFor(empId, date, false) || {
+    status: 'worked',
+    arrival: '',
+    departure: '',
+    pause: 45,
+    comment: '',
+    arrivalMode: '',
+    departureMode: ''
+  };
+  const next = { ...prev, ...patch };
+  await rpc('api_employee_save_entry', {
+    p_session_token: s.sessionToken,
+    p_work_date: date,
+    p_status: next.status || 'worked',
+    p_arrival: next.arrival || '',
+    p_departure: next.departure || '',
+    p_pause_minutes: Number(next.pause ?? 45),
+    p_comment: next.comment || '',
+    p_arrival_mode: next.arrivalMode || '',
+    p_departure_mode: next.departureMode || ''
   });
   await loadEmployeeData();
 }
-async function ownerUpdateEntry(emp,date,patch,validationStatus='pending'){
-  const s=getSession();const prev=entryFor(emp,date,false)||{status:'worked',arrival:'',departure:'',pause:45,comment:''};const next={...prev,...patch};
-  await rpc('api_owner_save_entry',{p_session_token:s.sessionToken,p_employee_id:emp,p_work_date:date,p_status:next.status||'worked',p_arrival:next.arrival||'',p_departure:next.departure||'',p_pause_minutes:Number(next.pause??45),p_comment:next.comment||'',p_validation_status:validationStatus});
+async function ownerUpdateEntry(emp, date, patch, validationStatus = 'pending') {
+  const s = getSession();
+  const prev = entryFor(emp, date, false) || {
+    status: 'worked',
+    arrival: '',
+    departure: '',
+    pause: 45,
+    comment: ''
+  };
+  const next = { ...prev, ...patch };
+  await rpc('api_owner_save_entry', {
+    p_session_token: s.sessionToken,
+    p_employee_id: emp,
+    p_work_date: date,
+    p_status: next.status || 'worked',
+    p_arrival: next.arrival || '',
+    p_departure: next.departure || '',
+    p_pause_minutes: Number(next.pause ?? 45),
+    p_comment: next.comment || '',
+    p_validation_status: validationStatus
+  });
   await loadOwnerData();
 }
-async function validateEntry(emp,date){const s=getSession();await rpc('api_owner_validate_entry',{p_session_token:s.sessionToken,p_employee_id:emp,p_work_date:date});await loadOwnerData();return true}
-async function setPlannedWorkingDay(empId,date,value){if(isBeforeAppStart(date))throw new Error('date_before_app_start');const s=getSession();await rpc('api_owner_set_schedule',{p_session_token:s.sessionToken,p_employee_id:empId,p_work_date:date,p_is_working:!!value,p_note:''});APP_DATA.settings.plannedDays[empId]=APP_DATA.settings.plannedDays[empId]||{};APP_DATA.settings.plannedDays[empId][date]=!!value}
-async function setEmployeeSettings(empId,patch){const s=getSession();const current=employeeSettings(empId);await rpc('api_owner_set_employee_settings',{p_session_token:s.sessionToken,p_employee_id:empId,p_weekly_objective_minutes:Number(patch.weeklyObjectiveMinutes??current.weeklyObjectiveMinutes),p_overtime_threshold_minutes:Number(patch.overtimeThresholdMinutes??current.overtimeThresholdMinutes)});await loadOwnerData()}
-
-async function employeeStartSegment(employerId,date=iso(),start=hm(),mode='now'){
-  const s=getSession();if(!s?.sessionToken)throw new Error('unauthorized');
-  if(isBeforeAppStart(date))throw new Error('date_before_app_start');
-  const employeeId=CURRENT_EMPLOYEE?.id;if(!employeeId)throw new Error('unauthorized');
-  if(!assignedEmployers(employeeId).some(e=>e.id===employerId))throw new Error('employer_not_allowed');
-  const stale=staleOpenSegmentFor(employeeId,date),open=openSegmentFor(employeeId,date);
-  if(stale)throw new Error('stale_open_segment');
-  if(open)throw new Error('segment_already_open');
-  assertLeaveTime(employeeId,date,start,'');
-  const startMin=timeToMinutes(start);if(startMin===null)throw new Error('invalid_start_time');
-  const overlap=segmentsFor(employeeId,date).some(seg=>seg.end&&startMin>=timeToMinutes(seg.start)&&startMin<timeToMinutes(seg.end));
-  if(overlap)throw new Error('overlapping_segments');
-  const action={
-    id:makeOfflineId('action'),
-    type:'start',
-    localSegmentId:makeOfflineId('local'),
-    clientEventId:makeOfflineId('event'),
-    employeeId,date,employerId,start,mode,
-    createdAt:new Date().toISOString()
-  };
-  saveEmployeeOfflineAction(action);
-  if(navigator.onLine)await syncEmployeeOfflineQueue();
-  return action.localSegmentId;
-}
-async function employeeStopSegment(segmentId,end=hm(),mode='now'){
-  const s=getSession();if(!s?.sessionToken)throw new Error('unauthorized');
-  const employeeId=CURRENT_EMPLOYEE?.id;if(!employeeId)throw new Error('unauthorized');
-  const segment=V2_DATA.segments.find(x=>x.employeeId===employeeId&&x.id===segmentId&&!x.end);
-  if(!segment)throw new Error('open_segment_not_found');
-  const endMin=timeToMinutes(end),startMin=timeToMinutes(segment.start);
-  if(endMin===null)throw new Error('invalid_end_time');
-  if(endMin<startMin)throw new Error('end_before_start');
-  if(endMin===startMin)throw new Error('zero_length_segment');
-  assertLeaveTime(employeeId,segment.date,segment.start,end);
-  const overlap=segmentsFor(employeeId,segment.date).some(other=>other.id!==segment.id&&other.end&&startMin<timeToMinutes(other.end)&&timeToMinutes(other.start)<endMin);
-  if(overlap)throw new Error('overlapping_segments');
-  const action={
-    id:makeOfflineId('action'),
-    type:'stop',
-    segmentRef:segment.id,
-    employeeId,date:segment.date,end,mode,
-    createdAt:new Date().toISOString()
-  };
-  saveEmployeeOfflineAction(action);
-  if(navigator.onLine)await syncEmployeeOfflineQueue();
+async function validateEntry(emp, date) {
+  const s = getSession();
+  await rpc('api_owner_validate_entry', {
+    p_session_token: s.sessionToken,
+    p_employee_id: emp,
+    p_work_date: date
+  });
+  await loadOwnerData();
   return true;
 }
-async function employeeDeleteSegmentV2(segmentId){
-  const s=getSession();if(!s?.sessionToken)throw new Error('unauthorized');
-  const employeeId=CURRENT_EMPLOYEE?.id;if(!employeeId)throw new Error('unauthorized');
-  const segment=V2_DATA.segments.find(x=>x.employeeId===employeeId&&x.id===segmentId);
-  if(!segment)throw new Error('segment_not_found');
-  if(!segment.end)throw new Error('segment_still_open');
+async function setPlannedWorkingDay(empId, date, value) {
+  if (isBeforeAppStart(date)) throw new Error('date_before_app_start');
+  const s = getSession();
+  await rpc('api_owner_set_schedule', {
+    p_session_token: s.sessionToken,
+    p_employee_id: empId,
+    p_work_date: date,
+    p_is_working: !!value,
+    p_note: ''
+  });
+  APP_DATA.settings.plannedDays[empId] = APP_DATA.settings.plannedDays[empId] || {};
+  APP_DATA.settings.plannedDays[empId][date] = !!value;
+}
+async function setEmployeeSettings(empId, patch) {
+  const s = getSession();
+  const current = employeeSettings(empId);
+  await rpc('api_owner_set_employee_settings', {
+    p_session_token: s.sessionToken,
+    p_employee_id: empId,
+    p_weekly_objective_minutes: Number(
+      patch.weeklyObjectiveMinutes ?? current.weeklyObjectiveMinutes
+    ),
+    p_overtime_threshold_minutes: Number(
+      patch.overtimeThresholdMinutes ?? current.overtimeThresholdMinutes
+    )
+  });
+  await loadOwnerData();
+}
+
+async function employeeStartSegment(employerId, date = iso(), start = hm(), mode = 'now') {
+  const s = getSession();
+  if (!s?.sessionToken) throw new Error('unauthorized');
+  if (isBeforeAppStart(date)) throw new Error('date_before_app_start');
+  const employeeId = CURRENT_EMPLOYEE?.id;
+  if (!employeeId) throw new Error('unauthorized');
+  if (!assignedEmployers(employeeId).some(e => e.id === employerId))
+    throw new Error('employer_not_allowed');
+  const stale = staleOpenSegmentFor(employeeId, date),
+    open = openSegmentFor(employeeId, date);
+  if (stale) throw new Error('stale_open_segment');
+  if (open) throw new Error('segment_already_open');
+  assertLeaveTime(employeeId, date, start, '');
+  const startMin = timeToMinutes(start);
+  if (startMin === null) throw new Error('invalid_start_time');
+  const overlap = segmentsFor(employeeId, date).some(
+    seg => seg.end && startMin >= timeToMinutes(seg.start) && startMin < timeToMinutes(seg.end)
+  );
+  if (overlap) throw new Error('overlapping_segments');
+  const action = {
+    id: makeOfflineId('action'),
+    type: 'start',
+    localSegmentId: makeOfflineId('local'),
+    clientEventId: makeOfflineId('event'),
+    employeeId,
+    date,
+    employerId,
+    start,
+    mode,
+    createdAt: new Date().toISOString()
+  };
+  saveEmployeeOfflineAction(action);
+  if (navigator.onLine) await syncEmployeeOfflineQueue();
+  return action.localSegmentId;
+}
+async function employeeStopSegment(segmentId, end = hm(), mode = 'now') {
+  const s = getSession();
+  if (!s?.sessionToken) throw new Error('unauthorized');
+  const employeeId = CURRENT_EMPLOYEE?.id;
+  if (!employeeId) throw new Error('unauthorized');
+  const segment = V2_DATA.segments.find(
+    x => x.employeeId === employeeId && x.id === segmentId && !x.end
+  );
+  if (!segment) throw new Error('open_segment_not_found');
+  const endMin = timeToMinutes(end),
+    startMin = timeToMinutes(segment.start);
+  if (endMin === null) throw new Error('invalid_end_time');
+  if (endMin < startMin) throw new Error('end_before_start');
+  if (endMin === startMin) throw new Error('zero_length_segment');
+  assertLeaveTime(employeeId, segment.date, segment.start, end);
+  const overlap = segmentsFor(employeeId, segment.date).some(
+    other =>
+      other.id !== segment.id &&
+      other.end &&
+      startMin < timeToMinutes(other.end) &&
+      timeToMinutes(other.start) < endMin
+  );
+  if (overlap) throw new Error('overlapping_segments');
+  const action = {
+    id: makeOfflineId('action'),
+    type: 'stop',
+    segmentRef: segment.id,
+    employeeId,
+    date: segment.date,
+    end,
+    mode,
+    createdAt: new Date().toISOString()
+  };
+  saveEmployeeOfflineAction(action);
+  if (navigator.onLine) await syncEmployeeOfflineQueue();
+  return true;
+}
+async function employeeDeleteSegmentV2(segmentId) {
+  const s = getSession();
+  if (!s?.sessionToken) throw new Error('unauthorized');
+  const employeeId = CURRENT_EMPLOYEE?.id;
+  if (!employeeId) throw new Error('unauthorized');
+  const segment = V2_DATA.segments.find(x => x.employeeId === employeeId && x.id === segmentId);
+  if (!segment) throw new Error('segment_not_found');
+  if (!segment.end) throw new Error('segment_still_open');
 
   // Si le créneau n'a jamais atteint le serveur, on annule simplement les actions locales associées.
-  if(String(segment.id).startsWith('local-')){
-    let queue=getEmployeeOfflineQueue();
-    queue=queue.filter(a=>!(a.type==='start'&&a.localSegmentId===segment.id)&&!(a.type==='stop'&&a.segmentRef===segment.id)&&!(a.type==='segment_delete'&&a.segmentRef===segment.id));
+  if (String(segment.id).startsWith('local-')) {
+    let queue = getEmployeeOfflineQueue();
+    queue = queue.filter(
+      a =>
+        !(a.type === 'start' && a.localSegmentId === segment.id) &&
+        !(a.type === 'stop' && a.segmentRef === segment.id) &&
+        !(a.type === 'segment_delete' && a.segmentRef === segment.id)
+    );
     setEmployeeOfflineQueue(queue);
-    optimisticDeleteSegmentAction({type:'segment_delete',segmentRef:segment.id,employeeId,date:segment.date,createdAt:new Date().toISOString()});
+    optimisticDeleteSegmentAction({
+      type: 'segment_delete',
+      segmentRef: segment.id,
+      employeeId,
+      date: segment.date,
+      createdAt: new Date().toISOString()
+    });
     cacheEmployeeSnapshot();
     notifyOfflineState();
     return true;
   }
 
-  const action={
-    id:makeOfflineId('action'),type:'segment_delete',clientEventId:makeOfflineId('event'),
-    segmentRef:segment.id,employeeId,date:segment.date,
-    expectedUpdatedAt:segment.serverUpdatedAt||'',createdAt:new Date().toISOString()
+  const action = {
+    id: makeOfflineId('action'),
+    type: 'segment_delete',
+    clientEventId: makeOfflineId('event'),
+    segmentRef: segment.id,
+    employeeId,
+    date: segment.date,
+    expectedUpdatedAt: segment.serverUpdatedAt || '',
+    createdAt: new Date().toISOString()
   };
   saveEmployeeOfflineAction(action);
-  if(navigator.onLine)await syncEmployeeOfflineQueue();
+  if (navigator.onLine) await syncEmployeeOfflineQueue();
   return true;
 }
-async function employeeReplaceDayV2(date,segments,pauseMinutes,comment=''){
-  if(!navigator.onLine)throw new Error('offline_edit_not_supported');
-  const s=getSession();if(!s?.sessionToken)throw new Error('unauthorized');
-  await rpc('api_employee_replace_day_v2',{p_session_token:s.sessionToken,p_work_date:date,p_segments:segments,p_pause_minutes:Number(pauseMinutes||0),p_comment:comment||''});
+async function employeeReplaceDayV2(date, segments, pauseMinutes, comment = '') {
+  if (!navigator.onLine) throw new Error('offline_edit_not_supported');
+  const s = getSession();
+  if (!s?.sessionToken) throw new Error('unauthorized');
+  await rpc('api_employee_replace_day_v2', {
+    p_session_token: s.sessionToken,
+    p_work_date: date,
+    p_segments: segments,
+    p_pause_minutes: Number(pauseMinutes || 0),
+    p_comment: comment || ''
+  });
   await loadEmployeeData();
 }
-async function employeeUpdateDayMetaV2(date,pauseMinutes,comment=''){
-  const s=getSession();if(!s?.sessionToken)throw new Error('unauthorized');
-  const expected=captureOfflineDayExpected(date);
-  const action={
-    id:makeOfflineId('action'),type:'meta',clientEventId:makeOfflineId('event'),
-    employeeId:CURRENT_EMPLOYEE.id,date,pauseMinutes:Number(pauseMinutes||0),comment:comment||'',
-    ...expected,createdAt:new Date().toISOString()
+async function employeeUpdateDayMetaV2(date, pauseMinutes, comment = '') {
+  const s = getSession();
+  if (!s?.sessionToken) throw new Error('unauthorized');
+  const expected = captureOfflineDayExpected(date);
+  const action = {
+    id: makeOfflineId('action'),
+    type: 'meta',
+    clientEventId: makeOfflineId('event'),
+    employeeId: CURRENT_EMPLOYEE.id,
+    date,
+    pauseMinutes: Number(pauseMinutes || 0),
+    comment: comment || '',
+    ...expected,
+    createdAt: new Date().toISOString()
   };
   saveEmployeeOfflineAction(action);
-  if(navigator.onLine)await syncEmployeeOfflineQueue();
+  if (navigator.onLine) await syncEmployeeOfflineQueue();
   return true;
 }
-async function employeeSetDayOffV2(date,isOff){
-  if(isBeforeAppStart(date))throw new Error('date_before_app_start');
-  const s=getSession();if(!s?.sessionToken)throw new Error('unauthorized');
-  const expected=captureOfflineDayExpected(date);
-  const action={
-    id:makeOfflineId('action'),type:'day_status',clientEventId:makeOfflineId('event'),
-    employeeId:CURRENT_EMPLOYEE.id,date,isOff:!!isOff,
-    ...expected,createdAt:new Date().toISOString()
+async function employeeSetDayOffV2(date, isOff) {
+  if (isBeforeAppStart(date)) throw new Error('date_before_app_start');
+  const s = getSession();
+  if (!s?.sessionToken) throw new Error('unauthorized');
+  const expected = captureOfflineDayExpected(date);
+  const action = {
+    id: makeOfflineId('action'),
+    type: 'day_status',
+    clientEventId: makeOfflineId('event'),
+    employeeId: CURRENT_EMPLOYEE.id,
+    date,
+    isOff: !!isOff,
+    ...expected,
+    createdAt: new Date().toISOString()
   };
   saveEmployeeOfflineAction(action);
-  if(navigator.onLine)await syncEmployeeOfflineQueue();
+  if (navigator.onLine) await syncEmployeeOfflineQueue();
   return true;
 }
-async function employeeRequestLeave(startDate,endDate,note='',leaveType='paid_leave'){
-  const s=getSession();if(!s?.sessionToken)throw new Error('unauthorized');
-  if(!startDate||!endDate||endDate<startDate)throw new Error('invalid_leave_dates');
-  if(isBeforeAppStart(startDate))throw new Error('date_before_app_start');
-  if(!LEAVE_LABELS[leaveType]||(['rtt_morning','rtt_afternoon'].includes(leaveType)&&startDate!==endDate))throw new Error('invalid_leave_dates');
-  const empId=CURRENT_EMPLOYEE?.id;
-  const overlaps=V2_DATA.leaves.some(l=>l.employeeId===empId&&['pending','validated'].includes(l.status)&&l.startDate<=endDate&&l.endDate>=startDate);
-  if(overlaps)throw new Error('leave_overlap');
-  const hasWork=listDates(dateObjFromIso(startDate),dateObjFromIso(endDate)).some(date=>{
-    const segs=segmentsFor(empId,date),entry=entryFor(empId,date,false);
-    const l={type:leaveType};
-    return segs.some(seg=>leaveConflicts(l,seg.start,seg.end))||(!segs.length&&entry?.status==='worked'&&(entry.arrival||entry.departure)&&leaveConflicts(l,entry.arrival,entry.departure));
+async function employeeRequestLeave(startDate, endDate, note = '', leaveType = 'paid_leave') {
+  const s = getSession();
+  if (!s?.sessionToken) throw new Error('unauthorized');
+  if (!startDate || !endDate || endDate < startDate) throw new Error('invalid_leave_dates');
+  if (isBeforeAppStart(startDate)) throw new Error('date_before_app_start');
+  if (
+    !LEAVE_LABELS[leaveType] ||
+    (['rtt_morning', 'rtt_afternoon'].includes(leaveType) && startDate !== endDate)
+  )
+    throw new Error('invalid_leave_dates');
+  const empId = CURRENT_EMPLOYEE?.id;
+  const overlaps = V2_DATA.leaves.some(
+    l =>
+      l.employeeId === empId &&
+      ['pending', 'validated'].includes(l.status) &&
+      l.startDate <= endDate &&
+      l.endDate >= startDate
+  );
+  if (overlaps) throw new Error('leave_overlap');
+  const hasWork = listDates(dateObjFromIso(startDate), dateObjFromIso(endDate)).some(date => {
+    const segs = segmentsFor(empId, date),
+      entry = entryFor(empId, date, false);
+    const l = { type: leaveType };
+    return (
+      segs.some(seg => leaveConflicts(l, seg.start, seg.end)) ||
+      (!segs.length &&
+        entry?.status === 'worked' &&
+        (entry.arrival || entry.departure) &&
+        leaveConflicts(l, entry.arrival, entry.departure))
+    );
   });
-  if(hasWork)throw new Error('leave_has_work');
-  const action={
-    id:makeOfflineId('action'),type:'leave_request',clientEventId:makeOfflineId('event'),
-    localLeaveId:makeOfflineId('local-leave'),employeeId:empId,
-    startDate,endDate,leaveType,note:note||'',createdAt:new Date().toISOString()
+  if (hasWork) throw new Error('leave_has_work');
+  const action = {
+    id: makeOfflineId('action'),
+    type: 'leave_request',
+    clientEventId: makeOfflineId('event'),
+    localLeaveId: makeOfflineId('local-leave'),
+    employeeId: empId,
+    startDate,
+    endDate,
+    leaveType,
+    note: note || '',
+    createdAt: new Date().toISOString()
   };
   saveEmployeeOfflineAction(action);
-  if(navigator.onLine)await syncEmployeeOfflineQueue();
+  if (navigator.onLine) await syncEmployeeOfflineQueue();
   return action.localLeaveId;
 }
-async function employeeCancelLeave(leaveId){
-  const s=getSession();if(!s?.sessionToken)throw new Error('unauthorized');
-  let queue=getEmployeeOfflineQueue();
-  const pendingRequestIndex=queue.findIndex(a=>a.type==='leave_request'&&a.localLeaveId===leaveId);
-  if(pendingRequestIndex>=0){
-    queue.splice(pendingRequestIndex,1);
+async function employeeCancelLeave(leaveId) {
+  const s = getSession();
+  if (!s?.sessionToken) throw new Error('unauthorized');
+  let queue = getEmployeeOfflineQueue();
+  const pendingRequestIndex = queue.findIndex(
+    a => a.type === 'leave_request' && a.localLeaveId === leaveId
+  );
+  if (pendingRequestIndex >= 0) {
+    queue.splice(pendingRequestIndex, 1);
     setEmployeeOfflineQueue(queue);
-    V2_DATA.leaves=V2_DATA.leaves.filter(l=>l.id!==leaveId);
+    V2_DATA.leaves = V2_DATA.leaves.filter(l => l.id !== leaveId);
     cacheEmployeeSnapshot();
     return true;
   }
-  const map=getEmployeeOfflineMap();
-  const ref=map[leaveId]||leaveId;
-  const action={
-    id:makeOfflineId('action'),type:'leave_cancel',clientEventId:makeOfflineId('event'),
-    leaveRef:ref,employeeId:CURRENT_EMPLOYEE.id,createdAt:new Date().toISOString()
+  const map = getEmployeeOfflineMap();
+  const ref = map[leaveId] || leaveId;
+  const action = {
+    id: makeOfflineId('action'),
+    type: 'leave_cancel',
+    clientEventId: makeOfflineId('event'),
+    leaveRef: ref,
+    employeeId: CURRENT_EMPLOYEE.id,
+    createdAt: new Date().toISOString()
   };
   saveEmployeeOfflineAction(action);
-  if(navigator.onLine)await syncEmployeeOfflineQueue();
+  if (navigator.onLine) await syncEmployeeOfflineQueue();
   return true;
 }
-async function ownerCreateEmployer(name){
-  const s=getSession();if(!s?.sessionToken)throw new Error('unauthorized');
-  await rpc('api_owner_create_employer',{p_session_token:s.sessionToken,p_name:name});
+async function ownerCreateEmployer(name) {
+  const s = getSession();
+  if (!s?.sessionToken) throw new Error('unauthorized');
+  await rpc('api_owner_create_employer', { p_session_token: s.sessionToken, p_name: name });
   await loadOwnerData();
 }
-async function ownerSetEmployerActive(employerId,active){
-  const s=getSession();if(!s?.sessionToken)throw new Error('unauthorized');
-  await rpc('api_owner_set_employer_active',{p_session_token:s.sessionToken,p_employer_id:employerId,p_active:!!active});
+async function ownerSetEmployerActive(employerId, active) {
+  const s = getSession();
+  if (!s?.sessionToken) throw new Error('unauthorized');
+  await rpc('api_owner_set_employer_active', {
+    p_session_token: s.sessionToken,
+    p_employer_id: employerId,
+    p_active: !!active
+  });
   await loadOwnerData();
 }
-async function ownerSetEmployeeEmployer(employeeId,employerId,active){
-  const s=getSession();if(!s?.sessionToken)throw new Error('unauthorized');
-  await rpc('api_owner_set_employee_employer',{p_session_token:s.sessionToken,p_employee_id:employeeId,p_employer_id:employerId,p_active:!!active});
+async function ownerSetEmployeeEmployer(employeeId, employerId, active) {
+  const s = getSession();
+  if (!s?.sessionToken) throw new Error('unauthorized');
+  await rpc('api_owner_set_employee_employer', {
+    p_session_token: s.sessionToken,
+    p_employee_id: employeeId,
+    p_employer_id: employerId,
+    p_active: !!active
+  });
   await loadOwnerData();
 }
-async function ownerReplaceDayV2(employeeId,date,segments,pauseMinutes,comment='',validationStatus='pending'){
-  const s=getSession();if(!s?.sessionToken)throw new Error('unauthorized');
-  await rpc('api_owner_replace_day_v2',{p_session_token:s.sessionToken,p_employee_id:employeeId,p_work_date:date,p_segments:segments,p_pause_minutes:Number(pauseMinutes||0),p_comment:comment||'',p_validation_status:validationStatus});
+async function ownerReplaceDayV2(
+  employeeId,
+  date,
+  segments,
+  pauseMinutes,
+  comment = '',
+  validationStatus = 'pending'
+) {
+  const s = getSession();
+  if (!s?.sessionToken) throw new Error('unauthorized');
+  await rpc('api_owner_replace_day_v2', {
+    p_session_token: s.sessionToken,
+    p_employee_id: employeeId,
+    p_work_date: date,
+    p_segments: segments,
+    p_pause_minutes: Number(pauseMinutes || 0),
+    p_comment: comment || '',
+    p_validation_status: validationStatus
+  });
   await loadOwnerData();
 }
-async function ownerSetDayOffV2(employeeId,date,isOff,validationStatus='pending'){if(isBeforeAppStart(date))throw new Error('date_before_app_start');
-  const s=getSession();if(!s?.sessionToken)throw new Error('unauthorized');
-  await rpc('api_owner_set_day_off_v2',{p_session_token:s.sessionToken,p_employee_id:employeeId,p_work_date:date,p_is_off:!!isOff,p_validation_status:validationStatus});
+async function ownerSetDayOffV2(employeeId, date, isOff, validationStatus = 'pending') {
+  if (isBeforeAppStart(date)) throw new Error('date_before_app_start');
+  const s = getSession();
+  if (!s?.sessionToken) throw new Error('unauthorized');
+  await rpc('api_owner_set_day_off_v2', {
+    p_session_token: s.sessionToken,
+    p_employee_id: employeeId,
+    p_work_date: date,
+    p_is_off: !!isOff,
+    p_validation_status: validationStatus
+  });
   await loadOwnerData();
 }
-async function ownerCreateLeave(employeeId,startDate,endDate,note='',leaveType='paid_leave'){
-  const s=getSession();if(!s?.sessionToken)throw new Error('unauthorized');
-  await rpc('api_owner_create_leave_typed',{p_leave_type:leaveType,p_session_token:s.sessionToken,p_employee_id:employeeId,p_start_date:startDate,p_end_date:endDate,p_note:note||''});
+async function ownerCreateLeave(
+  employeeId,
+  startDate,
+  endDate,
+  note = '',
+  leaveType = 'paid_leave'
+) {
+  const s = getSession();
+  if (!s?.sessionToken) throw new Error('unauthorized');
+  await rpc('api_owner_create_leave_typed', {
+    p_leave_type: leaveType,
+    p_session_token: s.sessionToken,
+    p_employee_id: employeeId,
+    p_start_date: startDate,
+    p_end_date: endDate,
+    p_note: note || ''
+  });
   await loadOwnerData();
 }
-async function ownerReviewLeave(leaveId,status){
-  const s=getSession();if(!s?.sessionToken)throw new Error('unauthorized');
-  await rpc('api_owner_review_leave',{p_session_token:s.sessionToken,p_leave_id:leaveId,p_status:status});
+async function ownerReviewLeave(leaveId, status) {
+  const s = getSession();
+  if (!s?.sessionToken) throw new Error('unauthorized');
+  await rpc('api_owner_review_leave', {
+    p_session_token: s.sessionToken,
+    p_leave_id: leaveId,
+    p_status: status
+  });
   await loadOwnerData();
 }
-async function ownerDeleteLeave(leaveId){
-  const s=getSession();if(!s?.sessionToken)throw new Error('unauthorized');
-  await rpc('api_owner_delete_leave',{p_session_token:s.sessionToken,p_leave_id:leaveId});
+async function ownerDeleteLeave(leaveId) {
+  const s = getSession();
+  if (!s?.sessionToken) throw new Error('unauthorized');
+  await rpc('api_owner_delete_leave', { p_session_token: s.sessionToken, p_leave_id: leaveId });
   await loadOwnerData();
 }
 
-async function changeEmployeePin(currentPin,newPin){const s=getSession();if(!s?.sessionToken)throw new Error('unauthorized');return rpc('api_employee_change_pin',{p_session_token:s.sessionToken,p_current_pin:currentPin,p_new_pin:newPin})}
-async function changeOwnerPin(currentPin,newPin){const s=getSession();if(!s?.sessionToken)throw new Error('unauthorized');return rpc('api_owner_change_pin',{p_session_token:s.sessionToken,p_current_pin:currentPin,p_new_pin:newPin})}
-async function logout(){const s=getSession();try{if(s?.sessionToken)await rpc('api_logout',{p_session_token:s.sessionToken})}catch{}clearSession();location.reload()}
+async function changeEmployeePin(currentPin, newPin) {
+  const s = getSession();
+  if (!s?.sessionToken) throw new Error('unauthorized');
+  return rpc('api_employee_change_pin', {
+    p_session_token: s.sessionToken,
+    p_current_pin: currentPin,
+    p_new_pin: newPin
+  });
+}
+async function changeOwnerPin(currentPin, newPin) {
+  const s = getSession();
+  if (!s?.sessionToken) throw new Error('unauthorized');
+  return rpc('api_owner_change_pin', {
+    p_session_token: s.sessionToken,
+    p_current_pin: currentPin,
+    p_new_pin: newPin
+  });
+}
+async function logout() {
+  const s = getSession();
+  try {
+    if (s?.sessionToken) await rpc('api_logout', { p_session_token: s.sessionToken });
+  } catch {}
+  clearSession();
+  location.reload();
+}
 
-function setManifestFor(){let link=document.querySelector('link[rel="manifest"]');if(!link){link=document.createElement('link');link.rel='manifest';document.head.appendChild(link)}link.href='manifest-employee.json?v=2.0-alpha2.9'}
+function setManifestFor() {
+  let link = document.querySelector('link[rel="manifest"]');
+  if (!link) {
+    link = document.createElement('link');
+    link.rel = 'manifest';
+    document.head.appendChild(link);
+  }
+  link.href = 'manifest-employee.json?v=2.0-alpha2.9';
+}
 
 // V1.7 — ergonomie clavier des formulaires
-function timeToMinutes(value){if(!/^\d{2}:\d{2}$/.test(value||''))return null;const [h,m]=value.split(':').map(Number);return h*60+m}
-function minutesToTime(total){total=((total%(24*60))+(24*60))%(24*60);return `${pad(Math.floor(total/60))}:${pad(total%60)}`}
-function stepTimeInput(input,direction,event){const step=event.shiftKey?15:5;let current=timeToMinutes(input.value);if(current===null){const now=new Date();current=Math.round((now.getHours()*60+now.getMinutes())/step)*step}input.value=minutesToTime(current+(direction*step));input.dispatchEvent(new Event('input',{bubbles:true}));input.dispatchEvent(new Event('change',{bubbles:true}))}
-function submitCurrentContext(el){const modal=el.closest('.modal.open');if(modal){const primary=[...modal.querySelectorAll('button.btn-primary:not([disabled])')].pop();if(primary){primary.click();return true}}const form=el.closest('form');if(form){if(form.requestSubmit)form.requestSubmit();else form.submit();return true}return false}
-document.addEventListener('keydown',event=>{const el=event.target;if(!(el instanceof HTMLElement))return;if(el.matches('input[type="time"]')){if(event.key==='ArrowUp'||event.key==='ArrowDown'){event.preventDefault();stepTimeInput(el,event.key==='ArrowUp'?1:-1,event);return}if(event.key==='Enter'){event.preventDefault();submitCurrentContext(el);return}}if(el.matches('input:not([type="time"]):not([type="button"]):not([type="submit"]), select')&&event.key==='Enter'){const modal=el.closest('.modal.open');if(modal){event.preventDefault();submitCurrentContext(el)}}});
-document.addEventListener('focusin',event=>{const el=event.target;if(el instanceof HTMLInputElement&&el.type==='time')el.title='Flèches ↑/↓ : ±5 min · Maj + flèche : ±15 min · Entrée : valider'});
+function timeToMinutes(value) {
+  if (!/^\d{2}:\d{2}$/.test(value || '')) return null;
+  const [h, m] = value.split(':').map(Number);
+  return h * 60 + m;
+}
+function minutesToTime(total) {
+  total = ((total % (24 * 60)) + 24 * 60) % (24 * 60);
+  return `${pad(Math.floor(total / 60))}:${pad(total % 60)}`;
+}
+function stepTimeInput(input, direction, event) {
+  const step = event.shiftKey ? 15 : 5;
+  let current = timeToMinutes(input.value);
+  if (current === null) {
+    const now = new Date();
+    current = Math.round((now.getHours() * 60 + now.getMinutes()) / step) * step;
+  }
+  input.value = minutesToTime(current + direction * step);
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+  input.dispatchEvent(new Event('change', { bubbles: true }));
+}
+function submitCurrentContext(el) {
+  const modal = el.closest('.modal.open');
+  if (modal) {
+    const primary = [...modal.querySelectorAll('button.btn-primary:not([disabled])')].pop();
+    if (primary) {
+      primary.click();
+      return true;
+    }
+  }
+  const form = el.closest('form');
+  if (form) {
+    if (form.requestSubmit) form.requestSubmit();
+    else form.submit();
+    return true;
+  }
+  return false;
+}
+document.addEventListener('keydown', event => {
+  const el = event.target;
+  if (!(el instanceof HTMLElement)) return;
+  if (el.matches('input[type="time"]')) {
+    if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+      event.preventDefault();
+      stepTimeInput(el, event.key === 'ArrowUp' ? 1 : -1, event);
+      return;
+    }
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      submitCurrentContext(el);
+      return;
+    }
+  }
+  if (
+    el.matches('input:not([type="time"]):not([type="button"]):not([type="submit"]), select') &&
+    event.key === 'Enter'
+  ) {
+    const modal = el.closest('.modal.open');
+    if (modal) {
+      event.preventDefault();
+      submitCurrentContext(el);
+    }
+  }
+});
+document.addEventListener('focusin', event => {
+  const el = event.target;
+  if (el instanceof HTMLInputElement && el.type === 'time')
+    el.title = 'Flèches ↑/↓ : ±5 min · Maj + flèche : ±15 min · Entrée : valider';
+});
 
-
-function initPinSlots(){
-  document.querySelectorAll('.pin-entry .pin-input').forEach(input=>{
-    const slots=[...input.closest('.pin-entry').querySelectorAll('.pin-slot')];
-    const render=()=>{
-      const value=String(input.value||'').replace(/\D/g,'').slice(0,4);
-      slots.forEach((slot,index)=>{
-        const digit=value[index];
-        slot.textContent=digit||'–';
-        slot.classList.toggle('is-placeholder',!digit);
+function initPinSlots() {
+  document.querySelectorAll('.pin-entry .pin-input').forEach(input => {
+    const slots = [...input.closest('.pin-entry').querySelectorAll('.pin-slot')];
+    const render = () => {
+      const value = String(input.value || '')
+        .replace(/\D/g, '')
+        .slice(0, 4);
+      slots.forEach((slot, index) => {
+        const digit = value[index];
+        slot.textContent = digit || '–';
+        slot.classList.toggle('is-placeholder', !digit);
       });
     };
-    input.addEventListener('input',render);
-    input.addEventListener('change',render);
+    input.addEventListener('input', render);
+    input.addEventListener('change', render);
     render();
   });
 }
 initPinSlots();
-
 
 /* V2.0 RC1 — fermeture universelle des fenêtres
    - clic sur l'arrière-plan
    - croix toujours accessible pendant le défilement
    - touche Échap sur ordinateur
    On réutilise le bouton Fermer existant quand il porte une logique dédiée. */
-function dismissModal(modal){
-  if(!(modal instanceof HTMLElement)||!modal.classList.contains('modal'))return;
-  const nativeClose=[...modal.querySelectorAll('button')].find(btn=>btn.classList.contains('modal-legacy-close'));
-  if(nativeClose){nativeClose.click();return}
+function dismissModal(modal) {
+  if (!(modal instanceof HTMLElement) || !modal.classList.contains('modal')) return;
+  const nativeClose = [...modal.querySelectorAll('button')].find(btn =>
+    btn.classList.contains('modal-legacy-close')
+  );
+  if (nativeClose) {
+    nativeClose.click();
+    return;
+  }
   modal.classList.remove('open');
 }
-function initDismissibleModals(){
-  document.querySelectorAll('.modal').forEach(modal=>{
-    const sheet=modal.querySelector(':scope > .sheet');
-    if(!sheet)return;
-    const nativeClose=[...sheet.querySelectorAll('button')].find(btn=>btn.textContent.trim()==='Fermer');
-    if(nativeClose)nativeClose.classList.add('modal-legacy-close');
+function initDismissibleModals() {
+  document.querySelectorAll('.modal').forEach(modal => {
+    const sheet = modal.querySelector(':scope > .sheet');
+    if (!sheet) return;
+    const nativeClose = [...sheet.querySelectorAll('button')].find(
+      btn => btn.textContent.trim() === 'Fermer'
+    );
+    if (nativeClose) nativeClose.classList.add('modal-legacy-close');
 
-    if(!sheet.querySelector(':scope > .modal-floating-close')){
-      const closeButton=document.createElement('button');
-      closeButton.type='button';
-      closeButton.className='modal-floating-close';
-      closeButton.setAttribute('aria-label','Fermer la fenêtre');
-      closeButton.setAttribute('title','Fermer');
-      closeButton.innerHTML='<span aria-hidden="true">×</span>';
-      closeButton.addEventListener('click',()=>dismissModal(modal));
+    if (!sheet.querySelector(':scope > .modal-floating-close')) {
+      const closeButton = document.createElement('button');
+      closeButton.type = 'button';
+      closeButton.className = 'modal-floating-close';
+      closeButton.setAttribute('aria-label', 'Fermer la fenêtre');
+      closeButton.setAttribute('title', 'Fermer');
+      closeButton.innerHTML = '<span aria-hidden="true">×</span>';
+      closeButton.addEventListener('click', () => dismissModal(modal));
       sheet.prepend(closeButton);
     }
 
-    modal.addEventListener('click',event=>{
-      if(event.target===modal)dismissModal(modal);
+    modal.addEventListener('click', event => {
+      if (event.target === modal) dismissModal(modal);
     });
   });
 }
-document.addEventListener('keydown',event=>{
-  if(event.key!=='Escape')return;
-  const openModals=[...document.querySelectorAll('.modal.open')];
-  if(!openModals.length)return;
+document.addEventListener('keydown', event => {
+  if (event.key !== 'Escape') return;
+  const openModals = [...document.querySelectorAll('.modal.open')];
+  if (!openModals.length) return;
   event.preventDefault();
-  dismissModal(openModals[openModals.length-1]);
+  dismissModal(openModals[openModals.length - 1]);
 });
 initDismissibleModals();

@@ -1,11 +1,11 @@
-import fs from "node:fs";
-import vm from "node:vm";
+import fs from 'node:fs';
+import vm from 'node:vm';
 
-const read = (p) => fs.readFileSync(p, "utf8");
-const exists = (p) => fs.existsSync(p);
+const read = p => fs.readFileSync(p, 'utf8');
+const exists = p => fs.existsSync(p);
 const failures = [];
-const ok = (name, condition, detail = "") => {
-  if (!condition) failures.push(`${name}${detail ? `: ${detail}` : ""}`);
+const ok = (name, condition, detail = '') => {
+  if (!condition) failures.push(`${name}${detail ? `: ${detail}` : ''}`);
   else console.log(`✓ ${name}`);
 };
 
@@ -18,23 +18,26 @@ function checkJs(name, source) {
   }
 }
 
-checkJs("supabase/functions/shared/french-holidays.js", read("supabase/functions/shared/french-holidays.js"));
-checkJs("app.js", read("app.js"));
-checkJs("employee.js", read("employee.js"));
-checkJs("pilotage.js", read("pilotage.js"));
-checkJs("employee-week.js", read("employee-week.js"));
-checkJs("sw.js", read("sw.js"));
+checkJs(
+  'supabase/functions/shared/french-holidays.js',
+  read('supabase/functions/shared/french-holidays.js')
+);
+checkJs('app.js', read('app.js'));
+checkJs('employee.js', read('employee.js'));
+checkJs('pilotage.js', read('pilotage.js'));
+checkJs('employee-week.js', read('employee-week.js'));
+checkJs('sw.js', read('sw.js'));
 
-for (const page of ["employee.html", "pilotage.html"]) {
+for (const page of ['employee.html', 'pilotage.html']) {
   const html = read(page);
-  const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
+  const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m => m[1]);
   scripts.forEach((source, i) => checkJs(`${page} inline #${i + 1}`, source));
 
-  const ids = [...html.matchAll(/\sid="([^"]+)"/g)].map((m) => m[1]);
+  const ids = [...html.matchAll(/\sid="([^"]+)"/g)].map(m => m[1]);
   ok(`IDs uniques ${page}`, new Set(ids).size === ids.length);
 }
 
-for (const manifest of ["manifest-employee.json", "manifest-pilotage.json"]) {
+for (const manifest of ['manifest-employee.json', 'manifest-pilotage.json']) {
   try {
     JSON.parse(read(manifest));
     ok(`JSON valide ${manifest}`, true);
@@ -43,82 +46,101 @@ for (const manifest of ["manifest-employee.json", "manifest-pilotage.json"]) {
   }
 }
 
-const sw = read("sw.js");
-const assetMatch = sw.match(/const ASSETS=\[(.*?)\];/s);
+const sw = read('sw.js');
+const assetMatch = sw.match(/const ASSETS\s*=\s*\[(.*?)\];/s);
+ok('Liste ASSETS lisible dans sw.js', !!assetMatch);
 if (assetMatch) {
-  const assets = [...assetMatch[1].matchAll(/'([^']+)'/g)].map((m) => m[1]);
-  for(const page of ['index.html','employee.html','pilotage.html']){
-    const references=[...read(page).matchAll(/(?:src|href)="([^"]+\.(?:js|css)\?[^"]+)"/g)].map(m=>'./'+m[1]);
-    ok(`Scripts et styles de ${page} disponibles hors ligne`,references.every(url=>assets.includes(url)));
+  const assets = [...assetMatch[1].matchAll(/'([^']+)'/g)].map(m => m[1]);
+  for (const page of ['index.html', 'employee.html', 'pilotage.html']) {
+    const references = [...read(page).matchAll(/(?:src|href)="([^"]+\.(?:js|css)\?[^"]+)"/g)].map(
+      m => './' + m[1]
+    );
+    ok(
+      `Scripts et styles de ${page} disponibles hors ligne`,
+      references.every(url => assets.includes(url))
+    );
   }
   for (const asset of assets) {
-    const path = asset.replace(/^\.\//, "").split("?")[0] || "index.html";
+    const path = asset.replace(/^\.\//, '').split('?')[0] || 'index.html';
     ok(`Asset SW présent: ${path}`, exists(path));
   }
 }
 
 const forbiddenRoot = [
-  ".DS_Store",
-  "admin.html",
-  "manifest-emma.json",
-  "manifest-julie.json",
-  "manifest-marc.json",
-  "manifest-thomas.json",
-  "manifest-patrick.json",
-  "manifest-jerome.json",
-  "manifest-paul.json",
-  "manifest-louis.json",
-  "manifest.json",
+  '.DS_Store',
+  'admin.html',
+  'manifest-emma.json',
+  'manifest-julie.json',
+  'manifest-marc.json',
+  'manifest-thomas.json',
+  'manifest-patrick.json',
+  'manifest-jerome.json',
+  'manifest-paul.json',
+  'manifest-louis.json',
+  'manifest.json'
 ];
 for (const path of forbiddenRoot) ok(`Absent: ${path}`, !exists(path));
 
-const publicFiles = ["config.js", "app.js", "employee.js", "pilotage.js", "employee-week.js", "employee.html", "pilotage.html", "sw.js"];
+const publicFiles = [
+  'config.js',
+  'app.js',
+  'employee.js',
+  'pilotage.js',
+  'employee-week.js',
+  'employee.html',
+  'pilotage.html',
+  'sw.js'
+];
 const forbiddenSecrets = [
   /sb_secret_/i,
   /SUPABASE_SERVICE_ROLE_KEY\s*[:=]\s*["'][^"']+/i,
   /VAPID_PRIVATE_KEY\s*[:=]\s*["'][^"']+/i,
-  /CRON_SECRET\s*[:=]\s*["'][^"']+/i,
+  /CRON_SECRET\s*[:=]\s*["'][^"']+/i
 ];
 for (const path of publicFiles) {
   const source = read(path);
-  ok(`Pas de secret serveur dans ${path}`, !forbiddenSecrets.some((re) => re.test(source)));
+  ok(`Pas de secret serveur dans ${path}`, !forbiddenSecrets.some(re => re.test(source)));
 }
 
-
-
-const pinMigration = "supabase/migrations/20261019_001_login_rate_limit.sql";
-ok("Migration limitation PIN présente", exists(pinMigration));
+const pinMigration = 'supabase/migrations/20261019_001_login_rate_limit.sql';
+ok('Migration limitation PIN présente', exists(pinMigration));
 if (exists(pinMigration)) {
   const sql = read(pinMigration);
-  ok("Migration protège les deux connexions",
-    sql.includes("api_employee_login_internal") &&
-    sql.includes("api_owner_login_internal") &&
-    sql.includes("too_many_attempts"));
-  ok("RPC internes non exposées",
-    sql.includes("revoke execute on function public.api_employee_login_internal") &&
-    sql.includes("revoke execute on function public.api_owner_login_internal"));
+  ok(
+    'Migration protège les deux connexions',
+    sql.includes('api_employee_login_internal') &&
+      sql.includes('api_owner_login_internal') &&
+      sql.includes('too_many_attempts')
+  );
+  ok(
+    'RPC internes non exposées',
+    sql.includes('revoke execute on function public.api_employee_login_internal') &&
+      sql.includes('revoke execute on function public.api_owner_login_internal')
+  );
 }
-const appSource = read("app.js");
-ok("Frontend gère le blocage PIN",
-  appSource.includes("assertLoginResult") &&
-  appSource.includes("too_many_login_attempts"));
+const appSource = read('app.js');
+ok(
+  'Frontend gère le blocage PIN',
+  appSource.includes('assertLoginResult') && appSource.includes('too_many_login_attempts')
+);
 
-const cssFiles = ["styles/base.css", "styles/v2.css", "styles/current.css"];
+const cssFiles = ['styles/base.css', 'styles/v2.css', 'styles/current.css'];
 for (const path of cssFiles) {
   ok(`CSS modulaire présent: ${path}`, exists(path));
 }
-ok("Ancien styles.css supprimé", !exists("styles.css"));
+ok('Ancien styles.css supprimé', !exists('styles.css'));
 
-for (const page of ["index.html", "employee.html", "pilotage.html"]) {
+for (const page of ['index.html', 'employee.html', 'pilotage.html']) {
   const html = read(page);
-  ok(`CSS modulaire chargé dans ${page}`,
-    cssFiles.every((path) => html.includes(path)));
+  ok(
+    `CSS modulaire chargé dans ${page}`,
+    cssFiles.every(path => html.includes(path))
+  );
 }
 
 if (failures.length) {
-  console.error("\nÉchecs:");
-  failures.forEach((failure) => console.error(`- ${failure}`));
+  console.error('\nÉchecs:');
+  failures.forEach(failure => console.error(`- ${failure}`));
   process.exit(1);
 }
-console.log("\nTous les contrôles statiques sont passés.");
-
+console.log('\nTous les contrôles statiques sont passés.');
