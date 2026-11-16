@@ -308,34 +308,7 @@ async function setSelectedDaysNonWorking() {
     renderOwner();
   });
 }
-function completionForDate(date) {
-  const planned = EMPLOYEES.filter(e => isPlannedWorkingDay(e.id, date));
-  if (!planned.length)
-    return { kind: 'weekend', count: 0, total: 0, label: 'Personne prévue', planned };
-  const count = planned.filter(e => {
-    const info = dayInfoFor(e.id, date);
-    return info.status === 'complete' || info.status === 'off';
-  }).length;
-  if (count === planned.length)
-    return { kind: 'all', count, total: planned.length, label: 'Complet', planned };
-  if (date >= iso())
-    return {
-      kind: 'upcoming',
-      count,
-      total: planned.length,
-      label: count ? `${count}/${planned.length} remplis` : date === iso() ? 'En cours' : 'Prévu',
-      planned
-    };
-  if (count === 0)
-    return { kind: 'none', count, total: planned.length, label: 'Non rempli', planned };
-  return {
-    kind: 'partial',
-    count,
-    total: planned.length,
-    label: `${count}/${planned.length} remplis`,
-    planned
-  };
-}
+
 function renderCompletionCalendar() {
   let start,
     end,
@@ -401,18 +374,7 @@ function openPlanning(date) {
   planningRows.innerHTML = EMPLOYEES.map(emp => planningRow(emp, date)).join('');
   planningModal.classList.add('open');
 }
-function planningRow(emp, date) {
-  const working = isPlannedWorkingDay(emp.id, date),
-    info = dayInfoFor(emp.id, date),
-    entry = info.entry,
-    validation =
-      entry?.validationStatus === 'validated'
-        ? 'Validé'
-        : entry?.validationStatus === 'pending'
-          ? 'À valider'
-          : '—';
-  return `<div class="planning-row"><div class="planning-person"><strong>${ownerEscape(emp.name)}</strong><span class="subtle">${entry ? (entry.status === 'off' ? 'Non travaillé déclaré' : entry.arrival && entry.departure ? `${entry.arrival} – ${entry.departure} · ${fmtMin(info.minutes)}` : 'Saisie incomplète') : 'Aucune saisie'} · ${validation}</span></div><label class="planning-check"><input type="checkbox" data-plan-emp="${emp.id}" ${working ? 'checked' : ''}> Travaillé</label><div class="planning-actions">${entry && entry.arrival && entry.departure && entry.validationStatus !== 'validated' ? `<button class="btn btn-green btn-small" onclick="validateFromPlanning('${emp.id}','${date}')">Valider</button>` : ''}<button class="btn btn-outline btn-small" onclick="openOwnerEdit('${emp.id}','${date}')">Modifier</button></div></div>`;
-}
+
 function setAllPlanning(value) {
   document.querySelectorAll('[data-plan-emp]').forEach(x => (x.checked = value));
 }
@@ -438,29 +400,7 @@ async function validateFromPlanning(empId, date) {
     renderOwner();
   });
 }
-function openOwnerEdit(empId, date) {
-  ownerEditEmployee = empId;
-  ownerEditDate = date;
-  const emp = EMPLOYEES.find(e => e.id === empId),
-    e = entryFor(empId, date, false) || {
-      status: 'worked',
-      arrival: '',
-      departure: '',
-      pause: 45,
-      comment: '',
-      validationStatus: 'pending'
-    };
-  ownerEditSubtitle.textContent = `${emp?.name || empId} · ${longDate(date)}`;
-  ownerArrival.value = e.arrival || '';
-  ownerDeparture.value = e.departure || '';
-  ownerPause.value = e.pause ?? 45;
-  ownerComment.value = e.comment || '';
-  ownerOff.checked = e.status === 'off';
-  ownerValidation.value = e.validationStatus === 'validated' ? 'validated' : 'pending';
-  toggleOwnerFields();
-  ownerEditModal.classList.add('open');
-  setTimeout(() => ownerArrival.focus(), 30);
-}
+
 function closeOwnerEdit() {
   ownerEditModal.classList.remove('open');
 }
@@ -470,30 +410,7 @@ function toggleOwnerFields() {
   ownerPause.disabled = ownerOff.checked;
 }
 ownerOff?.addEventListener('change', toggleOwnerFields);
-async function saveOwnerEdit() {
-  const off = ownerOff.checked;
-  if (!off && (!ownerArrival.value || !ownerDeparture.value)) {
-    alert('Renseigne l’arrivée et le départ, ou choisis « Jour non travaillé ».');
-    return;
-  }
-  await withOwnerSave(async () => {
-    await ownerUpdateEntry(
-      ownerEditEmployee,
-      ownerEditDate,
-      {
-        status: off ? 'off' : 'worked',
-        arrival: off ? '' : ownerArrival.value,
-        departure: off ? '' : ownerDeparture.value,
-        pause: Number(ownerPause.value || 0),
-        comment: ownerComment.value
-      },
-      ownerValidation.value
-    );
-    closeOwnerEdit();
-    if (planningModal.classList.contains('open')) openPlanning(planningDate);
-    renderOwner();
-  });
-}
+
 function openSettings() {
   settingsRows.innerHTML = EMPLOYEES.map(emp => {
     const s = employeeSettings(emp.id);
@@ -588,30 +505,7 @@ function generateMonthlyPDF() {
   window.addEventListener('afterprint', restore);
   setTimeout(() => window.print(), 80);
 }
-function buildPrintReport() {
-  const start = new Date(completionCursor.getFullYear(), completionCursor.getMonth(), 1, 12),
-    end = new Date(completionCursor.getFullYear(), completionCursor.getMonth() + 1, 0, 12),
-    dates = listDates(start, end),
-    d = getData();
-  printReport.innerHTML = `<div class="print-header"><h1>Relevé mensuel des horaires</h1><p>${monthLabel(start)}</p></div>${EMPLOYEES.map(
-    emp => {
-      const entries = dates
-        .map(date => {
-          const e = d.entries.find(x => x.employeeId === emp.id && x.date === date),
-            planned = isPlannedWorkingDay(emp.id, date);
-          if (!planned && !e) return '';
-          const total = e && e.status !== 'off' ? workMinutesForDay(emp.id, date) : 0;
-          return `<tr><td>${shortDate(date)}</td><td>${planned ? 'Oui' : 'Non'}</td><td>${e?.status === 'off' ? 'Non travaillé' : e?.arrival || '—'}</td><td>${e?.status === 'off' ? '—' : e?.departure || '—'}</td><td>${e?.status === 'off' ? '—' : e?.pause != null ? fmtDurationMinutes(e.pause) : '—'}</td><td>${e?.status === 'off' ? '0h00' : fmtMin(total)}</td><td>${e?.validationStatus === 'validated' ? 'Validé' : e?.validationStatus === 'pending' ? 'À valider' : '—'}</td></tr>`;
-        })
-        .join('');
-      const total = totalFor(emp, start, end),
-        s = employeeSettings(emp.id);
-      return `<article class="print-employee"><h2>${ownerEscape(emp.name)}</h2><div class="print-summary"><span>Total du mois : <strong>${fmtMin(total)}</strong></span><span>Objectif hebdo : <strong>${fmtMin(s.weeklyObjectiveMinutes)}</strong></span><span>Seuil indicatif : <strong>${fmtMin(s.overtimeThresholdMinutes)}</strong></span></div><table><thead><tr><th>Date</th><th>Prévu</th><th>Arrivée / statut</th><th>Départ</th><th>Pause</th><th>Total</th><th>Validation</th></tr></thead><tbody>${entries || '<tr><td colspan="7">Aucune donnée</td></tr>'}</tbody></table></article>`;
-    }
-  ).join(
-    ''
-  )}<div class="print-note">Document généré depuis le suivi des horaires. Les seuils affichés sont indicatifs tant que les règles contractuelles exactes ne sont pas paramétrées.</div>`;
-}
+
 function renderOwner() {
   const [ws, we] = weekBounds(),
     [ms, me] = monthBounds();
@@ -690,6 +584,9 @@ function renderOwner() {
       return `<tr><td>${ownerEscape(e?.name || x.employeeId)}</td><td>${shortDate(x.date)}</td><td>${off ? '—' : x.arrival || '—'}</td><td>${off ? '—' : x.departure || '—'}</td><td>${off ? '—' : fmtDurationMinutes(x.pause || 0)}</td><td><strong>${off ? '0h00' : fmtMin(workMinutesForDay(x.employeeId, x.date))}</strong></td><td><span class="status ${x.validationStatus === 'validated' ? 'ok' : x.validationStatus === 'pending' ? 'warn' : 'neutral'}">${x.validationStatus === 'validated' ? 'Validé' : x.validationStatus === 'pending' ? 'À valider' : '—'}</span></td></tr>`;
     })
     .join('');
+
+  renderV2Pilotage();
+  if (typeof refreshEmployeeWeekIfOpen === 'function') refreshEmployeeWeekIfOpen();
 }
 async function validateAndRefresh(empId, date) {
   await withOwnerSave(async () => {
@@ -904,7 +801,7 @@ async function deleteOwnerLeave(id) {
   });
 }
 
-completionForDate = function (date) {
+function completionForDate(date) {
   const planned = EMPLOYEES.filter(e => {
     const entry = entryFor(e.id, date, false),
       actual = segmentsFor(e.id, date).length > 0 || entry?.status === 'worked';
@@ -936,9 +833,9 @@ completionForDate = function (date) {
     label: `${count}/${planned.length} remplis`,
     planned
   };
-};
+}
 
-planningRow = function (emp, date) {
+function planningRow(emp, date) {
   const working = isPlannedWorkingDay(emp.id, date),
     info = dayInfoFor(emp.id, date),
     entry = info.entry,
@@ -963,7 +860,7 @@ planningRow = function (emp, date) {
   else if (entry) detail = 'Saisie incomplète';
   if (leave && !isFullDayLeave(leave)) detail = `${leaveLabel(leave)} validé · ${detail}`;
   return `<div class="planning-row ${leave ? 'is-leave' : ''}"><div class="planning-person"><strong>${ownerEscape(emp.name)}</strong><span class="subtle">${ownerEscape(detail)} · ${validation}</span></div><label class="planning-check"><input type="checkbox" data-plan-emp="${emp.id}" ${working ? 'checked' : ''}> Travaillé</label><div class="planning-actions">${entry && entry.arrival && entry.departure && entry.validationStatus !== 'validated' && !isFullDayLeave(leave) ? `<button class="btn btn-green btn-small" onclick="validateFromPlanning('${emp.id}','${date}')">Valider</button>` : ''}${!isFullDayLeave(leave) ? `<button class="btn btn-outline btn-small" onclick="openOwnerEdit('${emp.id}','${date}')">Modifier</button>` : ''}</div></div>`;
-};
+}
 
 let ownerSegmentsDraft = [],
   ownerPauseTouched = false;
@@ -1054,7 +951,7 @@ ownerOff?.addEventListener('change', () => {
   updateOwnerDayTotal();
 });
 
-openOwnerEdit = function (empId, date) {
+function openOwnerEdit(empId, date) {
   ownerEditEmployee = empId;
   ownerEditDate = date;
   const emp = EMPLOYEES.find(e => e.id === empId),
@@ -1091,7 +988,7 @@ openOwnerEdit = function (empId, date) {
   renderOwnerSegmentsEditor();
   updateOwnerDayTotal();
   ownerEditModal.classList.add('open');
-};
+}
 function updateOwnerDayTotal() {
   syncOwnerDraftFromDom();
   const gross = ownerSegmentsDraft.reduce((s, x) => s + timeSpanMinutes(x.start, x.end), 0),
@@ -1100,7 +997,7 @@ function updateOwnerDayTotal() {
     ? '0h00'
     : fmtMin(Math.max(0, gross - (pause === null ? 0 : pause)));
 }
-saveOwnerEdit = async function () {
+async function saveOwnerEdit() {
   syncOwnerDraftFromDom();
   await withOwnerSave(async () => {
     if (ownerOff.checked) {
@@ -1147,7 +1044,7 @@ saveOwnerEdit = async function () {
     if (planningModal.classList.contains('open')) openPlanning(planningDate);
     renderOwner();
   });
-};
+}
 
 // --- Heures supplémentaires, 13e mois et répartition par employeur ---
 // Heures supp : par semaine (lundi → dimanche), ce qui dépasse le seuil hebdomadaire du salarié
@@ -1298,13 +1195,8 @@ function renderV2Pilotage() {
   renderOwnerLeavesV2();
   decorateOwnerCardsWithOvertime();
 }
-const renderOwnerBaseV2 = renderOwner;
-renderOwner = function () {
-  renderOwnerBaseV2();
-  renderV2Pilotage();
-};
 
-buildPrintReport = function (monthValue, employeeId = 'all') {
+function buildPrintReport(monthValue, employeeId = 'all') {
   const bounds = pdfMonthBounds(monthValue) || {
     start: new Date(completionCursor.getFullYear(), completionCursor.getMonth(), 1, 12),
     end: new Date(completionCursor.getFullYear(), completionCursor.getMonth() + 1, 0, 12)
@@ -1517,7 +1409,7 @@ buildPrintReport = function (monthValue, employeeId = 'all') {
 
   const teamRecap = employeeId === 'all' ? buildTeamRecap(start, end, employees) : '';
   printReport.innerHTML = `${teamRecap}${employeeHtml}<div class="print-global-note">Document généré depuis Suivi des horaires. Les durées affichées correspondent aux saisies enregistrées dans l’application.</div>`;
-};
+}
 window.addEventListener('focus', async () => {
   if (appView && !appView.classList.contains('hidden') && !saving) {
     try {

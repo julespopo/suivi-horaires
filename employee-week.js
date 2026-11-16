@@ -326,8 +326,7 @@ employeeWeekElements.Modal.addEventListener('keydown', event => {
     first?.focus();
   }
 });
-const renderOwnerBeforeEmployeeWeek = renderOwner;
-renderOwner = function () {
-  renderOwnerBeforeEmployeeWeek();
+// Appelée à la fin de renderOwner() (pilotage.js) pour garder la fenêtre « semaine » à jour.
+function refreshEmployeeWeekIfOpen() {
   if (employeeWeekElements.Modal.classList.contains('open')) renderEmployeeWeek();
-};
+}
