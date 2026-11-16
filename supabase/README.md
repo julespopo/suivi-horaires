@@ -25,6 +25,6 @@ Le cron reste configuré côté Supabase.
 
 ## Schéma SQL
 
-Le projet Supabase de production existe déjà et a été construit par migrations successives. Avant RC1, le schéma devra être exporté depuis Supabase et ajouté ici sous forme de migrations propres et reproductibles.
+La structure complète de la production est versionnée dans `schema/20261116_baseline.sql`, sans données ni secrets. Voir `schema/README.md` pour reconstruire la base sur un nouveau projet. Les changements suivants vont dans `migrations/`.
 
 Ne pas reconstruire le schéma de production à partir d'anciens scripts de test contenant des comptes ou tokens historiques.
