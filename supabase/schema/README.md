@@ -11,7 +11,7 @@ Il ne contient **aucune donnée** (ni salariés, ni horaires, ni PIN, ni liens p
 3. Exécuter `20261116_baseline.sql` dans l'éditeur SQL.
 4. Exécuter ensuite, dans l'ordre, les migrations de `supabase/migrations/` **datées d'après le 16/11/2026**. Les plus anciennes sont déjà incluses dans l'instantané.
 5. Déployer l'Edge Function `supabase/functions/send-reminders` et ses secrets (voir `supabase/README.md`).
-6. Restaurer les données depuis la dernière sauvegarde.
+6. Restaurer les données depuis la dernière sauvegarde (voir `scripts/backup/README.md`).
 7. Mettre à jour `config.js` avec l'URL et la clé publishable du nouveau projet.
 
 ## Vérifier que l'instantané est toujours à jour
