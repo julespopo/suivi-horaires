@@ -1,4 +1,4 @@
-const CACHE = 'suivi-horaires-refonte-20261117';
+const CACHE = 'suivi-horaires-compte-temps-20261117';
 const ASSETS = [
   './',
   './index.html',
@@ -6,13 +6,13 @@ const ASSETS = [
   './pilotage.html',
   './styles/base.css?v=rc1',
   './styles/v2.css?v=rc1',
-  './styles/current.css?v=refonte-20261117',
+  './styles/current.css?v=compte-temps-20261117',
   './config.js?v=2.0-alpha2.9',
-  './supabase/functions/shared/french-holidays.js?v=refonte-20261117',
-  './app.js?v=refonte-20261117',
-  './employee.js?v=refonte-20261117',
-  './pilotage.js?v=refonte-20261117',
-  './employee-week.js?v=refonte-20261117',
+  './supabase/functions/shared/french-holidays.js?v=compte-temps-20261117',
+  './app.js?v=compte-temps-20261117',
+  './employee.js?v=compte-temps-20261117',
+  './pilotage.js?v=compte-temps-20261117',
+  './employee-week.js?v=compte-temps-20261117',
   './manifest-employee.json?v=2.0-alpha2.9',
   './manifest-pilotage.json?v=2.0-alpha2.9',
   './icons/icon.svg'

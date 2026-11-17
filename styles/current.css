@@ -1354,6 +1354,9 @@ th,td{border-color:var(--line)}
 :root[data-theme="dark"] .text-positive{
   color:#9bc6ea!important;
 }
+.text-warning{color:#936018}
+:root[data-theme="dark"] .text-warning{color:#efc77d}
+.kpi-compte-temps .subtle small{display:block;font-size:11px;opacity:.8}
 :root[data-theme="dark"] .range-day.range-start,
 :root[data-theme="dark"] .range-day.range-end,
 :root[data-theme="dark"] .active-chip{

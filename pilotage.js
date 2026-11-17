@@ -1046,17 +1046,26 @@ async function saveOwnerEdit() {
   });
 }
 
-// --- Heures supplémentaires, 13e mois et répartition par employeur ---
-// Heures supp : par semaine (lundi → dimanche), ce qui dépasse le seuil hebdomadaire du salarié
-// (Réglages du temps de travail). Une semaine est rattachée au mois et à l'année de son jeudi,
-// pour qu'une semaine à cheval sur deux mois ne soit comptée qu'une seule fois.
-// Cagnotte 13e mois : cumul des heures supp depuis le 1er janvier (année civile).
-function overtimeWeekThursday(weekStart) {
-  const d = new Date(weekStart);
+// --- Compte temps ---
+// Contrat de 41 h par semaine (seuil réglé par salarié dans « Réglages du temps de travail »).
+// - Chaque semaine (lundi → dimanche), ce qui dépasse le seuil s'ajoute au compte temps ;
+//   une semaine plus courte ne retire rien. La semaine est rattachée au mois de son jeudi,
+//   pour qu'une semaine à cheval sur deux mois ne soit comptée qu'une fois.
+// - Chaque RTT validé (demandé par le salarié ou donné par le Pilotage) est retiré du compte :
+//   une journée vaut seuil ÷ 5 (8h12 pour 41 h), une demi-journée la moitié.
+// - Le compte repart de zéro chaque 1er mai (période du 1er mai au 30 avril).
+const COMPTE_TEMPS_RTT_TYPES = { rtt: 1, rtt_morning: 0.5, rtt_afternoon: 0.5 };
+function compteTempsPeriodStart(dateIso) {
+  const d = dateObjFromIso(dateIso),
+    year = d.getMonth() >= 4 ? d.getFullYear() : d.getFullYear() - 1;
+  return `${year}-05-01`;
+}
+function compteTempsWeekThursday(weekStart) {
+  const d = startOfWeek(weekStart);
   d.setDate(d.getDate() + 3);
   return iso(d);
 }
-function weeklyOvertimeMinutes(empId, weekStart) {
+function weekExcessMinutes(empId, weekStart) {
   const threshold = Number(employeeSettings(empId).overtimeThresholdMinutes || 0);
   if (threshold <= 0) return 0;
   const ws = startOfWeek(weekStart),
@@ -1064,27 +1073,44 @@ function weeklyOvertimeMinutes(empId, weekStart) {
   we.setDate(ws.getDate() + 6);
   return Math.max(0, totalFor(empId, ws, we) - threshold);
 }
-function overtimeBetween(empId, fromIso, toIso) {
-  let sum = 0;
+function rttDebitForDate(empId, date) {
+  const leave = leaveForDate(empId, date, 'validated'),
+    share = COMPTE_TEMPS_RTT_TYPES[leave?.type];
+  if (!share) return 0;
+  const day = dateObjFromIso(date).getDay();
+  if (day === 0 || day === 6 || publicHolidayName(date)) return 0;
+  return Math.round((Number(employeeSettings(empId).overtimeThresholdMinutes || 0) / 5) * share);
+}
+// { acquis, rtt, net } entre deux dates incluses.
+function compteTempsBetween(empId, fromIso, toIso) {
+  let acquis = 0,
+    rtt = 0;
   const ws = startOfWeek(dateObjFromIso(fromIso)),
     last = dateObjFromIso(toIso);
   while (ws <= last) {
-    const thursday = overtimeWeekThursday(ws);
+    const thursday = compteTempsWeekThursday(ws);
     if (thursday >= fromIso && thursday <= toIso && thursday >= APP_START_DATE)
-      sum += weeklyOvertimeMinutes(empId, ws);
+      acquis += weekExcessMinutes(empId, ws);
     ws.setDate(ws.getDate() + 7);
   }
-  return sum;
+  listDates(dateObjFromIso(fromIso), last).forEach(date => {
+    if (date >= APP_START_DATE) rtt += rttDebitForDate(empId, date);
+  });
+  return { acquis, rtt, net: acquis - rtt };
 }
-function monthOvertimeMinutes(empId, year, monthIndex) {
-  return overtimeBetween(
+function compteTempsMonth(empId, year, monthIndex) {
+  return compteTempsBetween(
     empId,
     iso(new Date(year, monthIndex, 1, 12)),
     iso(new Date(year, monthIndex + 1, 0, 12))
   );
 }
-function thirteenthMonthMinutes(empId, year, untilIso = `${year}-12-31`) {
-  return overtimeBetween(empId, `${year}-01-01`, untilIso);
+// Solde du compte temps depuis le 1er mai jusqu'à la date donnée incluse.
+function compteTempsBalance(empId, untilIso) {
+  return compteTempsBetween(empId, compteTempsPeriodStart(untilIso), untilIso);
+}
+function compteTempsClass(minutes) {
+  return minutes > 0 ? 'text-positive' : minutes < 0 ? 'text-warning' : 'text-muted';
 }
 // Minutes par employeur sur une journée : la pause est répartie au prorata des créneaux.
 function employerMinutesForDay(empId, date) {
@@ -1130,14 +1156,14 @@ function employerTotalsFor(empId, start, end) {
   return totals;
 }
 function buildTeamRecap(start, end, employees) {
-  const year = start.getFullYear(),
-    monthEndIso = iso(end);
+  const monthEndIso = iso(end),
+    periodStart = compteTempsPeriodStart(monthEndIso);
   const rowsData = employees.map(emp => ({
     emp,
     byEmployer: employerTotalsFor(emp.id, start, end),
     total: totalFor(emp.id, start, end),
-    overtime: monthOvertimeMinutes(emp.id, year, start.getMonth()),
-    bank: thirteenthMonthMinutes(emp.id, year, monthEndIso),
+    month: compteTempsMonth(emp.id, start.getFullYear(), start.getMonth()),
+    balance: compteTempsBalance(emp.id, monthEndIso),
     threshold: Number(employeeSettings(emp.id).overtimeThresholdMinutes || 0)
   }));
   const columns = new Map();
@@ -1154,10 +1180,10 @@ function buildTeamRecap(start, end, employees) {
   const body = rowsData
     .map(
       r =>
-        `<tr><td><strong>${ownerEscape(r.emp.name)}</strong><div class="print-team-sub">Seuil ${r.threshold ? fmtMin(r.threshold) : 'non défini'} / sem.</div></td>${cols.map(([id]) => `<td class="print-number-cell">${cell(r.byEmployer.get(id)?.minutes || 0)}</td>`).join('')}<td class="print-number-cell"><strong>${fmtMin(r.total)}</strong></td><td class="print-number-cell">${cell(r.overtime)}</td><td class="print-number-cell"><strong>${fmtMin(r.bank)}</strong></td></tr>`
+        `<tr><td><strong>${ownerEscape(r.emp.name)}</strong><div class="print-team-sub">Seuil ${r.threshold ? fmtMin(r.threshold) : 'non défini'} / sem.</div></td>${cols.map(([id]) => `<td class="print-number-cell">${cell(r.byEmployer.get(id)?.minutes || 0)}</td>`).join('')}<td class="print-number-cell"><strong>${fmtMin(r.total)}</strong></td><td class="print-number-cell">${fmtSignedMin(r.month.net)}<div class="print-team-sub">${compteTempsDetail(r.month)}</div></td><td class="print-number-cell"><strong>${fmtSignedMin(r.balance.net)}</strong></td></tr>`
     )
     .join('');
-  const foot = `<tr class="print-team-total"><td>Total équipe</td>${cols.map(([id]) => `<td class="print-number-cell">${cell(sum(r => r.byEmployer.get(id)?.minutes || 0))}</td>`).join('')}<td class="print-number-cell">${fmtMin(sum(r => r.total))}</td><td class="print-number-cell">${cell(sum(r => r.overtime))}</td><td class="print-number-cell">${fmtMin(sum(r => r.bank))}</td></tr>`;
+  const foot = `<tr class="print-team-total"><td>Total équipe</td>${cols.map(([id]) => `<td class="print-number-cell">${cell(sum(r => r.byEmployer.get(id)?.minutes || 0))}</td>`).join('')}<td class="print-number-cell">${fmtMin(sum(r => r.total))}</td><td class="print-number-cell">${fmtSignedMin(sum(r => r.month.net))}</td><td class="print-number-cell">${fmtSignedMin(sum(r => r.balance.net))}</td></tr>`;
   const generatedAt = new Intl.DateTimeFormat('fr-FR', {
     day: '2-digit',
     month: '2-digit',
@@ -1169,31 +1195,34 @@ function buildTeamRecap(start, end, employees) {
       <div class="print-generated">Édité le ${generatedAt}</div>
     </header>
     <table class="print-team-table">
-      <thead><tr><th>Salarié</th>${cols.map(([, name]) => `<th>${ownerEscape(name)}</th>`).join('')}<th>Total du mois</th><th>Heures supp du mois</th><th>Cagnotte 13e mois ${year}</th></tr></thead>
+      <thead><tr><th>Salarié</th>${cols.map(([, name]) => `<th>${ownerEscape(name)}</th>`).join('')}<th>Total du mois</th><th>Compte temps du mois</th><th>Compte temps au ${shortDate(monthEndIso)}</th></tr></thead>
       <tbody>${body || `<tr><td colspan="${cols.length + 4}" class="print-empty">Aucun salarié.</td></tr>`}</tbody>
       <tfoot>${foot}</tfoot>
     </table>
-    <div class="print-team-note">Heures supp : heures travaillées au-delà du seuil hebdomadaire de chaque salarié, semaine par semaine. Une semaine à cheval sur deux mois est rattachée au mois de son jeudi. La cagnotte 13e mois cumule les heures supp depuis le 1er janvier ${year}, jusqu’à la fin de ce mois.</div>
+    <div class="print-team-note">Compte temps : chaque semaine, les heures travaillées au-delà du seuil du salarié s’ajoutent ; chaque RTT validé est retiré (une journée = seuil ÷ 5, une demi-journée la moitié). Une semaine à cheval sur deux mois est rattachée au mois de son jeudi. Le compte repart de zéro chaque 1er mai ; la dernière colonne cumule depuis le ${shortDate(periodStart)}/${periodStart.slice(0, 4)}.</div>
   </article>`;
 }
-function decorateOwnerCardsWithOvertime() {
-  const now = new Date(),
-    year = now.getFullYear(),
-    month = now.getMonth();
+function compteTempsDetail(c) {
+  return `+${fmtMin(c.acquis)} en plus${c.rtt ? ` · −${fmtMin(c.rtt)} de RTT` : ''}`;
+}
+function decorateOwnerCardsWithCompteTemps() {
+  const today = iso();
   cards.querySelectorAll('[data-week-employee]').forEach(card => {
     const empId = card.dataset.weekEmployee,
       list = card.querySelector('.stat-list');
-    if (!list || list.querySelector('.kpi-overtime-line')) return;
+    if (!list || list.querySelector('.kpi-compte-temps')) return;
+    const c = compteTempsBalance(empId, today),
+      since = shortDate(compteTempsPeriodStart(today));
     list.insertAdjacentHTML(
       'beforeend',
-      `<div class="stat-line kpi-overtime-line"><span class="subtle">Heures supp (mois)</span><strong>${fmtMin(monthOvertimeMinutes(empId, year, month))}</strong></div><div class="stat-line kpi-overtime-line"><span class="subtle">Cagnotte 13e mois ${year}</span><strong>${fmtMin(thirteenthMonthMinutes(empId, year, iso(now)))}</strong></div>`
+      `<div class="stat-line kpi-compte-temps" title="Depuis le ${since} : ${compteTempsDetail(c)}"><span class="subtle">Compte temps<small>depuis le ${since}</small></span><strong class="${compteTempsClass(c.net)}">${fmtSignedMin(c.net)}</strong></div>`
     );
   });
 }
 function renderV2Pilotage() {
   renderEmployersV2();
   renderOwnerLeavesV2();
-  decorateOwnerCardsWithOvertime();
+  decorateOwnerCardsWithCompteTemps();
 }
 
 function buildPrintReport(monthValue, employeeId = 'all') {
@@ -1355,8 +1384,12 @@ function buildPrintReport(monthValue, employeeId = 'all') {
           if (closesWeek) {
             const label = weekLabel(meta);
             const totalWeek = weekTotals.get(meta.key) || 0;
-            const weekOvertime = label.partial ? 0 : weeklyOvertimeMinutes(emp.id, meta.start);
-            weekRow = `<tr class="print-week-total"><td colspan="6"><div><span>${label.text}</span><strong>${fmtMin(totalWeek)} travaillées</strong>${label.partial ? '' : `<span>Réf. ${fmtMin(settings.weeklyObjectiveMinutes)}</span>`}${weekOvertime ? `<span class="print-week-overtime">+${fmtMin(weekOvertime)} supp</span>` : ''}</div></td></tr>`;
+            const weekThursday = compteTempsWeekThursday(meta.start);
+            const weekExcess =
+              weekThursday >= monthStartIso && weekThursday <= monthEndIso
+                ? weekExcessMinutes(emp.id, meta.start)
+                : 0;
+            weekRow = `<tr class="print-week-total"><td colspan="6"><div><span>${label.text}</span><strong>${fmtMin(totalWeek)} travaillées</strong>${label.partial ? '' : `<span>Réf. ${fmtMin(settings.weeklyObjectiveMinutes)}</span>`}${weekExcess ? `<span class="print-week-overtime">+${fmtMin(weekExcess)} au compte temps</span>` : ''}</div></td></tr>`;
           }
 
           return `<tr class="print-day-row ${statusClass}">
@@ -1371,8 +1404,8 @@ function buildPrintReport(monthValue, employeeId = 'all') {
         .join('');
 
       const total = totalFor(emp.id, start, end);
-      const monthOvertime = monthOvertimeMinutes(emp.id, start.getFullYear(), start.getMonth());
-      const bank = thirteenthMonthMinutes(emp.id, start.getFullYear(), monthEndIso);
+      const compteMois = compteTempsMonth(emp.id, start.getFullYear(), start.getMonth());
+      const compteSolde = compteTempsBalance(emp.id, monthEndIso);
       const employerLine = [...employerTotalsFor(emp.id, start, end).values()]
         .filter(x => x.minutes > 0)
         .sort((a, b) => b.minutes - a.minutes)
@@ -1394,10 +1427,11 @@ function buildPrintReport(monthValue, employeeId = 'all') {
         <div><span>Jours de congé / RTT</span><strong>${leaveDays}</strong></div>
         <div class="${incompleteDays ? 'print-summary-alert' : ''}"><span>À compléter</span><strong>${incompleteDays}</strong></div>
         <div class="${pendingDays ? 'print-summary-pending' : ''}"><span>À valider</span><strong>${pendingDays}</strong></div>
-        <div><span>Heures supp du mois</span><strong>${fmtMin(monthOvertime)}</strong></div>
-        <div><span>Cagnotte 13e mois ${start.getFullYear()}</span><strong>${fmtMin(bank)}</strong></div>
+        <div><span>Compte temps du mois</span><strong>${fmtSignedMin(compteMois.net)}</strong></div>
+        <div><span>Compte temps au ${shortDate(monthEndIso)}</span><strong>${fmtSignedMin(compteSolde.net)}</strong></div>
       </section>
       ${employerLine ? `<div class="print-employer-line"><span class="print-employer-label">Par employeur</span>${employerLine}</div>` : ''}
+      <div class="print-employer-line"><span class="print-employer-label">Compte temps</span><span>Ce mois : ${compteTempsDetail(compteMois)}</span><span>Depuis le ${shortDate(compteTempsPeriodStart(monthEndIso))}/${compteTempsPeriodStart(monthEndIso).slice(0, 4)} : ${compteTempsDetail(compteSolde)} = <strong>${fmtSignedMin(compteSolde.net)}</strong></span></div>
       <table class="print-hours-table">
         <thead><tr><th>Date</th><th>Statut</th><th>Créneaux / employeur</th><th>Pause</th><th>Total</th><th>Validation</th></tr></thead>
         <tbody>${rows || '<tr><td colspan="6" class="print-empty">Aucune donnée sur cette période.</td></tr>'}</tbody>

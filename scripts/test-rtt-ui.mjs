@@ -408,8 +408,8 @@ try {
   }, expectedCache);
   ok(
     'PWA : scripts et styles versionnés en cache',
-    cached.some(u => u.endsWith('app.js?v=refonte-20261117')) &&
-      cached.some(u => u.endsWith('employee.js?v=refonte-20261117')) &&
+    cached.some(u => u.endsWith('app.js?v=compte-temps-20261117')) &&
+      cached.some(u => u.endsWith('employee.js?v=compte-temps-20261117')) &&
       cached.some(u => u.endsWith(expectedStyle))
   );
   await pwaContext.setOffline(true);
