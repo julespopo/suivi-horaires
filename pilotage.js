@@ -1156,8 +1156,7 @@ function employerTotalsFor(empId, start, end) {
   return totals;
 }
 function buildTeamRecap(start, end, employees) {
-  const monthEndIso = iso(end),
-    periodStart = compteTempsPeriodStart(monthEndIso);
+  const monthEndIso = iso(end);
   const rowsData = employees.map(emp => ({
     emp,
     byEmployer: employerTotalsFor(emp.id, start, end),
@@ -1176,11 +1175,17 @@ function buildTeamRecap(start, end, employees) {
     a[0] === '' ? 1 : b[0] === '' ? -1 : a[1].localeCompare(b[1], 'fr')
   );
   const sum = fn => rowsData.reduce((s, r) => s + fn(r), 0);
+  // Seuil le plus courant : affiché une fois en en-tête, rappelé seulement pour les exceptions.
+  const thresholdCounts = new Map();
+  rowsData.forEach(r =>
+    thresholdCounts.set(r.threshold, (thresholdCounts.get(r.threshold) || 0) + 1)
+  );
+  const usualThreshold = [...thresholdCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || 0;
   const cell = m => (m ? fmtMin(m) : '—');
   const body = rowsData
     .map(
       r =>
-        `<tr><td><strong>${ownerEscape(r.emp.name)}</strong><div class="print-team-sub">Seuil ${r.threshold ? fmtMin(r.threshold) : 'non défini'} / sem.</div></td>${cols.map(([id]) => `<td class="print-number-cell">${cell(r.byEmployer.get(id)?.minutes || 0)}</td>`).join('')}<td class="print-number-cell"><strong>${fmtMin(r.total)}</strong></td><td class="print-number-cell">${fmtSignedMin(r.month.net)}<div class="print-team-sub">${compteTempsDetail(r.month)}</div></td><td class="print-number-cell"><strong>${fmtSignedMin(r.balance.net)}</strong></td></tr>`
+        `<tr><td><strong>${ownerEscape(r.emp.name)}</strong>${r.threshold !== usualThreshold ? `<div class="print-team-sub">contrat ${r.threshold ? fmtMin(r.threshold) : 'non défini'} / sem.</div>` : ''}</td>${cols.map(([id]) => `<td class="print-number-cell">${cell(r.byEmployer.get(id)?.minutes || 0)}</td>`).join('')}<td class="print-number-cell"><strong>${fmtMin(r.total)}</strong></td><td class="print-number-cell">${fmtSignedMin(r.month.net)}<div class="print-team-sub">${compteTempsDetail(r.month)}</div></td><td class="print-number-cell"><strong>${fmtSignedMin(r.balance.net)}</strong></td></tr>`
     )
     .join('');
   const foot = `<tr class="print-team-total"><td>Total équipe</td>${cols.map(([id]) => `<td class="print-number-cell">${cell(sum(r => r.byEmployer.get(id)?.minutes || 0))}</td>`).join('')}<td class="print-number-cell">${fmtMin(sum(r => r.total))}</td><td class="print-number-cell">${fmtSignedMin(sum(r => r.month.net))}</td><td class="print-number-cell">${fmtSignedMin(sum(r => r.balance.net))}</td></tr>`;
@@ -1191,7 +1196,7 @@ function buildTeamRecap(start, end, employees) {
   }).format(new Date());
   return `<article class="print-employee print-team-recap">
     <header class="print-employee-head">
-      <div><div class="print-kicker">Synthèse globale</div><h1>Heures par employeur</h1><div class="print-period">${ownerEscape(monthLabel(start))}</div></div>
+      <div><div class="print-kicker">Synthèse globale</div><h1>Heures par employeur</h1><div class="print-period">${ownerEscape(monthLabel(start))}${usualThreshold ? `<span class="print-contract"> · contrat ${fmtMin(usualThreshold)} / semaine</span>` : ''}</div></div>
       <div class="print-generated">Édité le ${generatedAt}</div>
     </header>
     <table class="print-team-table">
@@ -1199,7 +1204,7 @@ function buildTeamRecap(start, end, employees) {
       <tbody>${body || `<tr><td colspan="${cols.length + 4}" class="print-empty">Aucun salarié.</td></tr>`}</tbody>
       <tfoot>${foot}</tfoot>
     </table>
-    <div class="print-team-note">Compte temps : chaque semaine, les heures travaillées au-delà du seuil du salarié s’ajoutent ; chaque RTT validé est retiré (une journée = seuil ÷ 5, une demi-journée la moitié). Une semaine à cheval sur deux mois est rattachée au mois de son jeudi. Le compte repart de zéro chaque 1er mai ; la dernière colonne cumule depuis le ${shortDate(periodStart)}/${periodStart.slice(0, 4)}.</div>
+    <div class="print-team-note">Compte temps : heures au-delà du contrat chaque semaine (semaine rattachée au mois de son jeudi), moins les RTT validés (journée = contrat ÷ 5). Remise à zéro chaque 1er mai.</div>
   </article>`;
 }
 function compteTempsDetail(c) {
@@ -1341,7 +1346,7 @@ function buildPrintReport(monthValue, employeeId = 'all') {
           let detail = '—';
           if (isFullDayLeave(leave)) {
             const note = cleanPdfNote(leave.note);
-            detail = note ? ownerEscape(note) : leaveLabel(leave) + ' validé';
+            detail = note ? ownerEscape(note) : '—';
           } else if (segs.length) {
             detail = segs
               .map(
@@ -1355,10 +1360,8 @@ function buildPrintReport(monthValue, employeeId = 'all') {
             detail = 'Journée déclarée non travaillée';
           }
 
-          if (leave && !isFullDayLeave(leave))
-            detail =
-              `<div>${leaveLabel(leave)} validé${leave.note ? ' · ' + ownerEscape(cleanPdfNote(leave.note)) : ''}</div>` +
-              detail;
+          if (leave && !isFullDayLeave(leave) && cleanPdfNote(leave.note))
+            detail = `<div>${ownerEscape(cleanPdfNote(leave.note))}</div>` + detail;
           const cleanedComment = isFullDayLeave(leave) ? '' : cleanPdfNote(entry?.comment || '');
           if (cleanedComment)
             detail += `<div class="print-row-note"><span>Note</span> ${ownerEscape(cleanedComment)}</div>`;
@@ -1389,7 +1392,7 @@ function buildPrintReport(monthValue, employeeId = 'all') {
               weekThursday >= monthStartIso && weekThursday <= monthEndIso
                 ? weekExcessMinutes(emp.id, meta.start)
                 : 0;
-            weekRow = `<tr class="print-week-total"><td colspan="6"><div><span>${label.text}</span><strong>${fmtMin(totalWeek)} travaillées</strong>${label.partial ? '' : `<span>Réf. ${fmtMin(settings.weeklyObjectiveMinutes)}</span>`}${weekExcess ? `<span class="print-week-overtime">+${fmtMin(weekExcess)} au compte temps</span>` : ''}</div></td></tr>`;
+            weekRow = `<tr class="print-week-total"><td colspan="6"><div><span>${label.text}</span><strong>${fmtMin(totalWeek)} travaillées</strong>${weekExcess ? `<span class="print-week-overtime">+${fmtMin(weekExcess)} au compte temps</span>` : ''}</div></td></tr>`;
           }
 
           return `<tr class="print-day-row ${statusClass}">
@@ -1416,22 +1419,20 @@ function buildPrintReport(monthValue, employeeId = 'all') {
         <div>
           <div class="print-kicker">Relevé mensuel des horaires</div>
           <h1>${ownerEscape(emp.name)}</h1>
-          <div class="print-period">${ownerEscape(monthLabel(start))}</div>
+          <div class="print-period">${ownerEscape(monthLabel(start))}<span class="print-contract"> · contrat ${fmtMin(settings.overtimeThresholdMinutes)} / semaine</span></div>
         </div>
         <div class="print-generated">Édité le ${generatedAt}</div>
       </header>
       <section class="print-summary">
         <div><span>Heures du mois</span><strong>${fmtMin(total)}</strong></div>
-        <div><span>Référence hebdomadaire</span><strong>${fmtMin(settings.weeklyObjectiveMinutes)}</strong></div>
         <div><span>Jours travaillés</span><strong>${workedDays}</strong></div>
         <div><span>Jours de congé / RTT</span><strong>${leaveDays}</strong></div>
         <div class="${incompleteDays ? 'print-summary-alert' : ''}"><span>À compléter</span><strong>${incompleteDays}</strong></div>
         <div class="${pendingDays ? 'print-summary-pending' : ''}"><span>À valider</span><strong>${pendingDays}</strong></div>
-        <div><span>Compte temps du mois</span><strong>${fmtSignedMin(compteMois.net)}</strong></div>
-        <div><span>Compte temps au ${shortDate(monthEndIso)}</span><strong>${fmtSignedMin(compteSolde.net)}</strong></div>
+        <div><span>Compte temps du mois</span><strong>${fmtSignedMin(compteMois.net)}</strong><small>${compteTempsDetail(compteMois)}</small></div>
+        <div><span>Compte temps au ${shortDate(monthEndIso)}</span><strong>${fmtSignedMin(compteSolde.net)}</strong><small>depuis le ${shortDate(compteTempsPeriodStart(monthEndIso))}</small></div>
       </section>
       ${employerLine ? `<div class="print-employer-line"><span class="print-employer-label">Par employeur</span>${employerLine}</div>` : ''}
-      <div class="print-employer-line"><span class="print-employer-label">Compte temps</span><span>Ce mois : ${compteTempsDetail(compteMois)}</span><span>Depuis le ${shortDate(compteTempsPeriodStart(monthEndIso))}/${compteTempsPeriodStart(monthEndIso).slice(0, 4)} : ${compteTempsDetail(compteSolde)} = <strong>${fmtSignedMin(compteSolde.net)}</strong></span></div>
       <table class="print-hours-table">
         <thead><tr><th>Date</th><th>Statut</th><th>Créneaux / employeur</th><th>Pause</th><th>Total</th><th>Validation</th></tr></thead>
         <tbody>${rows || '<tr><td colspan="6" class="print-empty">Aucune donnée sur cette période.</td></tr>'}</tbody>
