@@ -1207,6 +1207,76 @@ function buildTeamRecap(start, end, employees) {
     <div class="print-team-note">Compte temps : heures au-delà du contrat chaque semaine (semaine rattachée au mois de son jeudi), moins les RTT validés (journée = contrat ÷ 5). Remise à zéro chaque 1er mai.</div>
   </article>`;
 }
+// Une page par employeur : heures de chaque salarié pour cet employeur, semaine par semaine.
+// Les semaines sont coupées aux bornes du mois (seules les journées du mois comptent).
+function buildEmployerPages(start, end, employees) {
+  const dates = listDates(start, end),
+    monthStartIso = iso(start),
+    monthEndIso = iso(end);
+  const weeks = [];
+  dates.forEach(date => {
+    const ws = iso(startOfWeek(dateObjFromIso(date)));
+    if (!weeks.length || weeks.at(-1).key !== ws) weeks.push({ key: ws, from: date, to: date });
+    else weeks.at(-1).to = date;
+  });
+  // employeur → salarié → { semaine → minutes, jours }
+  const byEmployer = new Map();
+  employees.forEach(emp =>
+    dates.forEach(date =>
+      employerMinutesForDay(emp.id, date).forEach(x => {
+        if (!x.minutes) return;
+        if (!byEmployer.has(x.id)) byEmployer.set(x.id, { name: x.name, rows: new Map() });
+        const rows = byEmployer.get(x.id).rows;
+        if (!rows.has(emp.id))
+          rows.set(emp.id, { emp, weeks: new Map(), days: new Set(), total: 0 });
+        const r = rows.get(emp.id),
+          wk = iso(startOfWeek(dateObjFromIso(date)));
+        r.weeks.set(wk, (r.weeks.get(wk) || 0) + x.minutes);
+        r.days.add(date);
+        r.total += x.minutes;
+      })
+    )
+  );
+  const employers = [...byEmployer.entries()].sort((a, b) =>
+    a[0] === '' ? 1 : b[0] === '' ? -1 : a[1].name.localeCompare(b[1].name, 'fr')
+  );
+  const generatedAt = new Intl.DateTimeFormat('fr-FR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
+  }).format(new Date());
+  const cell = m => (m ? fmtMin(m) : '—');
+  const weekHead = w =>
+    `<th>${w.from === w.to ? shortDate(w.from) : `${shortDate(w.from)} → ${shortDate(w.to)}`}</th>`;
+  return employers
+    .map(([, employer]) => {
+      const rows = [...employer.rows.values()].sort((a, b) =>
+        a.emp.name.localeCompare(b.emp.name, 'fr')
+      );
+      const sumWeek = key => rows.reduce((s, r) => s + (r.weeks.get(key) || 0), 0);
+      const total = rows.reduce((s, r) => s + r.total, 0);
+      const days = rows.reduce((s, r) => s + r.days.size, 0);
+      return `<article class="print-employee print-employer-page">
+    <header class="print-employee-head">
+      <div><div class="print-kicker">Synthèse par employeur</div><h1>${ownerEscape(employer.name)}</h1><div class="print-period">${ownerEscape(monthLabel(start))}</div></div>
+      <div class="print-generated">Édité le ${generatedAt}</div>
+    </header>
+    <section class="print-summary print-employer-summary">
+      <div><span>Heures du mois</span><strong>${fmtMin(total)}</strong></div>
+      <div><span>Salariés</span><strong>${rows.length}</strong></div>
+      <div><span>Journées travaillées</span><strong>${days}</strong></div>
+    </section>
+    <table class="print-team-table">
+      <thead><tr><th>Salarié</th>${weeks.map(weekHead).join('')}<th>Jours</th><th>Total</th></tr></thead>
+      <tbody>${rows.map(r => `<tr><td><strong>${ownerEscape(r.emp.name)}</strong></td>${weeks.map(w => `<td class="print-number-cell">${cell(r.weeks.get(w.key) || 0)}</td>`).join('')}<td class="print-number-cell">${r.days.size}</td><td class="print-number-cell"><strong>${fmtMin(r.total)}</strong></td></tr>`).join('')}</tbody>
+      <tfoot><tr class="print-team-total"><td>Total</td>${weeks.map(w => `<td class="print-number-cell">${cell(sumWeek(w.key))}</td>`).join('')}<td class="print-number-cell">${days}</td><td class="print-number-cell">${fmtMin(total)}</td></tr></tfoot>
+    </table>
+    <div class="print-team-note">Heures travaillées pour ${ownerEscape(employer.name)} du ${shortDate(monthStartIso)} au ${shortDate(monthEndIso)}, pauses déduites. Quand une journée est partagée entre plusieurs employeurs, la pause est répartie au prorata des créneaux.</div>
+    <footer class="print-employee-foot">Suivi des horaires · ${ownerEscape(monthLabel(start))} · ${ownerEscape(employer.name)}</footer>
+  </article>`;
+    })
+    .join('');
+}
 function compteTempsDetail(c) {
   return `+${fmtMin(c.acquis)} en plus${c.rtt ? ` · −${fmtMin(c.rtt)} de RTT` : ''}`;
 }
@@ -1442,7 +1512,10 @@ function buildPrintReport(monthValue, employeeId = 'all') {
     })
     .join('');
 
-  const teamRecap = employeeId === 'all' ? buildTeamRecap(start, end, employees) : '';
+  const teamRecap =
+    employeeId === 'all'
+      ? buildTeamRecap(start, end, employees) + buildEmployerPages(start, end, employees)
+      : '';
   printReport.innerHTML = `${teamRecap}${employeeHtml}<div class="print-global-note">Document généré depuis Suivi des horaires. Les durées affichées correspondent aux saisies enregistrées dans l’application.</div>`;
 }
 window.addEventListener('focus', async () => {

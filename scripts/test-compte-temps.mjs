@@ -214,8 +214,32 @@ try {
   assert.match(recap, /Total équipe/);
   assert.doesNotMatch(recap, /13e mois|Cagnotte/);
   ok('PDF équipe : compte temps du mois et solde');
+  const employerPages = page.locator('#printReport .print-employer-page');
+  assert.equal(await employerPages.count(), 2);
+  const [bois, ferme] = [
+    await employerPages.nth(0).innerText(),
+    await employerPages.nth(1).innerText()
+  ];
+  assert.match(bois, /Synthèse par employeur\s*Bois/);
+  assert.match(bois, /Salarié A[\s\S]*4h00/);
+  assert.match(bois, /Salarié B[\s\S]*36h00/);
+  assert.match(bois, /Total[\s\S]*40h00/);
+  assert.match(ferme, /Synthèse par employeur\s*Ferme/);
+  assert.match(ferme, /Heures du mois\s*93h00/);
+  assert.doesNotMatch(ferme, /Salarié B/);
+  const order = await page.evaluate(() =>
+    [...document.querySelectorAll('#printReport > article')].map(a =>
+      a.classList.contains('print-team-recap')
+        ? 'équipe'
+        : a.classList.contains('print-employer-page')
+          ? 'employeur'
+          : 'salarié'
+    )
+  );
+  assert.deepEqual(order, ['équipe', 'employeur', 'employeur', 'salarié', 'salarié']);
+  ok('PDF : une page par employeur (heures par salarié et par semaine), après la synthèse');
   const empText = await page
-    .locator('#printReport .print-employee:not(.print-team-recap)')
+    .locator('#printReport .print-employee:not(.print-team-recap):not(.print-employer-page)')
     .first()
     .innerText();
   assert.match(empText, /Compte temps du mois\s*−7h18/);
@@ -227,6 +251,7 @@ try {
   ok('PDF salarié : compte temps du mois, solde, détail des RTT et des semaines');
   await page.evaluate(() => buildPrintReport('2026-11', 'a'));
   assert.equal(await page.locator('#printReport .print-team-recap').count(), 0);
+  assert.equal(await page.locator('#printReport .print-employer-page').count(), 0);
   ok('Pas de page équipe pour un relevé individuel');
   if (process.env.SCREENSHOT_DIR) {
     await page
@@ -236,6 +261,10 @@ try {
     await page.emulateMedia({ media: 'print' });
     await page.setViewportSize({ width: 794, height: 1123 });
     await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/pdf.png`, fullPage: false });
+    await page
+      .locator('#printReport .print-employer-page')
+      .first()
+      .screenshot({ path: `${process.env.SCREENSHOT_DIR}/employeur.png` });
   }
   assert.deepEqual(errors, []);
   ok('Aucune erreur JavaScript');

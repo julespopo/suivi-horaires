@@ -910,6 +910,7 @@ th,td{border-color:var(--line)}
   .print-employee .print-summary{grid-template-columns:repeat(7,minmax(0,1fr))}
   .print-summary small{color:#68736f;font-size:6.3pt;line-height:1.2}
   .print-contract{font-weight:500;text-transform:none;color:#68736f}
+  .print-employee .print-employer-summary{grid-template-columns:repeat(3,minmax(0,1fr))}
   .print-employer-line{
     display:flex;
     flex-wrap:wrap;

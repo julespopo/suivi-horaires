@@ -1,4 +1,4 @@
-const CACHE = 'suivi-horaires-pdf-epure-20261117';
+const CACHE = 'suivi-horaires-synthese-employeur-20261117';
 const ASSETS = [
   './',
   './index.html',
@@ -6,13 +6,13 @@ const ASSETS = [
   './pilotage.html',
   './styles/base.css?v=rc1',
   './styles/v2.css?v=rc1',
-  './styles/current.css?v=pdf-epure-20261117',
+  './styles/current.css?v=synthese-employeur-20261117',
   './config.js?v=2.0-alpha2.9',
-  './supabase/functions/shared/french-holidays.js?v=pdf-epure-20261117',
-  './app.js?v=pdf-epure-20261117',
-  './employee.js?v=pdf-epure-20261117',
-  './pilotage.js?v=pdf-epure-20261117',
-  './employee-week.js?v=pdf-epure-20261117',
+  './supabase/functions/shared/french-holidays.js?v=synthese-employeur-20261117',
+  './app.js?v=synthese-employeur-20261117',
+  './employee.js?v=synthese-employeur-20261117',
+  './pilotage.js?v=synthese-employeur-20261117',
+  './employee-week.js?v=synthese-employeur-20261117',
   './manifest-employee.json?v=2.0-alpha2.9',
   './manifest-pilotage.json?v=2.0-alpha2.9',
   './icons/icon.svg'
