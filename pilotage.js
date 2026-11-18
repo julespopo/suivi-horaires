@@ -28,47 +28,12 @@ async function bootOwner() {
   }
   authView.classList.remove('hidden');
 }
-let floatingMenuOpen = false;
-function toggleFloatingMenu() {
-  floatingMenuOpen ? closeFloatingMenu() : openFloatingMenu();
-}
-function openFloatingMenu() {
-  floatingMenuOpen = true;
-  floatingActions.classList.add('open');
-  floatingActions.setAttribute('aria-hidden', 'false');
-  floatingActions.querySelectorAll('.floating-action').forEach(btn => (btn.tabIndex = 0));
-  floatingSettings.classList.add('menu-open');
-  floatingSettings.setAttribute('aria-expanded', 'true');
-}
-function closeFloatingMenu() {
-  floatingMenuOpen = false;
-  floatingActions.classList.remove('open');
-  floatingActions.setAttribute('aria-hidden', 'true');
-  floatingActions.querySelectorAll('.floating-action').forEach(btn => (btn.tabIndex = -1));
-  floatingSettings.classList.remove('menu-open');
-  floatingSettings.setAttribute('aria-expanded', 'false');
-}
-function toggleThemeFromFloatingMenu() {
-  toggleTheme();
-  closeFloatingMenu();
-}
 function openOwnerTools() {
   document.getElementById('ownerToolsModal')?.classList.add('open');
 }
 function closeOwnerTools() {
   document.getElementById('ownerToolsModal')?.classList.remove('open');
 }
-document.addEventListener('pointerdown', e => {
-  if (
-    floatingMenuOpen &&
-    !floatingSettings.contains(e.target) &&
-    !floatingActions.contains(e.target)
-  )
-    closeFloatingMenu();
-});
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') closeFloatingMenu();
-});
 async function login() {
   if (saving) return;
   pinError.textContent = '';
@@ -655,16 +620,32 @@ function assignmentActive(employeeId, employerId) {
 function renderEmployersV2() {
   const active = V2_DATA.employers.filter(e => e.active),
     archived = V2_DATA.employers.filter(e => !e.active);
+  const archiveIcon =
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16v3H4zM6 10v8a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-8M10 14h4"/></svg>';
+  // Tableau employeurs × salariés : une case cochée = le salarié peut saisir des heures pour cet employeur.
   const activeHtml = active.length
-    ? active
-        .map(
-          e =>
-            `<div class="employer-admin-card"><div class="row"><strong>${ownerEscape(e.name)}</strong><button class="btn btn-outline btn-small" onclick="archiveEmployer('${e.id}')">Archiver</button></div><div class="employer-assignment-grid section">${EMPLOYEES.map(emp => `<label class="assignment-check"><input type="checkbox" ${assignmentActive(emp.id, e.id) ? 'checked' : ''} onchange="toggleEmployerAssignment('${emp.id}','${e.id}',this.checked)"> ${ownerEscape(emp.name)}</label>`).join('')}</div></div>`
-        )
-        .join('')
+    ? `<table class="employer-matrix">
+        <thead><tr><th scope="col">Employeur</th>${EMPLOYEES.map(emp => `<th scope="col">${ownerEscape(emp.name)}</th>`).join('')}<th scope="col"><span class="visually-hidden">Archiver</span></th></tr></thead>
+        <tbody>${active
+          .map(
+            e =>
+              `<tr><th scope="row">${ownerEscape(e.name)}</th>${EMPLOYEES.map(
+                emp =>
+                  `<td><input type="checkbox" ${assignmentActive(emp.id, e.id) ? 'checked' : ''} aria-label="${ownerEscape(emp.name)} travaille pour ${ownerEscape(e.name)}" onchange="toggleEmployerAssignment('${emp.id}','${e.id}',this.checked)"></td>`
+              ).join(
+                ''
+              )}<td><button class="employer-archive-btn" type="button" onclick="archiveEmployer('${e.id}')" aria-label="Archiver ${ownerEscape(e.name)}" title="Archiver">${archiveIcon}</button></td></tr>`
+          )
+          .join('')}</tbody>
+      </table>`
     : '<div class="empty">Aucun employeur actif.</div>';
   const archivedHtml = archived.length
-    ? `<details class="archived-employers section"><summary>Employeurs archivés (${archived.length})</summary><div class="archived-employer-list">${archived.map(e => `<div class="archived-employer-row"><span>${ownerEscape(e.name)}</span><button class="btn btn-outline btn-small" onclick="restoreEmployer('${e.id}')">Réactiver</button></div>`).join('')}</div></details>`
+    ? `<div class="archived-employers-line"><span class="subtle">Archivés :</span>${archived
+        .map(
+          e =>
+            `<span class="archived-employer-chip">${ownerEscape(e.name)}<button class="btn btn-outline btn-small" type="button" onclick="restoreEmployer('${e.id}')">Réactiver</button></span>`
+        )
+        .join('')}</div>`
     : '';
   employerList.innerHTML = activeHtml + archivedHtml;
 }

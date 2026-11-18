@@ -2150,3 +2150,43 @@ document.addEventListener('keydown', event => {
   dismissModal(openModals[openModals.length - 1]);
 });
 initDismissibleModals();
+
+// --- Menu flottant (roue crantée), commun à l'espace salarié et au Pilotage ---
+// Il se ferme par un clic à côté, un nouveau clic sur la roue ou la touche Échap.
+// Le bouton mode jour / nuit le laisse ouvert ; les actions qui ouvrent une fenêtre le ferment.
+let floatingMenuOpen = false;
+function setFloatingMenu(open) {
+  const settings = document.getElementById('floatingSettings'),
+    actions = document.getElementById('floatingActions');
+  if (!settings || !actions) return;
+  floatingMenuOpen = open;
+  actions.classList.toggle('open', open);
+  actions.setAttribute('aria-hidden', open ? 'false' : 'true');
+  actions.querySelectorAll('.floating-action').forEach(btn => (btn.tabIndex = open ? 0 : -1));
+  settings.classList.toggle('menu-open', open);
+  settings.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+function openFloatingMenu() {
+  setFloatingMenu(true);
+}
+function closeFloatingMenu() {
+  setFloatingMenu(false);
+}
+function toggleFloatingMenu() {
+  setFloatingMenu(!floatingMenuOpen);
+}
+function toggleThemeFromFloatingMenu() {
+  toggleTheme();
+}
+document.addEventListener('pointerdown', e => {
+  if (!floatingMenuOpen) return;
+  const settings = document.getElementById('floatingSettings'),
+    actions = document.getElementById('floatingActions');
+  if (!settings?.contains(e.target) && !actions?.contains(e.target)) closeFloatingMenu();
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && floatingMenuOpen) {
+    closeFloatingMenu();
+    document.getElementById('floatingSettings')?.focus();
+  }
+});

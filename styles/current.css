@@ -669,9 +669,46 @@ th,td{border-color:var(--line)}
 .owner-tool-wide{
   grid-column:1/-1;
 }
-.owner-tool-panel .employer-list{
-  max-height:52vh;
-  overflow:auto;
+.employer-matrix{
+  width:100%;
+  min-width:0;
+  border-collapse:collapse;
+  background:transparent;
+}
+.employer-matrix th,.employer-matrix td{
+  padding:9px 6px;
+  border-bottom:1px solid var(--line);
+  font-size:14px;
+  text-align:center;
+  background:transparent;
+}
+.employer-matrix thead th{
+  font-size:12px;
+  text-transform:none;
+  letter-spacing:0;
+  color:var(--muted);
+}
+.employer-matrix th{text-transform:none!important;letter-spacing:0!important}
+.employer-matrix th,.employer-matrix td,
+:root[data-theme="dark"] .employer-matrix th,
+:root[data-theme="dark"] .employer-matrix td{background:transparent!important}
+.employer-matrix th:first-child{text-align:left}
+.employer-matrix tbody th{font-weight:750;color:var(--text)}
+.employer-matrix tbody tr:last-child th,.employer-matrix tbody tr:last-child td{border-bottom:0}
+.employer-matrix input[type=checkbox]{width:20px;height:20px;accent-color:var(--accent,#2f6f68);cursor:pointer}
+.employer-archive-btn{
+  width:34px;height:34px;padding:0;border-radius:10px;
+  border:1px solid var(--line);background:var(--card);color:var(--muted);
+  display:inline-grid;place-items:center;cursor:pointer;
+}
+.employer-archive-btn svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.employer-archive-btn:hover{color:var(--danger);border-color:var(--danger)}
+.archived-employers-line{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:12px}
+.archived-employer-chip{display:inline-flex;align-items:center;gap:8px;padding:4px 4px 4px 10px;border:1px solid var(--line);border-radius:12px;font-size:13px}
+.visually-hidden{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media (max-width:520px){
+  .employer-matrix th,.employer-matrix td{padding:8px 3px;font-size:13px}
+  .employer-matrix thead th{font-size:11px}
 }
 .owner-tool-panel .note{
   margin-bottom:0;

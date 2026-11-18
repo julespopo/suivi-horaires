@@ -1,4 +1,4 @@
-const CACHE = 'suivi-horaires-synthese-employeur-20261117';
+const CACHE = 'suivi-horaires-menus-20261118';
 const ASSETS = [
   './',
   './index.html',
@@ -6,13 +6,13 @@ const ASSETS = [
   './pilotage.html',
   './styles/base.css?v=rc1',
   './styles/v2.css?v=rc1',
-  './styles/current.css?v=synthese-employeur-20261117',
+  './styles/current.css?v=menus-20261118',
   './config.js?v=2.0-alpha2.9',
-  './supabase/functions/shared/french-holidays.js?v=synthese-employeur-20261117',
-  './app.js?v=synthese-employeur-20261117',
-  './employee.js?v=synthese-employeur-20261117',
-  './pilotage.js?v=synthese-employeur-20261117',
-  './employee-week.js?v=synthese-employeur-20261117',
+  './supabase/functions/shared/french-holidays.js?v=menus-20261118',
+  './app.js?v=menus-20261118',
+  './employee.js?v=menus-20261118',
+  './pilotage.js?v=menus-20261118',
+  './employee-week.js?v=menus-20261118',
   './manifest-employee.json?v=2.0-alpha2.9',
   './manifest-pilotage.json?v=2.0-alpha2.9',
   './icons/icon.svg'

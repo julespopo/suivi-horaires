@@ -92,39 +92,6 @@ pin?.addEventListener('keydown', e => {
 });
 loginBtn?.addEventListener('click', login);
 
-let floatingMenuOpen = false;
-function toggleFloatingMenu() {
-  floatingMenuOpen ? closeFloatingMenu() : openFloatingMenu();
-}
-function openFloatingMenu() {
-  floatingMenuOpen = true;
-  floatingActions.classList.add('open');
-  floatingActions.setAttribute('aria-hidden', 'false');
-  floatingActions.querySelectorAll('.floating-action').forEach(btn => (btn.tabIndex = 0));
-  floatingSettings.classList.add('menu-open');
-  floatingSettings.setAttribute('aria-expanded', 'true');
-}
-function closeFloatingMenu() {
-  floatingMenuOpen = false;
-  floatingActions.classList.remove('open');
-  floatingActions.setAttribute('aria-hidden', 'true');
-  floatingActions.querySelectorAll('.floating-action').forEach(btn => (btn.tabIndex = -1));
-  floatingSettings.classList.remove('menu-open');
-  floatingSettings.setAttribute('aria-expanded', 'false');
-}
-function toggleThemeFromFloatingMenu() {
-  toggleTheme();
-  closeFloatingMenu();
-}
-document.addEventListener('pointerdown', e => {
-  if (
-    floatingMenuOpen &&
-    !floatingSettings.contains(e.target) &&
-    !floatingActions.contains(e.target)
-  )
-    closeFloatingMenu();
-});
-
 function renderNetworkState() {
   const offline = !navigator.onLine,
     state = employeeOfflineState(),
