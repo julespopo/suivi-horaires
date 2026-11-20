@@ -376,10 +376,15 @@ function toggleOwnerFields() {
 }
 ownerOff?.addEventListener('change', toggleOwnerFields);
 
+function currentReportDate() {
+  return compteTempsReportDate(compteTempsPeriodStart(iso()));
+}
 function openSettings() {
+  const reportDate = currentReportDate();
   settingsRows.innerHTML = EMPLOYEES.map(emp => {
-    const s = employeeSettings(emp.id);
-    return `<div class="settings-row"><strong>${ownerEscape(emp.name)}</strong><div class="field"><label>Heures prévues par semaine</label><input type="number" min="0" step="0.25" data-objective="${emp.id}" value="${(s.weeklyObjectiveMinutes / 60).toFixed(2)}"></div><div class="field"><label>Signaler un dépassement à partir de</label><input type="number" min="0" step="0.25" data-threshold="${emp.id}" value="${(s.overtimeThresholdMinutes / 60).toFixed(2)}"></div></div>`;
+    const s = employeeSettings(emp.id),
+      report = compteTempsReportMinutes(emp.id, reportDate, reportDate);
+    return `<div class="settings-row"><strong>${ownerEscape(emp.name)}</strong><div class="field"><label>Heures prévues par semaine</label><input type="number" min="0" step="0.25" data-objective="${emp.id}" value="${(s.weeklyObjectiveMinutes / 60).toFixed(2)}"></div><div class="field"><label>Signaler un dépassement à partir de</label><input type="number" min="0" step="0.25" data-threshold="${emp.id}" value="${(s.overtimeThresholdMinutes / 60).toFixed(2)}"></div><div class="field"><label>Report du compte temps au ${shortDate(reportDate)}</label><input type="text" inputmode="decimal" autocomplete="off" placeholder="ex. 5,9 ou 5h54" data-report="${emp.id}" value="${report ? fmtSignedMin(report) : ''}"></div></div>`;
   }).join('');
   settingsModal.classList.add('open');
 }
@@ -396,8 +401,24 @@ async function saveSettings() {
       Number(document.querySelector(`[data-threshold="${emp.id}"]`).value || 0) * 60
     )
   }));
+  const reportDate = currentReportDate(),
+    reports = [];
+  for (const emp of EMPLOYEES) {
+    const input = document.querySelector(`[data-report="${emp.id}"]`),
+      minutes = parseHoursInput(input?.value);
+    if (Number.isNaN(minutes)) {
+      alert(`Report de ${emp.name} illisible. Exemples : 5,9 · 5h54 · -3h30`);
+      input?.focus();
+      return;
+    }
+    if (minutes !== compteTempsReportMinutes(emp.id, reportDate, reportDate))
+      reports.push({ empId: emp.id, minutes });
+  }
   await withOwnerSave(async () => {
     for (const change of changes) await setEmployeeSettings(change.empId, change);
+    for (const r of reports)
+      await ownerSetCompteTempsReport(r.empId, reportDate, r.minutes, 'Report du compte temps');
+    if (reports.length) await loadOwnerData();
     closeSettings();
     renderOwner();
   });
@@ -1086,9 +1107,42 @@ function compteTempsMonth(empId, year, monthIndex) {
     iso(new Date(year, monthIndex + 1, 0, 12))
   );
 }
-// Solde du compte temps depuis le 1er mai jusqu'à la date donnée incluse.
+// Reports saisis par le Pilotage (ex. solde calculé à la main avant l'appli).
+// Pour la période en cours au lancement, le report est daté de la veille du lancement (01/11/2026) ;
+// pour les périodes suivantes, du 1er mai.
+function compteTempsReportDate(periodStartIso) {
+  if (periodStartIso >= APP_START_DATE) return periodStartIso;
+  const d = dateObjFromIso(APP_START_DATE);
+  d.setDate(d.getDate() - 1);
+  return iso(d);
+}
+function compteTempsReportMinutes(empId, fromIso, toIso) {
+  return (typeof COMPTE_TEMPS_REPORTS === 'undefined' ? [] : COMPTE_TEMPS_REPORTS)
+    .filter(r => r.employeeId === empId && r.effectiveDate >= fromIso && r.effectiveDate <= toIso)
+    .reduce((sum, r) => sum + r.minutes, 0);
+}
+// Solde du compte temps depuis le 1er mai jusqu'à la date donnée incluse, report compris.
+// (Le « compte temps du mois » n'inclut pas le report, pour ne pas gonfler un mois.)
 function compteTempsBalance(empId, untilIso) {
-  return compteTempsBetween(empId, compteTempsPeriodStart(untilIso), untilIso);
+  const from = compteTempsPeriodStart(untilIso),
+    c = compteTempsBetween(empId, from, untilIso),
+    report = compteTempsReportMinutes(empId, from, untilIso);
+  return { ...c, report, net: c.net + report };
+}
+// « 5,9 », « 5.9 », « 5h54 », « -3h30 », « +12 » → minutes ; vide → 0 ; illisible → NaN.
+function parseHoursInput(value) {
+  const v = String(value || '')
+    .trim()
+    .replace(/\s+/g, '')
+    .replace('−', '-');
+  if (!v) return 0;
+  const hm = v.match(/^([+-]?)(\d+)h(\d{1,2})?$/i);
+  if (hm) {
+    const minutes = Number(hm[2]) * 60 + Number(hm[3] || 0);
+    return hm[1] === '-' ? -minutes : minutes;
+  }
+  if (/^[+-]?\d+([.,]\d+)?$/.test(v)) return Math.round(Number(v.replace(',', '.')) * 60);
+  return NaN;
 }
 function compteTempsClass(minutes) {
   return minutes > 0 ? 'text-positive' : minutes < 0 ? 'text-warning' : 'text-muted';
@@ -1259,7 +1313,7 @@ function buildEmployerPages(start, end, employees) {
     .join('');
 }
 function compteTempsDetail(c) {
-  return `+${fmtMin(c.acquis)} en plus${c.rtt ? ` · −${fmtMin(c.rtt)} de RTT` : ''}`;
+  return `${c.report ? `report ${fmtSignedMin(c.report)} · ` : ''}+${fmtMin(c.acquis)} en plus${c.rtt ? ` · −${fmtMin(c.rtt)} de RTT` : ''}`;
 }
 function decorateOwnerCardsWithCompteTemps() {
   const today = iso();

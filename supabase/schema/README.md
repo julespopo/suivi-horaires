@@ -18,7 +18,7 @@ Il ne contient **aucune donnée** (ni salariés, ni horaires, ni PIN, ni liens p
 
 `fingerprint.sql` calcule une empreinte de la structure. Exécuté en production, il doit donner les mêmes valeurs que celles notées dans `scripts/test-baseline-db.mjs`.
 
-Si une valeur diffère, la production a changé sans migration versionnée. Il faut alors ajouter la migration manquante dans `supabase/migrations/`.
+Le test rejoue l’instantané **puis les migrations postérieures au 16/11/2026**. Si une valeur diffère, la production a changé sans migration versionnée. Il faut alors ajouter la migration manquante dans `supabase/migrations/`.
 
 `npm run test:db` rejoue l'instantané sur une base PostgreSQL vide, compare les empreintes et fait un parcours salarié puis Pilotage avec des données fictives.
 

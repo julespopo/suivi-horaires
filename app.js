@@ -1521,17 +1521,23 @@ async function loadEmployeeData() {
   cacheEmployeeSnapshot();
   return CURRENT_EMPLOYEE;
 }
+let COMPTE_TEMPS_REPORTS = [];
 async function loadOwnerData() {
   const s = getSession();
   if (!s?.sessionToken) throw new Error('unauthorized');
   const range = defaultRange();
   DATA_RANGE = range;
-  const [out, v2] = await Promise.all([
+  const [out, v2, reports] = await Promise.all([
     rpc('api_owner_data', { p_session_token: s.sessionToken, p_from: range.from, p_to: range.to }),
     rpc('api_owner_v2_data', {
       p_session_token: s.sessionToken,
       p_from: range.from,
       p_to: range.to
+    }),
+    // Reports du compte temps : en cas d'erreur, l'appli reste utilisable (solde sans report).
+    rpc('api_owner_compte_temps_reports', { p_session_token: s.sessionToken }).catch(error => {
+      console.warn('Reports du compte temps indisponibles', error);
+      return [];
     })
   ]);
   EMPLOYEES = (out.employees || []).map(normalizeEmployee);
@@ -1542,7 +1548,24 @@ async function loadOwnerData() {
   hydrateEmployeeSettings();
   hydrateSchedule(out.schedule || []);
   setV2Data(v2, 'owner');
+  COMPTE_TEMPS_REPORTS = (reports || []).map(r => ({
+    employeeId: r.employee_id,
+    effectiveDate: String(r.effective_date).slice(0, 10),
+    minutes: Number(r.minutes) || 0,
+    note: r.note || ''
+  }));
   return { ...out, v2 };
+}
+async function ownerSetCompteTempsReport(employeeId, effectiveDate, minutes, note = '') {
+  const s = getSession();
+  if (!s?.sessionToken) throw new Error('unauthorized');
+  await rpc('api_owner_set_compte_temps_report', {
+    p_session_token: s.sessionToken,
+    p_employee_id: employeeId,
+    p_effective_date: effectiveDate,
+    p_minutes: Math.round(Number(minutes) || 0),
+    p_note: note
+  });
 }
 async function saveEmployeeEntry(date, patch = {}) {
   const s = getSession();

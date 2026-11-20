@@ -5,12 +5,13 @@ import fs from 'node:fs';
 import assert from 'node:assert/strict';
 const { PGlite } = await import(process.env.PGLITE_MODULE || '@electric-sql/pglite');
 
-// Empreintes relevées en production avec supabase/schema/fingerprint.sql (16/11/2026).
+// Empreintes relevées en production avec supabase/schema/fingerprint.sql (20/11/2026),
+// identiques à « baseline du 16/11 + migrations postérieures » rejouées ci-dessous.
 const PRODUCTION = {
-  functions: { n: 67, h: 'dfcae2cee89df7677e8b973af8c51a5c' },
-  func_grants: { n: 128, h: '11f81e0937eb189e960f1629d88ea147' },
+  functions: { n: 69, h: 'dc3394f914b6f73629f489ac0b8067b3' },
+  func_grants: { n: 132, h: '982a78a5bfaa45b449c5fec81bd7b037' },
   table_grants: { n: 76, h: '1e014fe1a493ee0d5d850f514309fdae' },
-  structure: { n: 243, h: '2b50d8a97436a65bd7762f9ed8c05d44' }
+  structure: { n: 253, h: 'ef1551b567bb000ee1f1f6018372ed29' }
 };
 
 // Ce que Supabase fournit d'office : rôles et extensions (pgcrypto simulé, PGlite ne l'a pas).
@@ -53,6 +54,19 @@ const db = new PGlite();
 await db.exec(SUPABASE_STUBS);
 await db.exec(portable);
 console.log('✓ Baseline rejouée sur une base vide');
+// Puis, dans l'ordre, les migrations ajoutées après l'instantané du 16/11/2026.
+const laterMigrations = fs
+  .readdirSync('supabase/migrations')
+  .filter(f => /^\d{8}/.test(f) && f.slice(0, 8) > '20261116' && f.endsWith('.sql'))
+  .sort();
+for (const f of laterMigrations) await db.exec(fs.readFileSync('supabase/migrations/' + f, 'utf8'));
+console.log(`✓ ${laterMigrations.length} migration(s) postérieure(s) rejouée(s)`);
+if (process.env.PRINT_FINGERPRINT)
+  console.log(
+    JSON.stringify(
+      (await db.query(fs.readFileSync('supabase/schema/fingerprint.sql', 'utf8'))).rows
+    )
+  );
 
 const rows = (await db.query(fs.readFileSync('supabase/schema/fingerprint.sql', 'utf8'))).rows;
 for (const r of rows) {
@@ -113,4 +127,48 @@ await assert.rejects(
   /unauthorized/
 );
 console.log('✓ Un salarié ne peut pas lire les données Pilotage');
+
+// Reports du compte temps (saisis par le Pilotage).
+const ownerTok = owner.session_token;
+await one(`select public.api_owner_set_compte_temps_report($1,$2,'2026-11-01',354,'Report')`, [
+  ownerTok,
+  EMP
+]);
+await one(`select public.api_owner_set_compte_temps_report($1,$2,'2026-11-01',-90,'Corrigé')`, [
+  ownerTok,
+  EMP
+]);
+let reports = await one(`select public.api_owner_compte_temps_reports($1)`, [ownerTok]);
+assert.deepEqual(reports, [
+  { employee_id: EMP, effective_date: '2026-11-01', minutes: -90, note: 'Corrigé' }
+]);
+await one(`select public.api_owner_set_compte_temps_report($1,$2,'2026-11-01',0,'')`, [
+  ownerTok,
+  EMP
+]);
+reports = await one(`select public.api_owner_compte_temps_reports($1)`, [ownerTok]);
+assert.deepEqual(reports, []);
+console.log('✓ Report du compte temps : création, modification, suppression');
+await assert.rejects(
+  () => db.query(`select public.api_owner_compte_temps_reports($1)`, [tok]),
+  /unauthorized/
+);
+await assert.rejects(
+  () =>
+    db.query(`select public.api_owner_set_compte_temps_report($1,$2,'2026-11-01',60,'')`, [
+      tok,
+      EMP
+    ]),
+  /unauthorized/
+);
+for (const role of ['anon', 'authenticated'])
+  assert.equal(
+    (
+      await db.query(
+        `select has_table_privilege('${role}','public.compte_temps_reports','SELECT') ok`
+      )
+    ).rows[0].ok,
+    false
+  );
+console.log('✓ Reports : réservés au Pilotage, table inaccessible depuis le navigateur');
 await db.close();

@@ -192,8 +192,34 @@ try {
   assert.equal(r.weekendRtt, 0);
   ok('RTT : week-end non déduit, valeur selon le seuil du salarié (35 h → 7h00)');
   assert.deepEqual(r.periods, ['2026-05-01', '2026-05-01', '2027-05-01']);
-  assert.deepEqual(r.afterReset, { acquis: 0, rtt: 0, net: 0 });
+  assert.deepEqual(r.afterReset, { acquis: 0, rtt: 0, report: 0, net: 0 });
   ok('Remise à zéro au 1er mai');
+
+  // Reports saisis par le Pilotage
+  const rep = await page.evaluate(() => {
+    COMPTE_TEMPS_REPORTS = [
+      { employeeId: 'a', effectiveDate: '2026-11-01', minutes: 354, note: 'Report' },
+      { employeeId: 'a', effectiveDate: '2026-04-30', minutes: 999, note: 'Période précédente' }
+    ];
+    return {
+      date: compteTempsReportDate(compteTempsPeriodStart('2026-11-20')),
+      nextDate: compteTempsReportDate('2027-05-01'),
+      solde: compteTempsBalance('a', '2026-11-30'),
+      mois: compteTempsMonth('a', 2026, 10),
+      parse: ['5,9', '5.9', '5h54', '-3h30', '−3h30', '+12', '30,8', '', ' 7 h 05 ', 'abc'].map(
+        parseHoursInput
+      )
+    };
+  });
+  assert.equal(rep.date, '2026-11-01');
+  assert.equal(rep.nextDate, '2027-05-01');
+  assert.deepEqual(rep.solde, { acquis: 300, rtt: 738, report: 354, net: -438 + 354 });
+  assert.equal(rep.mois.net, -438);
+  ok('Report au 01/11 ajouté au solde, pas au compte du mois ; période précédente ignorée');
+  assert.deepEqual(rep.parse.slice(0, 9), [354, 354, 354, -210, -210, 720, 1848, 0, 425]);
+  assert.ok(Number.isNaN(rep.parse[9]));
+  ok('Saisie du report : 5,9 · 5h54 · -3h30 · 30,8 acceptés, texte illisible refusé');
+  await page.evaluate(() => (COMPTE_TEMPS_REPORTS = []));
   assert.deepEqual(r.split, { Ferme: 41 * 60, Bois: 4 * 60 });
   ok('Répartition par employeur avec pause au prorata');
 
@@ -253,6 +279,42 @@ try {
   assert.equal(await page.locator('#printReport .print-team-recap').count(), 0);
   assert.equal(await page.locator('#printReport .print-employer-page').count(), 0);
   ok('Pas de page équipe pour un relevé individuel');
+
+  // Saisie du report dans « Réglages du temps de travail »
+  await page.evaluate(() => {
+    window.savedReports = [];
+    setEmployeeSettings = async () => {};
+    ownerSetCompteTempsReport = async (...args) => {
+      window.savedReports.push(args);
+      COMPTE_TEMPS_REPORTS = [
+        { employeeId: args[0], effectiveDate: args[1], minutes: args[2], note: args[3] }
+      ];
+    };
+    loadOwnerData = async () => {};
+    openSettings();
+  });
+  assert.match(
+    await page.locator('#settingsModal').innerText(),
+    /Report du compte temps au 01\/11/
+  );
+  await page.fill('[data-report="a"]', '5,9');
+  await page.evaluate(() => saveSettings());
+  await page.waitForFunction(() => !saving);
+  assert.deepEqual(await page.evaluate(() => window.savedReports), [
+    ['a', '2026-11-01', 354, 'Report du compte temps']
+  ]);
+  assert.match(
+    await page.locator('[data-week-employee="a"]').innerText(),
+    /Compte temps[\s\S]*−1h24/
+  );
+  await page.evaluate(() => openSettings());
+  assert.equal(await page.inputValue('[data-report="a"]'), '+5h54');
+  ok('Réglages : report saisi « 5,9 » enregistré au 01/11 (5h54) et repris dans le solde');
+  await page.fill('[data-report="b"]', 'n importe quoi');
+  page.once('dialog', d => d.dismiss());
+  await page.evaluate(() => saveSettings());
+  assert.equal(await page.evaluate(() => window.savedReports.length), 1);
+  ok('Réglages : saisie illisible refusée sans rien enregistrer');
   if (process.env.SCREENSHOT_DIR) {
     await page
       .locator('[data-week-employee="a"]')
