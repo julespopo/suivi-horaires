@@ -37,6 +37,13 @@ const baseline = fs
 const db = new PGlite();
 await db.exec(STUBS);
 await db.exec(baseline);
+// Migrations ajoutées après l'instantané du 16/11/2026, dans l'ordre.
+const migrationsDir = new URL('../../supabase/migrations/', import.meta.url);
+for (const f of fs
+  .readdirSync(migrationsDir)
+  .filter(f => /^\d{8}/.test(f) && f.slice(0, 8) > '20261116' && f.endsWith('.sql'))
+  .sort())
+  await db.exec(fs.readFileSync(new URL(f, migrationsDir), 'utf8'));
 await db.exec(dump);
 const { rows } = await db.query(
   `select relname as t from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and relkind='r' order by 1`
