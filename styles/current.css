@@ -1470,3 +1470,9 @@ th,td{border-color:var(--line)}
 /* Réglages : nom + 3 champs (heures prévues, seuil, report du compte temps) */
 @media (min-width:801px){.settings-row{grid-template-columns:150px repeat(3,minmax(0,1fr))}}
 .settings-row .field input{width:100%;max-width:none}
+
+/* Export PDF en bas de l'accueil */
+.export-fields{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr) auto;gap:12px;align-items:end}
+.export-fields .field input,.export-fields .field select{width:100%}
+.export-button{white-space:nowrap}
+@media (max-width:640px){.export-fields{grid-template-columns:1fr}.export-button{width:100%}}

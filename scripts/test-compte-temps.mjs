@@ -280,6 +280,66 @@ try {
   assert.equal(await page.locator('#printReport .print-employer-page').count(), 0);
   ok('Pas de page équipe pour un relevé individuel');
 
+  // Export en bas de l'accueil : toute l'équipe / un salarié / un employeur
+  const exportSection = page.locator('main #exportSection');
+  assert.equal(await exportSection.count(), 1);
+  assert.equal(
+    await page.evaluate(
+      () =>
+        document.getElementById('exportSection') ===
+        document.querySelector('main > section.card:last-of-type')
+    ),
+    true
+  );
+  assert.equal(await page.locator('#ownerToolsModal').getByText('Exporter en PDF').count(), 0);
+  assert.equal(await page.locator('#pdfExportModal').count(), 0);
+  const options = await page.$$eval('#pdfExportTarget option', os =>
+    os.map(o => [o.value, o.textContent, o.parentElement.label || ''])
+  );
+  assert.deepEqual(options, [
+    ['all', 'Toute l’équipe', ''],
+    ['a', 'Salarié A', 'Un salarié'],
+    ['b', 'Salarié B', 'Un salarié'],
+    ['employer:wood', 'Bois', 'Un employeur'],
+    ['employer:farm', 'Ferme', 'Un employeur']
+  ]);
+  assert.equal(await page.inputValue('#pdfExportMonth'), '2026-11');
+  ok('Export : section en bas de l’accueil, choix équipe / salarié / employeur, mois en cours');
+  await page.evaluate(() => {
+    window.printed = [];
+    window.print = () => window.printed.push(document.title);
+  });
+  await page.selectOption('#pdfExportTarget', 'employer:wood');
+  assert.match(await page.locator('#pdfExportHint').innerText(), /remettre/);
+  await page.evaluate(() => generateMonthlyPDF());
+  await page.waitForFunction(() => window.printed.length === 1);
+  assert.deepEqual(await page.evaluate(() => window.printed), [
+    'Releve-horaires-novembre-2026-Bois'
+  ]);
+  assert.equal(await page.locator('#printReport .print-employer-page').count(), 1);
+  assert.equal(await page.locator('#printReport .print-team-recap').count(), 0);
+  assert.equal(await page.locator('#printReport article:not(.print-employer-page)').count(), 0);
+  assert.match(
+    await page.locator('#printReport .print-employer-page').innerText(),
+    /Bois[\s\S]*Total[\s\S]*40h00/
+  );
+  ok('Export employeur : uniquement la page de cet employeur');
+  await page.evaluate(() => buildPrintReport('2026-10', 'employer:wood'));
+  assert.match(
+    await page.locator('#printReport .print-employer-page').innerText(),
+    /Aucune heure saisie pour cet employeur/
+  );
+  ok('Export employeur sans heures : page explicite');
+  await page.selectOption('#pdfExportTarget', 'b');
+  await page.evaluate(() => generateMonthlyPDF());
+  await page.waitForFunction(() => window.printed.length === 2);
+  assert.equal(
+    await page.evaluate(() => window.printed[1]),
+    'Releve-horaires-novembre-2026-Salarie-B'
+  );
+  assert.equal(await page.locator('#printReport article').count(), 1);
+  ok('Export salarié : son relevé seul');
+
   // Saisie du report dans « Réglages du temps de travail »
   await page.evaluate(() => {
     window.savedReports = [];

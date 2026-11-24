@@ -423,24 +423,46 @@ async function saveSettings() {
     renderOwner();
   });
 }
-function exportMonthlyPDF() {
-  const modal = document.getElementById('pdfExportModal');
-  const monthInput = document.getElementById('pdfExportMonth');
-  const employeeSelect = document.getElementById('pdfExportEmployee');
-  if (!modal || !monthInput || !employeeSelect) return;
-  const ref =
-    completionCursor instanceof Date && !Number.isNaN(completionCursor)
-      ? completionCursor
-      : new Date();
-  monthInput.value = `${ref.getFullYear()}-${String(ref.getMonth() + 1).padStart(2, '0')}`;
-  monthInput.min = String(APP_START_DATE || '').slice(0, 7);
-  employeeSelect.innerHTML =
-    '<option value="all">Toute l’équipe</option>' +
-    EMPLOYEES.map(emp => `<option value="${emp.id}">${ownerEscape(emp.name)}</option>`).join('');
-  modal.classList.add('open');
+// --- Export PDF (section en bas de l'accueil) ---
+// « Pour » : toute l'équipe, un salarié (relevé détaillé) ou un employeur (sa page de synthèse).
+const EXPORT_HINTS = {
+  all: 'Synthèse de l’équipe, une page par employeur, puis le relevé détaillé de chaque salarié.',
+  employee: 'Relevé détaillé jour par jour du salarié, avec son compte temps.',
+  employer:
+    'Heures de chaque salarié pour cet employeur, semaine par semaine : page à lui remettre.'
+};
+function exportTargetKind(value) {
+  return value === 'all' ? 'all' : String(value).startsWith('employer:') ? 'employer' : 'employee';
 }
-function closePdfExportModal() {
-  document.getElementById('pdfExportModal')?.classList.remove('open');
+function renderExportControls() {
+  const monthInput = document.getElementById('pdfExportMonth'),
+    select = document.getElementById('pdfExportTarget');
+  if (!monthInput || !select) return;
+  if (!monthInput.value) {
+    const now = new Date();
+    monthInput.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  }
+  monthInput.min = String(APP_START_DATE || '').slice(0, 7);
+  const previous = select.value || 'all',
+    employers = V2_DATA.employers
+      .filter(e => e.active)
+      .sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+  select.innerHTML =
+    '<option value="all">Toute l’équipe</option>' +
+    (EMPLOYEES.length
+      ? `<optgroup label="Un salarié">${EMPLOYEES.map(emp => `<option value="${emp.id}">${ownerEscape(emp.name)}</option>`).join('')}</optgroup>`
+      : '') +
+    (employers.length
+      ? `<optgroup label="Un employeur">${employers.map(e => `<option value="employer:${e.id}">${ownerEscape(e.name)}</option>`).join('')}</optgroup>`
+      : '');
+  select.value = [...select.options].some(o => o.value === previous) ? previous : 'all';
+  const updateHint = () => {
+    const hint = document.getElementById('pdfExportHint');
+    if (hint)
+      hint.textContent = `${EXPORT_HINTS[exportTargetKind(select.value)]} Dans la fenêtre d’impression, choisis « Enregistrer au format PDF ».`;
+  };
+  select.onchange = updateHint;
+  updateHint();
 }
 function pdfMonthBounds(value) {
   const match = /^(\d{4})-(\d{2})$/.exec(value || '');
@@ -460,19 +482,24 @@ function pdfFileToken(value) {
 }
 function generateMonthlyPDF() {
   const monthValue = document.getElementById('pdfExportMonth')?.value || '';
-  const employeeId = document.getElementById('pdfExportEmployee')?.value || 'all';
+  const target = document.getElementById('pdfExportTarget')?.value || 'all';
   const bounds = pdfMonthBounds(monthValue);
   if (!bounds) {
     alert('Choisis un mois à exporter.');
     return;
   }
-  buildPrintReport(monthValue, employeeId);
-  closePdfExportModal();
+  buildPrintReport(monthValue, target);
   const previousTitle = document.title;
   const previousUrl = location.href;
-  const employee = employeeId === 'all' ? null : EMPLOYEES.find(e => e.id === employeeId);
+  const kind = exportTargetKind(target),
+    who =
+      kind === 'all'
+        ? 'equipe'
+        : kind === 'employer'
+          ? employerFor(target.slice('employer:'.length))?.name || 'employeur'
+          : EMPLOYEES.find(e => e.id === target)?.name || 'salarie';
   const period = monthLabel(bounds.start);
-  document.title = `Releve-horaires-${pdfFileToken(period)}-${employee ? pdfFileToken(employee.name) : 'equipe'}`;
+  document.title = `Releve-horaires-${pdfFileToken(period)}-${pdfFileToken(who)}`;
   let urlSanitized = false;
   try {
     const cleanUrl = new URL(location.href);
@@ -1244,7 +1271,7 @@ function buildTeamRecap(start, end, employees) {
 }
 // Une page par employeur : heures de chaque salarié pour cet employeur, semaine par semaine.
 // Les semaines sont coupées aux bornes du mois (seules les journées du mois comptent).
-function buildEmployerPages(start, end, employees) {
+function buildEmployerPages(start, end, employees, onlyEmployerId = null) {
   const dates = listDates(start, end),
     monthStartIso = iso(start),
     monthEndIso = iso(end);
@@ -1272,9 +1299,16 @@ function buildEmployerPages(start, end, employees) {
       })
     )
   );
-  const employers = [...byEmployer.entries()].sort((a, b) =>
-    a[0] === '' ? 1 : b[0] === '' ? -1 : a[1].name.localeCompare(b[1].name, 'fr')
-  );
+  if (onlyEmployerId !== null && !byEmployer.has(onlyEmployerId))
+    byEmployer.set(onlyEmployerId, {
+      name: employerFor(onlyEmployerId)?.name || 'Employeur',
+      rows: new Map()
+    });
+  const employers = [...byEmployer.entries()]
+    .filter(([id]) => onlyEmployerId === null || id === onlyEmployerId)
+    .sort((a, b) =>
+      a[0] === '' ? 1 : b[0] === '' ? -1 : a[1].name.localeCompare(b[1].name, 'fr')
+    );
   const generatedAt = new Intl.DateTimeFormat('fr-FR', {
     day: '2-digit',
     month: '2-digit',
@@ -1303,7 +1337,7 @@ function buildEmployerPages(start, end, employees) {
     </section>
     <table class="print-team-table">
       <thead><tr><th>Salarié</th>${weeks.map(weekHead).join('')}<th>Jours</th><th>Total</th></tr></thead>
-      <tbody>${rows.map(r => `<tr><td><strong>${ownerEscape(r.emp.name)}</strong></td>${weeks.map(w => `<td class="print-number-cell">${cell(r.weeks.get(w.key) || 0)}</td>`).join('')}<td class="print-number-cell">${r.days.size}</td><td class="print-number-cell"><strong>${fmtMin(r.total)}</strong></td></tr>`).join('')}</tbody>
+      <tbody>${rows.length ? rows.map(r => `<tr><td><strong>${ownerEscape(r.emp.name)}</strong></td>${weeks.map(w => `<td class="print-number-cell">${cell(r.weeks.get(w.key) || 0)}</td>`).join('')}<td class="print-number-cell">${r.days.size}</td><td class="print-number-cell"><strong>${fmtMin(r.total)}</strong></td></tr>`).join('') : `<tr><td colspan="${weeks.length + 3}" class="print-empty">Aucune heure saisie pour cet employeur ce mois-ci.</td></tr>`}</tbody>
       <tfoot><tr class="print-team-total"><td>Total</td>${weeks.map(w => `<td class="print-number-cell">${cell(sumWeek(w.key))}</td>`).join('')}<td class="print-number-cell">${days}</td><td class="print-number-cell">${fmtMin(total)}</td></tr></tfoot>
     </table>
     <div class="print-team-note">Heures travaillées pour ${ownerEscape(employer.name)} du ${shortDate(monthStartIso)} au ${shortDate(monthEndIso)}, pauses déduites. Quand une journée est partagée entre plusieurs employeurs, la pause est répartie au prorata des créneaux.</div>
@@ -1333,9 +1367,15 @@ function renderV2Pilotage() {
   renderEmployersV2();
   renderOwnerLeavesV2();
   decorateOwnerCardsWithCompteTemps();
+  renderExportControls();
 }
 
-function buildPrintReport(monthValue, employeeId = 'all') {
+// target : 'all' (toute l'équipe), un id de salarié, ou 'employer:<id>'.
+function buildPrintReport(monthValue, target = 'all') {
+  const employerOnly = String(target).startsWith('employer:')
+      ? String(target).slice('employer:'.length)
+      : null,
+    employeeId = employerOnly ? 'none' : target;
   const bounds = pdfMonthBounds(monthValue) || {
     start: new Date(completionCursor.getFullYear(), completionCursor.getMonth(), 1, 12),
     end: new Date(completionCursor.getFullYear(), completionCursor.getMonth() + 1, 0, 12)
@@ -1343,8 +1383,11 @@ function buildPrintReport(monthValue, employeeId = 'all') {
   const { start, end } = bounds,
     dates = listDates(start, end),
     d = getData();
-  const employees =
-    employeeId === 'all' ? EMPLOYEES : EMPLOYEES.filter(emp => emp.id === employeeId);
+  const employees = employerOnly
+    ? []
+    : employeeId === 'all'
+      ? EMPLOYEES
+      : EMPLOYEES.filter(emp => emp.id === employeeId);
   const generatedAt = new Intl.DateTimeFormat('fr-FR', {
     day: '2-digit',
     month: '2-digit',
@@ -1547,8 +1590,9 @@ function buildPrintReport(monthValue, employeeId = 'all') {
     })
     .join('');
 
-  const teamRecap =
-    employeeId === 'all'
+  const teamRecap = employerOnly
+    ? buildEmployerPages(start, end, EMPLOYEES, employerOnly)
+    : employeeId === 'all'
       ? buildTeamRecap(start, end, employees) + buildEmployerPages(start, end, employees)
       : '';
   printReport.innerHTML = `${teamRecap}${employeeHtml}<div class="print-global-note">Document généré depuis Suivi des horaires. Les durées affichées correspondent aux saisies enregistrées dans l’application.</div>`;
