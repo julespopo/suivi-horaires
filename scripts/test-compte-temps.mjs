@@ -318,17 +318,42 @@ try {
   ]);
   assert.equal(await page.locator('#printReport .print-employer-page').count(), 1);
   assert.equal(await page.locator('#printReport .print-team-recap').count(), 0);
-  assert.equal(await page.locator('#printReport article:not(.print-employer-page)').count(), 0);
+  const employerOrder = await page.$$eval('#printReport > article', as =>
+    as.map(a =>
+      a.classList.contains('print-employer-page') ? 'employeur' : a.querySelector('h1').textContent
+    )
+  );
+  assert.deepEqual(employerOrder, ['employeur', 'Salarié A', 'Salarié B']);
+  const detailA = await page.locator('#printReport .print-employer-employee').nth(0).innerText();
+  assert.match(detailA, /Bois · détail par salarié\s*Salarié A/);
+  assert.match(detailA, /Heures chez Bois\s*4h00/);
+  assert.match(detailA, /ven\. 06\/11\s*12:00 → 16:00\s*4h00/);
+  assert.doesNotMatch(detailA, /07:00|Ferme|Compte temps/);
+  const detailB = await page.locator('#printReport .print-employer-employee').nth(1).innerText();
+  assert.match(detailB, /Heures chez Bois\s*36h00/);
+  assert.match(detailB, /Journées\s*4/);
+  assert.match(detailB, /Semaine du 02\/11\s*36h00 chez Bois/);
   assert.match(
     await page.locator('#printReport .print-employer-page').innerText(),
     /Bois[\s\S]*Total[\s\S]*40h00/
   );
-  ok('Export employeur : uniquement la page de cet employeur');
+  ok(
+    'Export employeur : sa page puis une page par salarié, avec le détail chez cet employeur seulement'
+  );
+  if (process.env.SCREENSHOT_DIR) {
+    await page.emulateMedia({ media: 'print' });
+    await page
+      .locator('#printReport .print-employer-employee')
+      .nth(1)
+      .screenshot({ path: `${process.env.SCREENSHOT_DIR}/detail-employeur.png` });
+    await page.emulateMedia({ media: 'screen' });
+  }
   await page.evaluate(() => buildPrintReport('2026-10', 'employer:wood'));
   assert.match(
     await page.locator('#printReport .print-employer-page').innerText(),
     /Aucune heure saisie pour cet employeur/
   );
+  assert.equal(await page.locator('#printReport .print-employer-employee').count(), 0);
   ok('Export employeur sans heures : page explicite');
   await page.selectOption('#pdfExportTarget', 'b');
   await page.evaluate(() => generateMonthlyPDF());

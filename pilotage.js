@@ -429,7 +429,7 @@ const EXPORT_HINTS = {
   all: 'Synthèse de l’équipe, une page par employeur, puis le relevé détaillé de chaque salarié.',
   employee: 'Relevé détaillé jour par jour du salarié, avec son compte temps.',
   employer:
-    'Heures de chaque salarié pour cet employeur, semaine par semaine : page à lui remettre.'
+    'Synthèse de l’employeur (une ligne par salarié), puis le détail jour par jour de chaque salarié chez lui : document à lui remettre.'
 };
 function exportTargetKind(value) {
   return value === 'all' ? 'all' : String(value).startsWith('employer:') ? 'employer' : 'employee';
@@ -1346,6 +1346,75 @@ function buildEmployerPages(start, end, employees, onlyEmployerId = null) {
     })
     .join('');
 }
+// Export « un employeur » : après sa page de synthèse, une page par salarié avec le détail
+// de ses journées chez cet employeur (créneaux, durée pause répartie déduite, validation).
+function buildEmployerEmployeePages(start, end, employerId) {
+  const employer = employerFor(employerId),
+    employerName = employer?.name || 'Employeur',
+    dates = listDates(start, end),
+    generatedAt = new Intl.DateTimeFormat('fr-FR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    }).format(new Date());
+  const dayLabel = date =>
+    `${new Intl.DateTimeFormat('fr-FR', { weekday: 'short' }).format(dateObjFromIso(date))} ${shortDate(date)}`;
+  return [...EMPLOYEES]
+    .sort((a, b) => a.name.localeCompare(b.name, 'fr'))
+    .map(emp => {
+      const days = dates
+        .map(date => ({
+          date,
+          minutes: employerMinutesForDay(emp.id, date).find(x => x.id === employerId)?.minutes || 0,
+          segs: segmentsFor(emp.id, date).filter(seg => seg.employerId === employerId),
+          entry: entryFor(emp.id, date, false)
+        }))
+        .filter(d => d.minutes > 0);
+      if (!days.length) return '';
+      const total = days.reduce((sum, d) => sum + d.minutes, 0),
+        pendingDays = days.filter(d => d.entry?.validationStatus === 'pending').length;
+      let rows = '';
+      days.forEach((d, i) => {
+        const validation =
+          d.entry?.validationStatus === 'validated'
+            ? 'Validé'
+            : d.entry?.validationStatus === 'pending'
+              ? 'À valider'
+              : '—';
+        const slots = d.segs
+          .map(
+            seg =>
+              `<div class="print-slot"><span>${ownerEscape(seg.start || '—')} → ${ownerEscape(seg.end || '…')}</span></div>`
+          )
+          .join('');
+        rows += `<tr class="print-day-row${d.entry?.validationStatus === 'pending' ? ' print-status-pending' : ''}"><td class="print-date-cell">${dayLabel(d.date)}</td><td class="print-detail-cell">${slots || '—'}</td><td class="print-number-cell"><strong>${fmtMin(d.minutes)}</strong></td><td class="print-validation-cell">${validation}</td></tr>`;
+        const week = iso(startOfWeek(dateObjFromIso(d.date))),
+          next = days[i + 1] ? iso(startOfWeek(dateObjFromIso(days[i + 1].date))) : null;
+        if (week !== next) {
+          const weekDays = days.filter(x => iso(startOfWeek(dateObjFromIso(x.date))) === week);
+          const weekTotal = weekDays.reduce((sum, x) => sum + x.minutes, 0);
+          rows += `<tr class="print-week-total"><td colspan="4"><div><span>Semaine du ${shortDate(week)}</span><strong>${fmtMin(weekTotal)} chez ${ownerEscape(employerName)}</strong></div></td></tr>`;
+        }
+      });
+      return `<article class="print-employee print-employer-employee">
+    <header class="print-employee-head">
+      <div><div class="print-kicker">${ownerEscape(employerName)} · détail par salarié</div><h1>${ownerEscape(emp.name)}</h1><div class="print-period">${ownerEscape(monthLabel(start))}</div></div>
+      <div class="print-generated">Édité le ${generatedAt}</div>
+    </header>
+    <section class="print-summary print-employer-summary">
+      <div><span>Heures chez ${ownerEscape(employerName)}</span><strong>${fmtMin(total)}</strong></div>
+      <div><span>Journées</span><strong>${days.length}</strong></div>
+      <div class="${pendingDays ? 'print-summary-pending' : ''}"><span>À valider</span><strong>${pendingDays}</strong></div>
+    </section>
+    <table class="print-hours-table print-employer-detail-table">
+      <thead><tr><th>Date</th><th>Créneaux</th><th>Durée</th><th>Validation</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <footer class="print-employee-foot">Suivi des horaires · ${ownerEscape(monthLabel(start))} · ${ownerEscape(employerName)} · ${ownerEscape(emp.name)}</footer>
+  </article>`;
+    })
+    .join('');
+}
 function compteTempsDetail(c) {
   return `${c.report ? `report ${fmtSignedMin(c.report)} · ` : ''}+${fmtMin(c.acquis)} en plus${c.rtt ? ` · −${fmtMin(c.rtt)} de RTT` : ''}`;
 }
@@ -1591,7 +1660,8 @@ function buildPrintReport(monthValue, target = 'all') {
     .join('');
 
   const teamRecap = employerOnly
-    ? buildEmployerPages(start, end, EMPLOYEES, employerOnly)
+    ? buildEmployerPages(start, end, EMPLOYEES, employerOnly) +
+      buildEmployerEmployeePages(start, end, employerOnly)
     : employeeId === 'all'
       ? buildTeamRecap(start, end, employees) + buildEmployerPages(start, end, employees)
       : '';

@@ -1476,3 +1476,11 @@ th,td{border-color:var(--line)}
 .export-fields .field input,.export-fields .field select{width:100%}
 .export-button{white-space:nowrap}
 @media (max-width:640px){.export-fields{grid-template-columns:1fr}.export-button{width:100%}}
+
+/* Export employeur : détail par salarié (4 colonnes) */
+@media print{
+  .print-employer-detail-table th:nth-child(1),.print-employer-detail-table td:nth-child(1){width:18%}
+  .print-employer-detail-table th:nth-child(2),.print-employer-detail-table td:nth-child(2){width:47%}
+  .print-employer-detail-table th:nth-child(3),.print-employer-detail-table td:nth-child(3){width:15%}
+  .print-employer-detail-table th:nth-child(4),.print-employer-detail-table td:nth-child(4){width:20%}
+}
