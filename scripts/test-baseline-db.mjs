@@ -5,13 +5,13 @@ import fs from 'node:fs';
 import assert from 'node:assert/strict';
 const { PGlite } = await import(process.env.PGLITE_MODULE || '@electric-sql/pglite');
 
-// Empreintes relevées en production avec supabase/schema/fingerprint.sql (20/11/2026),
+// Empreintes relevées en production avec supabase/schema/fingerprint.sql (25/11/2026),
 // identiques à « baseline du 16/11 + migrations postérieures » rejouées ci-dessous.
 const PRODUCTION = {
-  functions: { n: 69, h: 'dc3394f914b6f73629f489ac0b8067b3' },
-  func_grants: { n: 132, h: '982a78a5bfaa45b449c5fec81bd7b037' },
+  functions: { n: 73, h: '3760c02bad8c3544b242b4617b58466e' },
+  func_grants: { n: 139, h: '8746091d251a469873b7a7cef7d607e6' },
   table_grants: { n: 76, h: '1e014fe1a493ee0d5d850f514309fdae' },
-  structure: { n: 253, h: 'ef1551b567bb000ee1f1f6018372ed29' }
+  structure: { n: 255, h: '66165007143f06eae52c3f2d159105a6' }
 };
 
 // Ce que Supabase fournit d'office : rôles et extensions (pgcrypto simulé, PGlite ne l'a pas).
@@ -171,4 +171,105 @@ for (const role of ['anon', 'authenticated'])
     false
   );
 console.log('✓ Reports : réservés au Pilotage, table inaccessible depuis le navigateur');
+
+// Comptes « consultation » : lecture comme le Pilotage, aucune modification.
+assert.equal(
+  (await one(`select public.api_owner_data($1,$2,$3)`, [ownerTok, day, day])).access,
+  'admin'
+);
+const created = await one(`select public.api_owner_create_viewer($1,'Comptable','4321')`, [
+  ownerTok
+]);
+assert.ok(created.id && /^[0-9a-f]{48}$/.test(created.link_token), 'lien du compte consultation');
+await assert.rejects(
+  () => db.query(`select public.api_owner_create_viewer($1,'X','12')`, [ownerTok]),
+  /invalid_label|invalid_new_pin/
+);
+assert.equal(
+  (await one(`select public.api_owner_login($1,'0000')`, [created.link_token])).error,
+  'invalid_credentials'
+);
+const viewerTok = (await one(`select public.api_owner_login($1,'4321')`, [created.link_token]))
+  .session_token;
+assert.ok(viewerTok, 'connexion du compte consultation');
+const viewerData = await one(`select public.api_owner_data($1,$2,$3)`, [viewerTok, day, day]);
+assert.equal(viewerData.access, 'viewer');
+assert.equal(viewerData.entries.length, 1);
+assert.equal(
+  (await one(`select public.api_owner_v2_data($1,$2,$3)`, [viewerTok, day, day])).segments.length,
+  2
+);
+assert.deepEqual(await one(`select public.api_owner_compte_temps_reports($1)`, [viewerTok]), []);
+assert.equal(
+  await one(`select public.api_owner_push_subscription_status($1,'https://push.invalid/x')`, [
+    viewerTok
+  ]),
+  false
+);
+console.log('✓ Consultation : lit les mêmes données que le Pilotage');
+const ER = '00000000-0000-0000-0000-0000000000f1';
+const writes = [
+  [`select public.api_owner_validate_entry($1,$2,$3)`, [viewerTok, EMP, day]],
+  [`select public.api_owner_set_schedule($1,$2,$3,true,'')`, [viewerTok, EMP, day]],
+  [
+    `select public.api_owner_save_entry($1,$2,$3,'worked','08:00','12:00',0,'','validated')`,
+    [viewerTok, EMP, day]
+  ],
+  [
+    `select public.api_owner_replace_day_v2($1,$2,$3,'[]'::jsonb,0,'','validated')`,
+    [viewerTok, EMP, day]
+  ],
+  [`select public.api_owner_set_day_off_v2($1,$2,$3,true,'validated')`, [viewerTok, EMP, day]],
+  [`select public.api_owner_create_employer($1,'Nouvel employeur')`, [viewerTok]],
+  [`select public.api_owner_set_employer_active($1,$2,false)`, [viewerTok, ER]],
+  [`select public.api_owner_set_employee_employer($1,$2,$3,false)`, [viewerTok, EMP, ER]],
+  [`select public.api_owner_set_employee_settings($1,$2,0,0)`, [viewerTok, EMP]],
+  [
+    `select public.api_owner_create_leave_typed($1,$2,'2026-12-01','2026-12-01','','rtt')`,
+    [viewerTok, EMP]
+  ],
+  [`select public.api_owner_create_leave($1,$2,'2026-12-01','2026-12-01','')`, [viewerTok, EMP]],
+  [`select public.api_owner_review_leave($1,gen_random_uuid(),'validated')`, [viewerTok]],
+  [`select public.api_owner_delete_leave($1,gen_random_uuid())`, [viewerTok]],
+  [`select public.api_owner_set_compte_temps_report($1,$2,'2026-11-01',60,'')`, [viewerTok, EMP]],
+  [`select public.api_owner_viewers($1)`, [viewerTok]],
+  [`select public.api_owner_create_viewer($1,'Autre','1111')`, [viewerTok]],
+  [`select public.api_owner_set_viewer_active($1,$2,false)`, [viewerTok, created.id]]
+];
+for (const [sql, params] of writes)
+  await assert.rejects(() => db.query(sql, params), /read_only/, sql);
+const after = (
+  await db.query(
+    `select validation_status from public.work_entries where employee_id=$1 and work_date=$2`,
+    [EMP, day]
+  )
+).rows[0];
+assert.equal(after.validation_status, 'validated');
+console.log(`✓ Consultation : les ${writes.length} fonctions de modification refusent (read_only)`);
+assert.equal(
+  (await one(`select public.api_owner_change_pin($1,'4321','5678')`, [viewerTok])).ok,
+  true
+);
+console.log('✓ Consultation : peut changer son propre PIN');
+const viewers = await one(`select public.api_owner_viewers($1)`, [ownerTok]);
+assert.deepEqual(
+  viewers.map(v => [v.label, v.active]),
+  [['Comptable', true]]
+);
+await one(`select public.api_owner_set_viewer_active($1,$2,false)`, [ownerTok, created.id]);
+await assert.rejects(
+  () => db.query(`select public.api_owner_data($1,$2,$3)`, [viewerTok, day, day]),
+  /unauthorized/
+);
+assert.equal(
+  (await one(`select public.api_owner_login($1,'5678')`, [created.link_token])).error,
+  'invalid_credentials'
+);
+await assert.rejects(
+  () => db.query(`select public.api_owner_set_viewer_active($1,$2,false)`, [ownerTok, BOSS]),
+  /viewer_not_found/
+);
+console.log(
+  '✓ Consultation : désactivé par l’admin, accès coupé immédiatement ; un admin ne peut pas être désactivé ainsi'
+);
 await db.close();

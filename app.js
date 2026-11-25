@@ -1064,6 +1064,10 @@ function friendlyError(err) {
   if (m.includes('network_timeout'))
     return 'Le réseau met trop de temps à répondre. Réessaie dans quelques instants.';
   if (m.includes('unauthorized')) return 'Votre session n’est plus valide. Reconnectez-vous.';
+  if (m.includes('read_only'))
+    return 'Compte en consultation : vous pouvez consulter et exporter, mais pas modifier.';
+  if (m.includes('invalid_label')) return 'Le nom doit contenir entre 2 et 60 caractères.';
+  if (m.includes('invalid_new_pin')) return 'Le PIN doit contenir exactement 4 chiffres.';
   if (m.includes('entry_not_complete')) return 'La journée doit être complète avant validation.';
   if (m.includes('employer_not_allowed')) return 'Cet employeur n’est pas associé à ce salarié.';
   if (m.includes('employer_not_found')) return 'Cet employeur n’existe plus.';
@@ -1522,6 +1526,8 @@ async function loadEmployeeData() {
   return CURRENT_EMPLOYEE;
 }
 let COMPTE_TEMPS_REPORTS = [];
+// Niveau d'accès du compte Pilotage connecté : 'admin' (modifie) ou 'viewer' (consultation).
+let OWNER_ACCESS = 'admin';
 async function loadOwnerData() {
   const s = getSession();
   if (!s?.sessionToken) throw new Error('unauthorized');
@@ -1540,6 +1546,7 @@ async function loadOwnerData() {
       return [];
     })
   ]);
+  OWNER_ACCESS = out.access === 'viewer' ? 'viewer' : 'admin';
   EMPLOYEES = (out.employees || []).map(normalizeEmployee);
   APP_DATA = {
     entries: (out.entries || []).map(normalizeEntry),
@@ -2213,3 +2220,21 @@ document.addEventListener('keydown', e => {
     document.getElementById('floatingSettings')?.focus();
   }
 });
+
+async function ownerListViewers() {
+  return rpc('api_owner_viewers', { p_session_token: getSession()?.sessionToken });
+}
+async function ownerCreateViewer(label, pin) {
+  return rpc('api_owner_create_viewer', {
+    p_session_token: getSession()?.sessionToken,
+    p_label: label,
+    p_pin: pin
+  });
+}
+async function ownerSetViewerActive(viewerId, active) {
+  return rpc('api_owner_set_viewer_active', {
+    p_session_token: getSession()?.sessionToken,
+    p_viewer_id: viewerId,
+    p_active: active
+  });
+}

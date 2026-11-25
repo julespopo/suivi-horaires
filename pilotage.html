@@ -1,7 +1,8 @@
-<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5,user-scalable=yes"><meta name="theme-color" content="#2f6f68"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="apple-mobile-web-app-title" content="Pilotage"><meta name="robots" content="noindex,nofollow"><title>Suivi des horaires</title><link rel="icon" href="icons/icon.svg" type="image/svg+xml"><link rel="manifest" href="manifest-pilotage.json?v=2.0-alpha2.9"><link rel="stylesheet" href="styles/base.css?v=rc1"><link rel="stylesheet" href="styles/v2.css?v=rc1"><link rel="stylesheet" href="styles/current.css?v=fenetre-20261125"></head><body>
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5,user-scalable=yes"><meta name="theme-color" content="#2f6f68"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="apple-mobile-web-app-title" content="Pilotage"><meta name="robots" content="noindex,nofollow"><title>Suivi des horaires</title><link rel="icon" href="icons/icon.svg" type="image/svg+xml"><link rel="manifest" href="manifest-pilotage.json?v=2.0-alpha2.9"><link rel="stylesheet" href="styles/base.css?v=rc1"><link rel="stylesheet" href="styles/v2.css?v=rc1"><link rel="stylesheet" href="styles/current.css?v=consultation-20261125"></head><body>
 <div id="authView" class="auth-wrap hidden"><section class="card pin-card"><div class="eyebrow">Accès réservé</div><div class="pin-name">Suivi des horaires</div><p class="subtle">Entrez votre code PIN à 4 chiffres.</p><div class="field section"><div class="pin-entry"><input id="pin" class="pin-input" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" aria-label="Code PIN"><div class="pin-display" aria-hidden="true"><span class="pin-slot">–</span><span class="pin-slot">–</span><span class="pin-slot">–</span><span class="pin-slot">–</span></div></div></div><button id="loginBtn" class="btn btn-primary btn-block section">Continuer</button><div id="pinError" class="error"></div></section></div>
 <div id="invalidView" class="auth-wrap hidden"><section class="card pin-card"><div class="eyebrow">Accès privé</div><div class="pin-name">Lien invalide</div><p class="subtle">Ce lien n’est pas reconnu.</p></section></div>
 <main id="appView" class="shell hidden">
+  <div id="readOnlyBanner" class="read-only-banner" role="status" hidden><strong>Consultation seule</strong><span>Vous pouvez tout consulter et exporter les synthèses, sans rien modifier.</span></div>
   <div class="topbar app-header"><div><div class="brand">Suivi des horaires <span class="v2-badge">V2</span></div><div class="subtle">Équipe · horaires · congés</div></div></div>
   <div class="owner-main-head"><div class="eyebrow">Pilotage</div><h1 class="h1">Heures de travail</h1><div class="subtle">Suis les heures, les journées à compléter et les validations de l’équipe.</div></div>
   <div id="cards" class="kpis section"></div>
@@ -64,6 +65,18 @@
       <div class="toolbar-actions section"><button id="ownerPushToggleBtn" class="btn btn-primary" onclick="toggleOwnerPushSummary()">Activer les notifications</button><button id="ownerPushTestBtn" class="btn btn-outline hidden" onclick="testOwnerPushSummary()">Tester</button></div>
       <div id="ownerPushHelp" class="note section"></div>
     </section>
+    <section class="owner-tool-panel owner-tool-wide" id="viewerPanel">
+      <div class="h3">Comptes en consultation</div>
+      <div class="subtle">Accès au Pilotage en lecture seule : tout voir et exporter les synthèses, sans rien modifier ni valider.</div>
+      <div id="viewerList" class="viewer-list section"></div>
+      <div class="viewer-form section">
+        <div class="field"><label for="viewerLabel">Nom du compte</label><input id="viewerLabel" type="text" maxlength="60" placeholder="ex. Comptable"></div>
+        <div class="field"><label for="viewerPin">PIN (4 chiffres)</label><input id="viewerPin" type="password" inputmode="numeric" maxlength="4" autocomplete="new-password"></div>
+        <div class="field"><label for="viewerPin2">Confirmer le PIN</label><input id="viewerPin2" type="password" inputmode="numeric" maxlength="4" autocomplete="new-password"></div>
+        <button class="btn btn-primary" type="button" onclick="createViewerFromForm()">Créer le compte</button>
+      </div>
+      <div id="viewerCreated" class="viewer-created section" hidden></div>
+    </section>
     <section class="owner-tool-panel owner-tool-wide">
       <div class="row mobile-stack"><div><div class="h3">Journal d’activité</div><div class="subtle">Historique technique des dernières saisies.</div></div><button id="logToggleBtn" class="btn btn-outline btn-small" onclick="toggleLog()">Afficher</button></div>
       <div id="logPanel" class="hidden"><div class="table-wrap section"><table><thead><tr><th>Employé</th><th>Date</th><th>Arrivée</th><th>Départ</th><th>Pause</th><th>Total</th><th>Validation</th></tr></thead><tbody id="rows"></tbody></table></div></div>
@@ -116,4 +129,4 @@
 <section id="printReport" class="print-report"></section>
 
 <div class="modal" id="ownerAccountSettingsModal"><div class="sheet pin-settings-sheet"><div class="row"><div><div class="h2">Changer le PIN de pilotage</div><div class="subtle">Le PIN doit contenir exactement 4 chiffres.</div></div><button class="btn btn-outline" onclick="closeOwnerAccountSettings()">Fermer</button></div><div class="form-grid section"><div class="field"><label>PIN actuel</label><input id="ownerCurrentPin" class="pin-setting" inputmode="numeric" maxlength="4"></div><div class="field"><label>Nouveau PIN</label><input id="ownerNewPin" class="pin-setting" inputmode="numeric" maxlength="4"></div></div><div class="field section"><label>Confirmer le nouveau PIN</label><input id="ownerConfirmPin" class="pin-setting" inputmode="numeric" maxlength="4"></div><div id="ownerPinError" class="error"></div><button id="ownerSavePinBtn" class="btn btn-primary btn-block section" onclick="saveNewOwnerPin()">Changer le PIN</button></div></div>
-<script src="config.js?v=2.0-alpha2.9"></script><script src="supabase/functions/shared/french-holidays.js?v=fenetre-20261125"></script><script src="app.js?v=fenetre-20261125"></script><script src="pilotage.js?v=fenetre-20261125"></script><script src="employee-week.js?v=fenetre-20261125"></script></body></html>
+<script src="config.js?v=2.0-alpha2.9"></script><script src="supabase/functions/shared/french-holidays.js?v=consultation-20261125"></script><script src="app.js?v=consultation-20261125"></script><script src="pilotage.js?v=consultation-20261125"></script><script src="employee-week.js?v=consultation-20261125"></script></body></html>

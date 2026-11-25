@@ -29,7 +29,63 @@ async function bootOwner() {
   authView.classList.remove('hidden');
 }
 function openOwnerTools() {
+  if (isOwnerReadOnly()) return;
   document.getElementById('ownerToolsModal')?.classList.add('open');
+  renderViewersPanel();
+}
+// --- Comptes en consultation (gérés par un admin dans « Outils et réglages ») ---
+async function renderViewersPanel() {
+  const list = document.getElementById('viewerList');
+  if (!list) return;
+  try {
+    const viewers = await ownerListViewers();
+    list.innerHTML = viewers.length
+      ? viewers
+          .map(
+            v =>
+              `<div class="viewer-row"><span><strong>${ownerEscape(v.label)}</strong><span class="subtle"> · créé le ${shortDate(String(v.created_at).slice(0, 10))}${v.active ? '' : ' · désactivé'}</span></span><button class="btn btn-outline btn-small" type="button" onclick="toggleViewer('${v.id}',${!v.active})">${v.active ? 'Désactiver' : 'Réactiver'}</button></div>`
+          )
+          .join('')
+      : '<div class="subtle">Aucun compte en consultation pour l’instant.</div>';
+  } catch (e) {
+    list.innerHTML = `<div class="subtle">${ownerEscape(friendlyError(e))}</div>`;
+  }
+}
+async function createViewerFromForm() {
+  const label = document.getElementById('viewerLabel').value.trim(),
+    pin = document.getElementById('viewerPin').value.trim(),
+    pin2 = document.getElementById('viewerPin2').value.trim(),
+    result = document.getElementById('viewerCreated');
+  if (!/^\d{4}$/.test(pin)) return alert('Le PIN doit contenir exactement 4 chiffres.');
+  if (pin !== pin2) return alert('Les deux PIN ne correspondent pas.');
+  await withOwnerSave(async () => {
+    const out = await ownerCreateViewer(label, pin);
+    const url = `${location.origin}${location.pathname}?access=${encodeURIComponent(out.link_token)}`;
+    document.getElementById('viewerLabel').value = '';
+    document.getElementById('viewerPin').value = '';
+    document.getElementById('viewerPin2').value = '';
+    result.hidden = false;
+    result.innerHTML = `<div><strong>Compte « ${ownerEscape(label)} » créé.</strong> Envoie ce lien à la personne, et le PIN séparément (par téléphone par exemple).</div><div class="viewer-link-row"><input type="text" readonly value="${ownerEscape(url)}" id="viewerLink"><button class="btn btn-primary btn-small" type="button" onclick="copyViewerLink()">Copier le lien</button></div>`;
+    await renderViewersPanel();
+  });
+}
+async function copyViewerLink() {
+  const input = document.getElementById('viewerLink');
+  if (!input) return;
+  try {
+    await navigator.clipboard.writeText(input.value);
+  } catch {
+    input.select();
+    document.execCommand?.('copy');
+  }
+}
+async function toggleViewer(id, active) {
+  if (!active && !confirm('Désactiver ce compte ? La personne sera déconnectée immédiatement.'))
+    return;
+  await withOwnerSave(async () => {
+    await ownerSetViewerActive(id, active);
+    await renderViewersPanel();
+  });
 }
 function closeOwnerTools() {
   document.getElementById('ownerToolsModal')?.classList.remove('open');
@@ -74,8 +130,22 @@ function showApp() {
   renderOwner();
   refreshOwnerPushUI();
 }
+function isOwnerReadOnly() {
+  return typeof OWNER_ACCESS !== 'undefined' && OWNER_ACCESS === 'viewer';
+}
+// Mode consultation : bandeau + masquage des actions de modification (le serveur refuse de toute façon).
+function applyOwnerAccess() {
+  const readOnly = isOwnerReadOnly();
+  document.body.classList.toggle('owner-read-only', readOnly);
+  const banner = document.getElementById('readOnlyBanner');
+  if (banner) banner.hidden = !readOnly;
+}
 async function withOwnerSave(fn) {
   if (saving) return;
+  if (isOwnerReadOnly()) {
+    alert('Compte en consultation : vous pouvez consulter et exporter, mais pas modifier.');
+    return;
+  }
   saving = true;
   document.body.classList.add('is-saving');
   try {
@@ -1533,6 +1603,7 @@ function decorateOwnerCardsWithCompteTemps() {
   });
 }
 function renderV2Pilotage() {
+  applyOwnerAccess();
   renderEmployersV2();
   renderOwnerLeavesV2();
   decorateOwnerCardsWithCompteTemps();
