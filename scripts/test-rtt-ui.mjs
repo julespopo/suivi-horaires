@@ -213,12 +213,27 @@ try {
   );
   const recent = await page.locator('#compactHistory summary').first().innerText();
   await page.locator('#historyOlder').click();
+  // Attendre que la liste soit redessinée avant de la lire (sinon test instable).
+  await page
+    .waitForFunction(
+      r => document.querySelector('#compactHistory summary')?.innerText !== r,
+      recent,
+      { timeout: 3000 }
+    )
+    .catch(() => {});
   ok(
     'Accès aux jours anciens sans agrandir la liste',
     (await page.locator('#compactHistory details').count()) === 5 &&
       (await page.locator('#compactHistory summary').first().innerText()) !== recent
   );
   await page.locator('#historyNewer').click();
+  await page
+    .waitForFunction(
+      r => document.querySelector('#compactHistory summary')?.innerText === r,
+      recent,
+      { timeout: 3000 }
+    )
+    .catch(() => {});
   ok(
     'Retour aux plus récents',
     (await page.locator('#compactHistory summary').first().innerText()) === recent &&
