@@ -1,4 +1,4 @@
-const CACHE = 'suivi-horaires-export-detail-20261124';
+const CACHE = 'suivi-horaires-apercu-20261125';
 const ASSETS = [
   './',
   './index.html',
@@ -6,13 +6,13 @@ const ASSETS = [
   './pilotage.html',
   './styles/base.css?v=rc1',
   './styles/v2.css?v=rc1',
-  './styles/current.css?v=export-detail-20261124',
+  './styles/current.css?v=apercu-20261125',
   './config.js?v=2.0-alpha2.9',
-  './supabase/functions/shared/french-holidays.js?v=export-detail-20261124',
-  './app.js?v=export-detail-20261124',
-  './employee.js?v=export-detail-20261124',
-  './pilotage.js?v=export-detail-20261124',
-  './employee-week.js?v=export-detail-20261124',
+  './supabase/functions/shared/french-holidays.js?v=apercu-20261125',
+  './app.js?v=apercu-20261125',
+  './employee.js?v=apercu-20261125',
+  './pilotage.js?v=apercu-20261125',
+  './employee-week.js?v=apercu-20261125',
   './manifest-employee.json?v=2.0-alpha2.9',
   './manifest-pilotage.json?v=2.0-alpha2.9',
   './icons/icon.svg'

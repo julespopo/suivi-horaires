@@ -459,7 +459,7 @@ function renderExportControls() {
   const updateHint = () => {
     const hint = document.getElementById('pdfExportHint');
     if (hint)
-      hint.textContent = `${EXPORT_HINTS[exportTargetKind(select.value)]} Dans la fenêtre d’impression, choisis « Enregistrer au format PDF ».`;
+      hint.textContent = `${EXPORT_HINTS[exportTargetKind(select.value)]} « Voir la synthèse » l’affiche ici ; « Créer le PDF » ouvre l’impression (choisir « Enregistrer au format PDF »).`;
   };
   select.onchange = updateHint;
   updateHint();
@@ -480,6 +480,77 @@ function pdfFileToken(value) {
     .replace(/[^a-zA-Z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
 }
+// --- Aperçu de la synthèse dans le site ---
+// Le relevé est construit comme pour le PDF, puis affiché dans un cadre qui reçoit les mêmes
+// styles que l'impression (les règles « @media print » y sont appliquées à l'écran) : l'aperçu
+// est donc identique au PDF, page par page.
+const REPORT_PREVIEW_CSS = `
+html,body{background:#e6e9ec!important;margin:0!important;color:#17211f}
+.print-report{display:block!important;padding:14px 0 4px!important}
+.print-employee{background:#fff;width:210mm;box-sizing:border-box;margin:0 auto 16px;padding:9mm 8mm 10mm;box-shadow:0 1px 3px rgba(0,0,0,.12),0 6px 18px rgba(0,0,0,.08);border-radius:3px}
+.print-global-note{width:210mm;margin:0 auto 18px;box-sizing:border-box;padding:0 8mm}
+`;
+function reportPreviewStyles() {
+  let css = '';
+  for (const sheet of document.styleSheets) {
+    let rules;
+    try {
+      rules = sheet.cssRules;
+    } catch {
+      continue;
+    }
+    for (const rule of rules) {
+      if (rule.type === CSSRule.MEDIA_RULE && /\bprint\b/.test(rule.media.mediaText))
+        for (const inner of rule.cssRules) css += inner.cssText + '\n';
+      else if (rule.type !== CSSRule.PAGE_RULE) css += rule.cssText + '\n';
+    }
+  }
+  return css + REPORT_PREVIEW_CSS;
+}
+function fitReportPreview() {
+  const frame = document.getElementById('reportPreviewFrame'),
+    doc = frame?.contentDocument;
+  if (!doc?.body) return;
+  const pageWidth = (210 / 25.4) * 96 + 24; // A4 + marge
+  doc.body.style.zoom = String(Math.min(1, frame.clientWidth / pageWidth));
+}
+function exportSelectionLabel(target) {
+  const kind = exportTargetKind(target);
+  if (kind === 'all') return 'Toute l’équipe';
+  if (kind === 'employer')
+    return employerFor(target.slice('employer:'.length))?.name || 'Employeur';
+  return EMPLOYEES.find(e => e.id === target)?.name || 'Salarié';
+}
+function openReportPreview() {
+  const monthValue = document.getElementById('pdfExportMonth')?.value || '',
+    target = document.getElementById('pdfExportTarget')?.value || 'all',
+    bounds = pdfMonthBounds(monthValue);
+  if (!bounds) {
+    alert('Choisis un mois à afficher.');
+    return;
+  }
+  buildPrintReport(monthValue, target);
+  const frame = document.getElementById('reportPreviewFrame');
+  document.getElementById('reportPreviewTitle').textContent =
+    `Synthèse · ${exportSelectionLabel(target)}`;
+  document.getElementById('reportPreviewSubtitle').textContent = monthLabel(bounds.start);
+  frame.onload = fitReportPreview;
+  frame.srcdoc = `<!doctype html><html lang="fr"><head><meta charset="utf-8"><style>${reportPreviewStyles()}</style></head><body>${printReport.outerHTML}</body></html>`;
+  document.getElementById('reportPreviewModal').classList.add('open');
+}
+function closeReportPreview() {
+  document.getElementById('reportPreviewModal')?.classList.remove('open');
+}
+window.addEventListener('resize', () => {
+  if (document.getElementById('reportPreviewModal')?.classList.contains('open')) fitReportPreview();
+});
+document.addEventListener('keydown', e => {
+  if (
+    e.key === 'Escape' &&
+    document.getElementById('reportPreviewModal')?.classList.contains('open')
+  )
+    closeReportPreview();
+});
 function generateMonthlyPDF() {
   const monthValue = document.getElementById('pdfExportMonth')?.value || '';
   const target = document.getElementById('pdfExportTarget')?.value || 'all';

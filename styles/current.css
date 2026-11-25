@@ -1473,6 +1473,7 @@ th,td{border-color:var(--line)}
 
 /* Export PDF en bas de l'accueil */
 .export-fields{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr) auto;gap:12px;align-items:end}
+.export-buttons{display:flex;gap:8px;flex-wrap:wrap}
 .export-fields .field input,.export-fields .field select{width:100%}
 .export-button{white-space:nowrap}
 @media (max-width:640px){.export-fields{grid-template-columns:1fr}.export-button{width:100%}}
@@ -1483,4 +1484,16 @@ th,td{border-color:var(--line)}
   .print-employer-detail-table th:nth-child(2),.print-employer-detail-table td:nth-child(2){width:47%}
   .print-employer-detail-table th:nth-child(3),.print-employer-detail-table td:nth-child(3){width:15%}
   .print-employer-detail-table th:nth-child(4),.print-employer-detail-table td:nth-child(4){width:20%}
+}
+
+/* Aperçu de la synthèse (cadre plein écran, un seul défilement : celui du cadre) */
+.report-preview-sheet{width:min(1040px,100%)!important;height:min(94vh,100%);max-height:94vh!important;display:flex;flex-direction:column;overflow:hidden!important}
+.report-preview-head{flex:0 0 auto;align-items:flex-start}
+.report-preview-frame{flex:1 1 auto;width:100%;min-height:0;margin-top:12px;border:1px solid var(--line);border-radius:14px;background:#e6e9ec}
+@media (max-width:640px){
+  .report-preview-modal{padding:6px}
+  .report-preview-sheet{height:96vh;max-height:96vh!important;padding:12px!important}
+  .report-preview-head{flex-direction:column;gap:8px}
+  .report-preview-head .toolbar-actions{width:100%}
+  .export-buttons{display:grid;grid-template-columns:1fr}
 }

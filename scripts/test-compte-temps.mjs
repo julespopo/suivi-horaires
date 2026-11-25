@@ -365,6 +365,60 @@ try {
   assert.equal(await page.locator('#printReport article').count(), 1);
   ok('Export salarié : son relevé seul');
 
+  // Aperçu dans le site (« Voir la synthèse »), identique au PDF
+  await page.selectOption('#pdfExportTarget', 'all');
+  await page.getByRole('button', { name: 'Voir la synthèse' }).click();
+  assert.equal(
+    await page.locator('#reportPreviewModal').evaluate(m => m.classList.contains('open')),
+    true
+  );
+  assert.equal(await page.locator('#reportPreviewTitle').innerText(), 'Synthèse · Toute l’équipe');
+  assert.match(await page.locator('#reportPreviewSubtitle').innerText(), /novembre 2026/i);
+  const preview = page.frameLocator('#reportPreviewFrame');
+  await preview.locator('.print-team-recap').waitFor();
+  assert.equal(
+    await preview.locator('article').count(),
+    await page.locator('#printReport article').count()
+  );
+  assert.match(
+    await preview.locator('.print-team-recap').innerText(),
+    /Heures par employeur[\s\S]*Total équipe/
+  );
+  const look = await preview
+    .locator('.print-employee')
+    .first()
+    .evaluate(a => {
+      const s = getComputedStyle(a),
+        table = a.querySelector('table');
+      return {
+        bg: s.backgroundColor,
+        report: getComputedStyle(a.parentElement).display,
+        border: getComputedStyle(table.querySelector('th')).borderTopStyle
+      };
+    });
+  assert.deepEqual(look, { bg: 'rgb(255, 255, 255)', report: 'block', border: 'solid' });
+  ok('Aperçu : synthèse affichée dans le site, mêmes pages et mise en page que le PDF');
+  if (process.env.SCREENSHOT_DIR)
+    await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/apercu-ordi.png` });
+  await page.keyboard.press('Escape');
+  assert.equal(
+    await page.locator('#reportPreviewModal').evaluate(m => m.classList.contains('open')),
+    false
+  );
+  ok('Aperçu : Échap le ferme');
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.selectOption('#pdfExportTarget', 'employer:wood');
+  await page.getByRole('button', { name: 'Voir la synthèse' }).click();
+  await preview.locator('.print-employer-page').waitFor();
+  const zoom = await preview.locator('body').evaluate(b => Number(b.style.zoom));
+  assert.ok(zoom > 0.3 && zoom < 0.6, `zoom téléphone ${zoom}`);
+  assert.equal(await preview.locator('.print-employer-employee').count(), 2);
+  ok('Aperçu sur téléphone : pages réduites pour tenir dans l’écran');
+  if (process.env.SCREENSHOT_DIR)
+    await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/apercu-mobile.png` });
+  await page.evaluate(() => closeReportPreview());
+  await page.setViewportSize({ width: 1100, height: 900 });
+
   // Saisie du report dans « Réglages du temps de travail »
   await page.evaluate(() => {
     window.savedReports = [];
