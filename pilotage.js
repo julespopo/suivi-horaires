@@ -459,7 +459,7 @@ function renderExportControls() {
   const updateHint = () => {
     const hint = document.getElementById('pdfExportHint');
     if (hint)
-      hint.textContent = `${EXPORT_HINTS[exportTargetKind(select.value)]} « Voir la synthèse » l’affiche ici ; « Créer le PDF » ouvre l’impression (choisir « Enregistrer au format PDF »).`;
+      hint.textContent = `${EXPORT_HINTS[exportTargetKind(select.value)]} « Voir la synthèse » l’ouvre dans une nouvelle fenêtre ; « Créer le PDF » ouvre directement l’impression (choisir « Enregistrer au format PDF »).`;
   };
   select.onchange = updateHint;
   updateHint();
@@ -490,7 +490,18 @@ html,body{background:#e6e9ec!important;margin:0!important;color:#17211f}
 .print-employee{background:#fff;width:210mm;box-sizing:border-box;margin:0 auto 16px;padding:9mm 8mm 10mm;box-shadow:0 1px 3px rgba(0,0,0,.12),0 6px 18px rgba(0,0,0,.08);border-radius:3px}
 .print-global-note{width:210mm;margin:0 auto 18px;box-sizing:border-box;padding:0 8mm}
 `;
-function reportPreviewStyles() {
+// forWindow : document ouvert dans une nouvelle fenêtre, qui doit aussi s'imprimer correctement.
+// Les ajouts d'affichage (fond gris, ombres, barre d'outils) n'y valent alors qu'à l'écran.
+const REPORT_WINDOW_CSS = `
+.preview-toolbar{display:none}
+@media screen{
+  body>.preview-toolbar{display:flex!important;position:sticky;top:0;z-index:5;align-items:center;justify-content:space-between;gap:12px;padding:10px 16px;background:#fff;border-bottom:1px solid #d9e0dd;box-shadow:0 2px 10px rgba(0,0,0,.06);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}
+  .preview-toolbar strong{display:block;font-size:15px;color:#17211f}
+  .preview-toolbar span{font-size:13px;color:#68736f}
+  .preview-toolbar button{border:0;border-radius:12px;padding:11px 16px;background:#2f6f68;color:#fff;font:inherit;font-weight:700;cursor:pointer;white-space:nowrap}
+}
+`;
+function reportPreviewStyles({ forWindow = false } = {}) {
   let css = '';
   for (const sheet of document.styleSheets) {
     let rules;
@@ -503,9 +514,12 @@ function reportPreviewStyles() {
       if (rule.type === CSSRule.MEDIA_RULE && /\bprint\b/.test(rule.media.mediaText))
         for (const inner of rule.cssRules) css += inner.cssText + '\n';
       else if (rule.type !== CSSRule.PAGE_RULE) css += rule.cssText + '\n';
+      else if (forWindow) css += rule.cssText + '\n';
     }
   }
-  return css + REPORT_PREVIEW_CSS;
+  return forWindow
+    ? `${css}@media screen{${REPORT_PREVIEW_CSS}}${REPORT_WINDOW_CSS}`
+    : css + REPORT_PREVIEW_CSS;
 }
 function fitReportPreview() {
   const frame = document.getElementById('reportPreviewFrame'),
@@ -521,6 +535,19 @@ function exportSelectionLabel(target) {
     return employerFor(target.slice('employer:'.length))?.name || 'Employeur';
   return EMPLOYEES.find(e => e.id === target)?.name || 'Salarié';
 }
+// Ouvre la synthèse dans une nouvelle fenêtre (zoom, impression, consultation à côté de l'appli).
+// Retourne false si le navigateur bloque l'ouverture.
+function openReportWindow(monthValue, target, bounds) {
+  const label = exportSelectionLabel(target),
+    period = monthLabel(bounds.start),
+    title = `Relevé horaires · ${period} · ${label}`,
+    fileTitle = `Releve-horaires-${pdfFileToken(period)}-${pdfFileToken(label === 'Toute l’équipe' ? 'equipe' : label)}`;
+  const html = `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=840"><title>${ownerEscape(fileTitle)}</title><style>${reportPreviewStyles({ forWindow: true })}</style></head><body><div class="preview-toolbar"><div><strong>${ownerEscape(title)}</strong><span>Zoom possible · Fermer l’onglet pour revenir au Pilotage</span></div><button type="button" onclick="window.print()">Imprimer / enregistrer en PDF</button></div>${printReport.outerHTML}</body></html>`;
+  const url = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
+  const win = window.open(url, '_blank');
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+  return !!win;
+}
 function openReportPreview() {
   const monthValue = document.getElementById('pdfExportMonth')?.value || '',
     target = document.getElementById('pdfExportTarget')?.value || 'all',
@@ -530,6 +557,8 @@ function openReportPreview() {
     return;
   }
   buildPrintReport(monthValue, target);
+  if (openReportWindow(monthValue, target, bounds)) return;
+  // Secours : fenêtre bloquée par le navigateur → aperçu dans le site.
   const frame = document.getElementById('reportPreviewFrame');
   document.getElementById('reportPreviewTitle').textContent =
     `Synthèse · ${exportSelectionLabel(target)}`;
