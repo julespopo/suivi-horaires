@@ -183,7 +183,7 @@ function renderEmployeeWeek() {
     total = totalFor(employee.id, start, end),
     objective = employeeSettings(employee.id).weeklyObjectiveMinutes;
   employeeWeekElements.Title.textContent = employee.name;
-  employeeWeekElements.Period.textContent = `Du ${shortDate(iso(start))} au ${shortDate(iso(end))} ${end.getFullYear()}`;
+  employeeWeekElements.Period.textContent = `Du ${shortDate(iso(start))} au ${shortDate(iso(end))}/${end.getFullYear()}`;
   employeeWeekElements.Summary.innerHTML = `<div><span>Heures saisies</span><strong>${fmtMin(total)}</strong></div><div><span>Prévu / semaine</span><strong>${fmtMin(objective)}</strong></div><div><span>Écart</span><strong class="${total >= objective ? 'text-positive' : 'text-muted'}">${fmtSignedMin(total - objective)}</strong></div>`;
   employeeWeekElements.Pending.textContent = pending.length
     ? `${pending.length} journée${pending.length > 1 ? 's' : ''} à valider`
@@ -200,8 +200,10 @@ function renderEmployeeWeek() {
     employeeWeekState.startDate <= iso(startOfWeek(dateObjFromIso(APP_START_DATE)));
   employeeWeekElements.Next.disabled =
     employeeWeekBusy || employeeWeekState.startDate >= iso(startOfWeek(new Date()));
-  employeeWeekElements.Current.disabled =
-    employeeWeekBusy || employeeWeekState.startDate === iso(startOfWeek(new Date()));
+  // « Revenir à cette semaine » n'apparaît que si une autre semaine est affichée.
+  employeeWeekElements.Current.hidden =
+    employeeWeekState.startDate === iso(startOfWeek(new Date()));
+  employeeWeekElements.Current.disabled = employeeWeekBusy;
   employeeWeekElements.Days.innerHTML = dates
     .map(date => employeeWeekDayHtml(employee.id, date))
     .join('');

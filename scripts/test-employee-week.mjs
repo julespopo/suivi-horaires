@@ -355,18 +355,26 @@ try {
   await page.clock.setFixedTime(new Date('2026-11-14T10:00:00+01:00'));
   await openA();
   assert.match(await page.locator('#employeeWeekPeriod').innerText(), /09\/11.*15\/11/);
+  // La date est entre les deux flèches ; « Revenir à cette semaine » caché sur la semaine en cours.
+  assert.deepEqual(
+    await page.$$eval('.employee-week-navigation > *', els => els.map(el => el.id)),
+    ['employeeWeekPrevious', 'employeeWeekPeriod', 'employeeWeekNext']
+  );
+  assert.equal(await page.locator('#employeeWeekCurrent').isVisible(), false);
   assert.match(await page.locator('#employeeWeekBacklogTitle').innerText(), /4/);
   await page.locator('#employeeWeekBacklogTitle').click();
   assert.equal(await page.locator('#employeeWeekBacklogDays [data-week-validate]').count(), 4);
   await page.locator('#employeeWeekPrevious').click();
   assert.match(await page.locator('#employeeWeekPeriod').innerText(), /02\/11.*08\/11/);
+  assert.equal(await page.locator('#employeeWeekCurrent').isVisible(), true);
   await page.locator('#employeeWeekCurrent').click();
   assert.match(await page.locator('#employeeWeekPeriod').innerText(), /09\/11.*15\/11/);
-  ok('Semaines précédentes et autres journées en attente accessibles depuis le même salarié');
+  assert.equal(await page.locator('#employeeWeekCurrent').isVisible(), false);
+  ok('Date entre les flèches ; semaines précédentes et autres journées en attente accessibles');
   await page.evaluate(() => closeEmployeeWeek());
   await page.clock.setFixedTime(new Date('2027-01-02T10:00:00+01:00'));
   await openA();
-  assert.match(await page.locator('#employeeWeekPeriod').innerText(), /28\/12.*03\/01 2027/);
+  assert.match(await page.locator('#employeeWeekPeriod').innerText(), /28\/12.*03\/01\/2027/);
   ok('Semaine traversant le changement d’année');
 
   await page.evaluate(() => closeEmployeeWeek());
