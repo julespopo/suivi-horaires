@@ -355,7 +355,7 @@ try {
   await page.clock.setFixedTime(new Date('2026-11-14T10:00:00+01:00'));
   await openA();
   assert.match(await page.locator('#employeeWeekPeriod').innerText(), /09\/11.*15\/11/);
-  // La date est entre les deux flèches ; « Revenir à cette semaine » caché sur la semaine en cours.
+  // La date est entre les deux flèches ; « Revenir à la semaine en cours » caché sur la semaine en cours.
   assert.deepEqual(
     await page.$$eval('.employee-week-navigation > *', els => els.map(el => el.id)),
     ['employeeWeekPrevious', 'employeeWeekPeriod', 'employeeWeekNext']
@@ -367,6 +367,10 @@ try {
   await page.locator('#employeeWeekPrevious').click();
   assert.match(await page.locator('#employeeWeekPeriod').innerText(), /02\/11.*08\/11/);
   assert.equal(await page.locator('#employeeWeekCurrent').isVisible(), true);
+  assert.equal(
+    await page.locator('#employeeWeekCurrent').innerText(),
+    'Revenir à la semaine en cours'
+  );
   await page.locator('#employeeWeekCurrent').click();
   assert.match(await page.locator('#employeeWeekPeriod').innerText(), /09\/11.*15\/11/);
   assert.equal(await page.locator('#employeeWeekCurrent').isVisible(), false);
