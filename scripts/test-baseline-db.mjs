@@ -5,10 +5,10 @@ import fs from 'node:fs';
 import assert from 'node:assert/strict';
 const { PGlite } = await import(process.env.PGLITE_MODULE || '@electric-sql/pglite');
 
-// Empreintes relevées en production avec supabase/schema/fingerprint.sql (25/11/2026),
+// Empreintes relevées en production avec supabase/schema/fingerprint.sql (25/11/2026, + purge du 26/11),
 // identiques à « baseline du 16/11 + migrations postérieures » rejouées ci-dessous.
 const PRODUCTION = {
-  functions: { n: 73, h: '3760c02bad8c3544b242b4617b58466e' },
+  functions: { n: 74, h: '7f40e20ea8b8aecbb7fdef4954e99ed9' },
   func_grants: { n: 139, h: '8746091d251a469873b7a7cef7d607e6' },
   table_grants: { n: 76, h: '1e014fe1a493ee0d5d850f514309fdae' },
   structure: { n: 255, h: '66165007143f06eae52c3f2d159105a6' }
@@ -272,4 +272,31 @@ await assert.rejects(
 console.log(
   '✓ Consultation : désactivé par l’admin, accès coupé immédiatement ; un admin ne peut pas être désactivé ainsi'
 );
+
+// Durées de conservation : rien n'est supprimé avant 3 ans après la fin de la période
+// de compte temps ; ensuite les heures, créneaux, congés et reports partent.
+const countHours = async () =>
+  Number(
+    await one(
+      `select (select count(*) from public.work_segments where employee_id=$1)
+        + (select count(*) from public.work_entries where employee_id=$1)
+        + (select count(*) from public.compte_temps_reports where employee_id=$1)`,
+      [EMP]
+    )
+  );
+const before = await countHours();
+assert.ok(before >= 3, 'données fictives présentes');
+const early = await one(`select public._purge_expired_data('2030-04-30')`);
+assert.equal(early.hours_cutoff, '2026-05-01');
+assert.equal(await countHours(), before);
+console.log('✓ Conservation : au 30/04/2030, les heures de 2026-2027 sont encore conservées');
+const late = await one(`select public._purge_expired_data('2030-05-02')`);
+assert.equal(late.hours_cutoff, '2027-05-01');
+assert.equal(await countHours(), 0);
+assert.ok(late.work_segments >= 2 && late.work_entries >= 1);
+console.log('✓ Conservation : au 02/05/2030, les heures de la période 2026-2027 sont supprimées');
+await db.exec('set role anon');
+await assert.rejects(() => db.query(`select public._purge_expired_data()`), /permission denied/);
+await db.exec('reset role');
+console.log('✓ Conservation : la purge n’est pas appelable depuis le navigateur');
 await db.close();

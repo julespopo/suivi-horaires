@@ -20,6 +20,7 @@ KEYCHAIN_SERVICE="suivi-horaires-sauvegarde"
 DEST="${SUIVI_SAUVEGARDE_DEST:-$HOME/Library/Mobile Documents/com~apple~CloudDocs/Sauvegardes suivi-horaires}"
 LOG="$HOME/Library/Logs/suivi-horaires-sauvegarde.log"
 MAX_AGE_DAYS=6
+KEEP_DAYS=1125
 
 log(){ printf '%s %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*" >>"$LOG"; }
 notify(){ /usr/bin/osascript -e "display notification \"$1\" with title \"Sauvegarde suivi-horaires\"" >/dev/null 2>&1 || true; }
@@ -60,5 +61,10 @@ final="$DEST/suivi-horaires_${stamp}.sql.gz"
 mv "$tmp.gz" "$final"
 size=$(du -h "$final" | cut -f1)
 log "OK : $(basename "$final") ($size)"
+
+# Durée de conservation annoncée aux salariés : les copies de plus de 3 ans et 1 mois
+# sont supprimées (uniquement après une sauvegarde réussie, la plus récente reste).
+find "$DEST" -maxdepth 1 -name 'suivi-horaires_*.sql.gz' -mtime +"$KEEP_DAYS" -print 2>/dev/null \
+  | while IFS= read -r old; do rm -f "$old" && log "Supprimée (plus de 3 ans) : $(basename "$old")"; done
 [[ "${1:-}" == "--force" ]] && notify "Sauvegarde réussie ($size)"
 exit 0

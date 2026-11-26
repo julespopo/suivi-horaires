@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="robots" content="noindex,nofollow" />
+    <title>Mentions légales et données personnelles</title>
+    <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="styles/base.css?v=rc1" />
+    <link rel="stylesheet" href="styles/current.css?v=rgpd-20261126" />
+    <script>
+      try {
+        const saved = localStorage.getItem('hours_theme_preference_v1');
+        const theme =
+          saved === 'light' || saved === 'dark'
+            ? saved
+            : matchMedia('(prefers-color-scheme: dark)').matches
+              ? 'dark'
+              : 'light';
+        document.documentElement.dataset.theme = theme;
+        document.documentElement.style.colorScheme = theme;
+      } catch {}
+    </script>
+  </head>
+  <body>
+    <main class="shell legal-page">
+      <a class="legal-back" href="index.html" id="legalBack">← Retour à l’application</a>
+      <h1 class="h1">Mentions légales et données personnelles</h1>
+      <p class="subtle">Dernière mise à jour : 26 novembre 2026</p>
+
+      <nav class="card legal-toc" aria-label="Sommaire">
+        <a href="#editeur">Éditeur</a>
+        <a href="#hebergement">Hébergement</a>
+        <a href="#donnees">Vos données personnelles</a>
+        <a href="#conservation">Durées de conservation</a>
+        <a href="#droits">Vos droits</a>
+        <a href="#stockage">Cookies et stockage sur l’appareil</a>
+      </nav>
+
+      <section class="card legal-section" id="editeur">
+        <h2 class="h2">Éditeur du site</h2>
+        <p>
+          Ce site est un outil interne de suivi du temps de travail, réservé aux salariés et à leur
+          employeur. Il n’est pas destiné au public : chaque accès se fait par un lien personnel et
+          un code PIN.
+        </p>
+        <dl class="legal-dl">
+          <dt>Éditeur et employeur</dt>
+          <dd data-a-completer>[À COMPLÉTER : nom de l’exploitation ou de l’exploitant]</dd>
+          <dt>Forme juridique</dt>
+          <dd data-a-completer>[À COMPLÉTER : ex. exploitant individuel, GAEC, EARL…]</dd>
+          <dt>Adresse</dt>
+          <dd data-a-completer>[À COMPLÉTER : adresse du siège]</dd>
+          <dt>SIRET</dt>
+          <dd data-a-completer>[À COMPLÉTER]</dd>
+          <dt>Contact</dt>
+          <dd data-a-completer>[À COMPLÉTER : adresse e-mail ou téléphone]</dd>
+          <dt>Directeur de la publication</dt>
+          <dd data-a-completer>[À COMPLÉTER : nom de l’exploitant]</dd>
+        </dl>
+      </section>
+
+      <section class="card legal-section" id="hebergement">
+        <h2 class="h2">Hébergement</h2>
+        <dl class="legal-dl">
+          <dt>Pages du site</dt>
+          <dd>
+            GitHub Pages, GitHub, Inc., 88 Colin P. Kelly Jr. Street, San Francisco, CA 94107,
+            États-Unis. Ces pages ne contiennent aucune donnée sur les salariés.
+          </dd>
+          <dt>Données (heures, congés, comptes)</dt>
+          <dd>
+            Supabase, Inc., 970 Toa Payoh North #07-04, Singapour 318992. Les données sont stockées
+            dans un centre de données situé à Francfort (Allemagne, Union européenne).
+          </dd>
+        </dl>
+      </section>
+
+      <section class="card legal-section" id="donnees">
+        <h2 class="h2">Vos données personnelles</h2>
+        <p>
+          Cette section constitue l’information des salariés prévue par le Règlement général sur la
+          protection des données (RGPD, articles 13 et 14) et par l’article L1222-4 du code du
+          travail.
+        </p>
+
+        <h3 class="h3">Responsable du traitement</h3>
+        <p>L’employeur indiqué ci-dessus, dans la rubrique « Éditeur du site ».</p>
+
+        <h3 class="h3">À quoi servent les données</h3>
+        <ul>
+          <li>
+            Décompter le temps de travail de chaque salarié, jour par jour et par employeur chez
+            qui il intervient.
+          </li>
+          <li>Suivre le compte temps (heures au-delà de 41 h par semaine) et les RTT.</li>
+          <li>Gérer les demandes de congés et de RTT.</li>
+          <li>Préparer les synthèses mensuelles utilisées pour la paie.</li>
+          <li>Envoyer, si vous les activez, des rappels pour saisir vos heures.</li>
+        </ul>
+
+        <h3 class="h3">Sur quelle base</h3>
+        <ul>
+          <li>
+            <strong>Obligation légale</strong> : l’employeur doit décompter la durée du travail de
+            ses salariés et pouvoir la présenter à l’inspection du travail (articles L713-20 et
+            R713-35 et suivants du code rural, articles L3171-2 et suivants du code du travail).
+          </li>
+          <li>
+            <strong>Exécution du contrat de travail</strong> : calcul des heures, du compte temps et
+            des congés.
+          </li>
+          <li>
+            <strong>Votre choix</strong> pour les rappels : vous pouvez les activer ou les couper à
+            tout moment depuis le menu de l’application.
+          </li>
+        </ul>
+
+        <h3 class="h3">Données concernées</h3>
+        <ul>
+          <li>Votre prénom.</li>
+          <li>
+            Votre code PIN, conservé uniquement sous une forme chiffrée qui ne permet pas de le
+            retrouver.
+          </li>
+          <li>
+            Vos heures d’arrivée et de départ, vos pauses, vos créneaux par employeur et vos
+            éventuels commentaires.
+          </li>
+          <li>Votre planning, vos demandes de congés et de RTT et leur réponse.</li>
+          <li>Le solde de votre compte temps et ses reports.</li>
+          <li>
+            L’historique des modifications de vos heures (qui a modifié quoi et quand), pour
+            garantir la fiabilité du décompte.
+          </li>
+          <li>
+            Si vous activez les rappels : l’adresse technique de notification fournie par votre
+            navigateur et le type d’appareil.
+          </li>
+          <li>
+            Des données techniques de connexion : votre session ouverte et le nombre d’essais de PIN
+            erronés (pour bloquer les tentatives d’intrusion).
+          </li>
+        </ul>
+        <p>
+          <strong>L’application ne collecte pas</strong> votre position (pas de géolocalisation),
+          aucune donnée biométrique, et ne contient ni publicité ni mesure d’audience.
+        </p>
+
+        <h3 class="h3">Qui peut voir les données</h3>
+        <ul>
+          <li>Chaque salarié ne voit que ses propres données.</li>
+          <li>
+            L’employeur voit les données de toute l’équipe. Il peut ouvrir un accès en consultation
+            seule à une personne qui l’assiste (par exemple son comptable).
+          </li>
+          <li>
+            Les hébergeurs indiqués plus haut, uniquement pour faire fonctionner le service, en
+            tant que sous-traitants.
+          </li>
+          <li>
+            Pour les rappels, le service de notification du fabricant de votre téléphone ou de
+            votre navigateur (Apple, Google ou Mozilla) reçoit le texte du rappel.
+          </li>
+        </ul>
+        <p>Les données ne sont ni vendues, ni cédées, ni utilisées à d’autres fins.</p>
+
+        <h3 class="h3">Transferts hors de l’Union européenne</h3>
+        <p>
+          Les données sont stockées dans l’Union européenne. Les hébergeurs étant des sociétés
+          établies hors de l’Union, un accès depuis l’étranger reste possible pour la maintenance ;
+          il est encadré par les clauses contractuelles types de la Commission européenne. Comme
+          tout hébergeur, GitHub peut enregistrer l’adresse IP des visiteurs à des fins de
+          sécurité.
+        </p>
+
+        <h3 class="h3">Sécurité</h3>
+        <p>
+          Accès par lien personnel et code PIN, nombre d’essais limité, connexion chiffrée (HTTPS),
+          aucun accès direct aux données depuis le navigateur, compte en consultation sans aucun
+          droit de modification. Une copie de sauvegarde hebdomadaire est conservée dans un espace
+          privé, sous la responsabilité de l’employeur.
+        </p>
+        <p>Aucune décision n’est prise de manière automatisée à partir de ces données.</p>
+      </section>
+
+      <section class="card legal-section" id="conservation">
+        <h2 class="h2">Durées de conservation</h2>
+        <div class="legal-table">
+          <table>
+            <thead>
+              <tr>
+                <th>Données</th>
+                <th>Durée</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>
+                  Heures, créneaux, planning, congés et RTT, compte temps, historique des
+                  modifications
+                </td>
+                <td>
+                  3 ans après la fin de la période de compte temps (1er mai → 30 avril) à laquelle
+                  elles se rattachent, durée pendant laquelle un rappel de salaire peut être demandé
+                  (article L3245-1 du code du travail)
+                </td>
+              </tr>
+              <tr>
+                <td>Prénom et code PIN chiffré</td>
+                <td>
+                  Tant que vous travaillez pour l’employeur ; le compte est désactivé à votre
+                  départ, puis supprimé avec vos dernières heures
+                </td>
+              </tr>
+              <tr>
+                <td>Traces des rappels et synthèses envoyés, saisies hors connexion</td>
+                <td>1 an</td>
+              </tr>
+              <tr>
+                <td>Abonnement aux rappels</td>
+                <td>Jusqu’à ce que vous les coupiez, puis 3 mois</td>
+              </tr>
+              <tr>
+                <td>Session de connexion</td>
+                <td>Jusqu’à la déconnexion, ou 13 mois sans utilisation</td>
+              </tr>
+              <tr>
+                <td>Compteur d’essais de PIN erronés</td>
+                <td>30 jours au plus</td>
+              </tr>
+              <tr>
+                <td>Copies de sauvegarde</td>
+                <td>3 ans et 1 mois au plus</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="subtle">
+          La suppression est automatique : elle a lieu chaque mois sur le serveur et à chaque
+          sauvegarde.
+        </p>
+      </section>
+
+      <section class="card legal-section" id="droits">
+        <h2 class="h2">Vos droits</h2>
+        <p>Vous pouvez à tout moment :</p>
+        <ul>
+          <li>consulter vos données : elles sont toutes visibles dans votre espace ;</li>
+          <li>
+            faire corriger une donnée inexacte : directement dans l’application (« Corriger la
+            journée ») ou en le demandant à votre employeur ;
+          </li>
+          <li>
+            demander une copie de vos données, leur suppression ou la limitation de leur
+            utilisation, dans les limites des obligations légales de l’employeur (le décompte des
+            heures doit être conservé) ;
+          </li>
+          <li>vous opposer aux rappels en les coupant dans le menu de l’application.</li>
+        </ul>
+        <p>
+          Pour exercer ces droits, adressez-vous à votre employeur (voir « Contact » plus haut). Une
+          réponse vous sera apportée dans un délai d’un mois.
+        </p>
+        <p>
+          Si vous estimez que vos droits ne sont pas respectés, vous pouvez adresser une réclamation
+          à la CNIL : <a class="legal-link" href="https://www.cnil.fr/fr/plaintes" rel="noopener">cnil.fr/fr/plaintes</a>,
+          ou par courrier : CNIL, 3 place de Fontenoy, TSA 80715, 75334 Paris Cedex 07.
+        </p>
+      </section>
+
+      <section class="card legal-section" id="stockage">
+        <h2 class="h2">Cookies et stockage sur l’appareil</h2>
+        <p>
+          Le site n’utilise <strong>aucun cookie</strong> et aucun traceur publicitaire ou de mesure
+          d’audience. Il enregistre seulement sur votre appareil :
+        </p>
+        <ul>
+          <li>votre lien personnel et votre session, pour rester connecté ;</li>
+          <li>votre préférence de mode jour ou nuit ;</li>
+          <li>les heures saisies hors connexion, en attendant leur envoi ;</li>
+          <li>une copie des pages du site, pour qu’il s’ouvre même sans réseau.</li>
+        </ul>
+        <p>
+          Ces éléments sont indispensables au fonctionnement du service et ne nécessitent donc pas
+          de consentement (article 82 de la loi Informatique et Libertés). La déconnexion efface
+          votre session de l’appareil.
+        </p>
+      </section>
+    </main>
+    <script>
+      // Retour à la page précédente de l'application si l'on vient d'elle.
+      const back = document.getElementById('legalBack');
+      try {
+        const ref = document.referrer && new URL(document.referrer);
+        if (ref && ref.origin === location.origin && history.length > 1) {
+          back.href = ref.pathname.split('/').pop() || 'index.html';
+          back.addEventListener('click', e => {
+            e.preventDefault();
+            history.back();
+          });
+        }
+      } catch {}
+    </script>
+  </body>
+</html>

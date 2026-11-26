@@ -7,7 +7,7 @@
     "check": "node scripts/check-static.mjs",
     "test:db": "node scripts/test-baseline-db.mjs && node scripts/test-rtt-db.mjs && node scripts/test-launch-db.mjs && node scripts/test-session-db.mjs && node scripts/test-holidays.mjs",
     "test:worker": "node scripts/test-worker.mjs",
-    "test:ui": "node scripts/test-rtt-ui.mjs && node scripts/test-calendar-mobile.mjs && node scripts/test-employee-week.mjs && node scripts/test-compte-temps.mjs && node scripts/test-menus.mjs && node scripts/test-consultation.mjs"
+    "test:ui": "node scripts/test-rtt-ui.mjs && node scripts/test-calendar-mobile.mjs && node scripts/test-employee-week.mjs && node scripts/test-compte-temps.mjs && node scripts/test-menus.mjs && node scripts/test-consultation.mjs && node scripts/test-legal.mjs"
   },
   "devDependencies": {
     "@electric-sql/pglite": "0.3.14",

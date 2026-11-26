@@ -1,18 +1,19 @@
-const CACHE = 'suivi-horaires-fleches-20261125';
+const CACHE = 'suivi-horaires-rgpd-20261126';
 const ASSETS = [
   './',
   './index.html',
   './employee.html',
   './pilotage.html',
+  './confidentialite.html',
   './styles/base.css?v=rc1',
   './styles/v2.css?v=rc1',
-  './styles/current.css?v=fleches-20261125',
+  './styles/current.css?v=rgpd-20261126',
   './config.js?v=2.0-alpha2.9',
-  './supabase/functions/shared/french-holidays.js?v=fleches-20261125',
-  './app.js?v=fleches-20261125',
-  './employee.js?v=fleches-20261125',
-  './pilotage.js?v=fleches-20261125',
-  './employee-week.js?v=fleches-20261125',
+  './supabase/functions/shared/french-holidays.js?v=rgpd-20261126',
+  './app.js?v=rgpd-20261126',
+  './employee.js?v=rgpd-20261126',
+  './pilotage.js?v=rgpd-20261126',
+  './employee-week.js?v=rgpd-20261126',
   './manifest-employee.json?v=2.0-alpha2.9',
   './manifest-pilotage.json?v=2.0-alpha2.9',
   './icons/icon.svg'
