@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import assert from 'node:assert/strict';
 const { PGlite } = await import(process.env.PGLITE_MODULE || '@electric-sql/pglite');
 
-// Empreintes relevées en production avec supabase/schema/fingerprint.sql (25/11/2026, + purge du 26/11),
+// Empreintes relevées en production avec supabase/schema/fingerprint.sql (26/11/2026, après la purge),
 // identiques à « baseline du 16/11 + migrations postérieures » rejouées ci-dessous.
 const PRODUCTION = {
   functions: { n: 74, h: '7f40e20ea8b8aecbb7fdef4954e99ed9' },
