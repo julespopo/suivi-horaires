@@ -1546,7 +1546,7 @@ body.owner-read-only #planningModal :is(input,select,textarea){pointer-events:no
 .legal-dl{display:grid;grid-template-columns:minmax(140px,220px) 1fr;gap:8px 16px;margin:12px 0 0}
 .legal-dl dt{font-weight:750;color:var(--muted);font-size:13px}
 .legal-dl dd{margin:0}
-.legal-dl dd[data-a-completer]{color:var(--warn);font-style:italic}
+.legal-dl [data-a-completer]{color:var(--warn);font-style:italic}
 .legal-table{overflow-x:auto;border:1px solid var(--line);border-radius:14px}
 .legal-table table{min-width:0}
 .legal-table td{vertical-align:top}
